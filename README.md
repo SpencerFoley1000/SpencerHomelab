@@ -1,0 +1,2 @@
+# SpencerHomelab
+documenting my homelab
