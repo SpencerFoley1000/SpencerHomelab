@@ -22,7 +22,7 @@ This service is the first production-style infrastructure service deployed in th
 | Component | Details |
 | --- | --- |
 | Application | Pi-hole |
-| Operating system | Debian 13 |
+| Operating system | Debian 13.5 (Trixie) |
 | Platform | Proxmox virtual machine |
 | Deployment method | Official Pi-hole installer |
 | Upstream DNS | Cloudflare DNS selected during initial deployment |
@@ -54,7 +54,7 @@ Pi-hole currently provides DNS services for systems that are manually configured
 | --- | --- |
 | VM name | `dns01` |
 | Role | DNS infrastructure |
-| OS | Debian 13 |
+| OS | Debian 13.5 (Trixie) |
 | vCPU | 2 vCPU |
 | Memory | 2 GB RAM |
 | Disk | 20 GB |
@@ -96,7 +96,7 @@ Only sanitized hostnames should be committed to this repository. Avoid names tha
 
 High-level deployment flow:
 
-1. Created a Debian 13 VM in Proxmox.
+1. Created a Debian 13.5 (Trixie) VM in Proxmox.
 2. Installed a minimal, headless Debian system with SSH enabled.
 3. Configured a non-root administrative user with `sudo` access.
 4. Installed and verified the QEMU Guest Agent.
