@@ -70,14 +70,18 @@ Avoid filenames that include secrets, internal-only names, personal identifiers,
 
 ## Current Services
 
-No production-style services have been documented yet.
+| Service | State | Host | Purpose | Documentation |
+| --- | --- | --- | --- | --- |
+| Pi-hole | Active | `dns01` | Internal DNS, local DNS records, and DNS-based blocking for the homelab LAN | [pihole.md](pihole.md) |
 
-Planned candidates may include:
+## Planned Candidates
 
-- DNS / DHCP support
+Future service candidates may include:
+
 - Monitoring and dashboards
 - Backup tooling
 - Container hosting
+- Reverse proxy and internal TLS
 - Security lab services
 - Automation tooling
 
@@ -92,6 +96,7 @@ Planned candidates may include:
 - [Architecture Overview](../architecture/overview.md)
 - [Network Architecture](../architecture/network.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
+- [VM Inventory](../architecture/vm-inventory.md)
 - [Storage Architecture](../architecture/storage.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Security Architecture](../architecture/security.md)
