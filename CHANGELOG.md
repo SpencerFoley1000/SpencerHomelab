@@ -2,6 +2,34 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-07 - Services Documentation Templates
+
+### Changed
+
+- Expanded the services documentation index under `docs/services/`.
+- Added a standard service documentation template.
+- Added a runbook template for repeatable procedures.
+- Added a project template for larger service or infrastructure efforts.
+- Defined service lifecycle states for planned, experimental, active, deprecated, and retired services.
+
+### Why
+
+- Create a consistent documentation pattern before deploying production-style homelab services.
+- Make future service documentation easier to maintain and compare.
+- Support operational practices such as validation, rollback planning, troubleshooting, monitoring, backups, and recovery.
+
+### Lessons Learned
+
+- Service documentation should cover operations and recovery, not just installation notes.
+- Templates reduce the chance that future services miss important maintenance details.
+- Larger service projects should track design decisions, risks, validation, and lessons learned separately from day-to-day service pages.
+
+### Remaining Work
+
+- Add the first real service page once a service is deployed.
+- Add service-specific runbooks as operational procedures are created.
+- Link future service decisions to architecture decision records when appropriate.
+
 ## 2026-07-07 - Hardware Model Refinement
 
 ### Changed
