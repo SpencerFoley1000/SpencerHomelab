@@ -10,22 +10,22 @@ The inventory focuses on device roles and architecture impact rather than publis
 
 | Device | Role | Current Status | Notes |
 | --- | --- | --- | --- |
-| Primary virtualization server | Proxmox host for lab workloads | Active / baseline configuration | Core compute platform for the lab |
-| Managed switch | Wired lab connectivity and future VLAN support | Active / baseline configuration | Management address is intentionally sanitized |
-| Router / upstream gateway | Internet access and routing boundary | Existing dependency / future improvement | Long-term router/firewall design is still planned |
-| Desktop workstation | Administration and lab interaction | Active | Used for documentation, GitHub work, management access, and future lab tasks |
+| Lenovo ThinkPad E16 Gen 1 | Primary Proxmox virtualization host | Active / baseline configuration | 13th Gen Intel Core i5-1335U, 16 GB RAM, 1 TB PCIe SSD |
+| TP-Link TL-SG108E Easy Smart Switch | Managed wired switching and future VLAN support | Active / stock firmware | Current Layer 2 switching foundation for lab connectivity |
+| GL.iNet GL-SFT1200 Opal | Lab router | Active / stock firmware | Serves as the current regular router for the lab; may be repurposed or replaced later |
+| Administrative workstation | Documentation and infrastructure administration endpoint | Active | Personal workstation used to manage the lab; hardware specs intentionally omitted |
 | Secondary / security lab system | Potential attacker or isolated test system | Planned / optional | May be used for cyber security lab work if performance is acceptable |
 
 ## Sanitized Device Naming
 
-Public documentation should refer to systems by role instead of personal or identifying names.
+Public documentation should refer to systems by role or safe model name instead of personal or identifying names.
 
 Suggested labels:
 
-- `pve01` - Primary Proxmox host.
-- `switch01` - Managed switch.
-- `router01` - Router or firewall device.
-- `admin-workstation` - Primary desktop or administrative workstation.
+- `pve01` - Lenovo ThinkPad E16 Gen 1 Proxmox host.
+- `switch01` - TP-Link TL-SG108E managed switch.
+- `router01` - GL.iNet GL-SFT1200 Opal router.
+- `admin-workstation` - Personal workstation used for administration and documentation.
 - `sec-lab-client` - Optional security testing endpoint.
 
 ## Information to Track Privately
@@ -36,6 +36,7 @@ The following should be tracked outside the public repository, such as in a pass
 - Warranty information.
 - Purchase receipts.
 - Exact management IP addresses if not safe to publish.
+- MAC addresses.
 - Credentials.
 - Recovery codes.
 - License keys.
@@ -45,6 +46,7 @@ The following should be tracked outside the public repository, such as in a pass
 
 The following can usually be documented safely when sanitized:
 
+- Device model.
 - Device role.
 - General hardware class.
 - Operating system or firmware family.
@@ -56,9 +58,10 @@ The following can usually be documented safely when sanitized:
 
 ## Current Assumptions
 
-- The Proxmox host is the primary compute platform.
-- The managed switch is part of the current lab network baseline.
-- The lab still depends on existing upstream home networking for internet access.
+- The Lenovo ThinkPad E16 Gen 1 is the primary compute platform and runs Proxmox VE.
+- The TP-Link TL-SG108E is the current managed switch for wired lab connectivity.
+- The GL.iNet GL-SFT1200 Opal is currently serving as the lab router using stock firmware.
+- The administrative workstation is a personal endpoint, not core lab infrastructure, so detailed hardware specifications are intentionally omitted.
 - Exact internal addressing is not required to explain the architecture publicly.
 - Hardware documentation will be refined as devices are configured, replaced, or repurposed.
 
@@ -78,7 +81,7 @@ Examples of changes that should be documented:
 
 ## Future Improvements
 
-- Add sanitized hardware specs for each device.
+- Add firmware version notes if needed without exposing sensitive details.
 - Add power and physical placement notes if useful.
 - Add lifecycle status for each major device.
 - Add maintenance history once hardware updates begin.
