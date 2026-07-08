@@ -1,41 +1,43 @@
-# Router / Firewall
+# GL.iNet GL-SFT1200 Opal Router
 
 ## Purpose
 
-The router or firewall defines the routing boundary for the homelab. It controls how lab systems reach upstream networks and, eventually, how internal lab segments communicate with each other.
+The GL.iNet GL-SFT1200 Opal currently serves as the regular router for the homelab. It provides the routing boundary for lab systems and supports the early network foundation while the environment is still being built.
 
-This page documents the current dependency on existing upstream connectivity and the future direction for dedicated routing and firewalling.
+This page documents the router's current role and the future direction for more advanced routing, firewalling, and segmentation.
 
 ## Current Role
 
 | Area | Details |
 | --- | --- |
-| Device role | Upstream gateway / future router-firewall platform |
-| Current status | Existing dependency / long-term design pending |
-| Internet access | Provided through existing home network connectivity |
+| Device | GL.iNet GL-SFT1200 Opal |
+| Device role | Lab router |
+| Firmware | Stock firmware |
+| Current status | Active |
+| Internet access | Provides regular routing for the lab environment |
 | Lab routing | Currently simple; future segmentation planned |
 | Public documentation | Exact WAN/public details omitted |
 
 ## Current State
 
-The homelab currently relies on existing upstream internet connectivity. This keeps the first build simple while the hardware, switch, Proxmox host, and documentation foundation are established.
+The GL.iNet GL-SFT1200 Opal is currently used as the lab's regular router. This keeps the first build simple while the hardware, switch, Proxmox host, and documentation foundation are established.
 
 This is acceptable for the early phase because the lab is not yet hosting public services or complex segmented networks.
 
-## Design Reasoning
+## Design Decision
 
-Starting with the existing upstream network reduces initial complexity. A dedicated router/firewall should be introduced when there is a clear need, such as:
+The homelab uses the GL.iNet GL-SFT1200 Opal as the initial router because it is simple, compact, and sufficient for the current stage of the lab.
 
-- VLAN routing.
-- Firewall policy enforcement between lab segments.
-- Isolated security lab networks.
-- Internal DNS and DHCP control.
-- Remote access design.
-- More realistic network administration practice.
+This choice supports the current goals:
+
+- Establish a dedicated lab routing device.
+- Keep the early network build understandable.
+- Avoid introducing a full firewall platform before VLANs and service requirements are clearly defined.
+- Leave room to repurpose or replace the router later if the lab needs more advanced firewalling, routing, or monitoring capabilities.
 
 ## Future Router / Firewall Responsibilities
 
-A future dedicated router/firewall may provide:
+A future dedicated router/firewall platform may eventually provide:
 
 - Inter-VLAN routing.
 - DHCP services for lab networks.
@@ -72,19 +74,20 @@ Use placeholders:
 - Keep management access restricted to trusted networks.
 - Store administrative credentials in a password manager.
 - Treat VPN and remote access credentials as secrets.
+- Revisit the router/firewall design before adding isolated security lab workloads.
 
 ## Open Questions
 
-- Which platform will become the long-term router/firewall?
-- When should the lab move away from reliance on the existing household network?
+- Is the GL.iNet GL-SFT1200 Opal sufficient for the long-term routing role?
+- When should the lab move to a more advanced router/firewall platform?
 - Which VLANs need routing first?
 - Which services, if any, will ever be reachable remotely?
 - What logging is needed for future security projects?
 
 ## Future Improvements
 
-- Select and document the long-term router/firewall platform.
-- Add sanitized interface and VLAN layout.
+- Decide whether the Opal remains the long-term lab router or becomes a temporary/secondary device.
+- Add sanitized interface and VLAN layout after segmentation is implemented.
 - Document DHCP and DNS responsibilities.
 - Add firewall policy philosophy using placeholders.
 - Add recovery process for routing failure.
