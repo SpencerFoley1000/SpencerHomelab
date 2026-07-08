@@ -13,7 +13,6 @@ The inventory focuses on device roles and architecture impact rather than publis
 | Lenovo ThinkPad E16 Gen 1 | Primary Proxmox virtualization host | Active / baseline configuration | 13th Gen Intel Core i5-1335U, 16 GB RAM, 1 TB PCIe SSD |
 | TP-Link TL-SG108E Easy Smart Switch | Managed wired switching and future VLAN support | Active / stock firmware | Current Layer 2 switching foundation for lab connectivity |
 | GL.iNet GL-SFT1200 Opal | Lab router | Active / stock firmware | Serves as the current regular router for the lab; may be repurposed or replaced later |
-| Administrative workstation | Documentation and infrastructure administration endpoint | Active | Personal workstation used to manage the lab; hardware specs intentionally omitted |
 | Secondary / security lab system | Potential attacker or isolated test system | Planned / optional | May be used for cyber security lab work if performance is acceptable |
 
 ## Sanitized Device Naming
@@ -91,6 +90,5 @@ Examples of changes that should be documented:
 
 - [Switch](switch.md)
 - [Router](router.md)
-- [Desktop](desktop.md)
 - [Server](server.md)
 - [Architecture Overview](../architecture/overview.md)
