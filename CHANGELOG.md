@@ -2,6 +2,35 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-07 - Hardware Model Refinement
+
+### Changed
+
+- Updated hardware documentation to reflect actual deployed device models instead of generic placeholders.
+- Documented the Lenovo ThinkPad E16 Gen 1 as the primary Proxmox host.
+- Documented the TP-Link TL-SG108E Easy Smart Switch using stock firmware.
+- Documented the GL.iNet GL-SFT1200 Opal as the current lab router using stock firmware.
+- Reframed the desktop page as an administrative workstation without publishing personal workstation hardware details.
+
+### Why
+
+- Make the repository accurately represent the real homelab infrastructure.
+- Keep public documentation specific enough to be useful while still avoiding serial numbers, management IPs, MAC addresses, and personal workstation details.
+- Improve portfolio quality by documenting engineering tradeoffs behind hardware choices.
+
+### Lessons Learned
+
+- Real model names are useful and safe to publish when they do not expose personally identifying or secret information.
+- Personal workstation specifications should be omitted unless they are directly relevant to the lab architecture.
+- Business-class laptops can be a practical first Proxmox platform when power, noise, cost, and simplicity matter.
+
+### Remaining Work
+
+- Add sanitized switch port mapping after physical topology is finalized.
+- Add VLAN documentation after segmentation is implemented.
+- Revisit router/firewall design if the Opal no longer meets lab requirements.
+- Add recovery and maintenance runbooks for core hardware.
+
 ## 2026-07-07 - Hardware Documentation
 
 ### Changed
