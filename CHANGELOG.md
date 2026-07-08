@@ -2,6 +2,33 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-07 - Architecture Decision Records
+
+### Changed
+
+- Added the Architecture Decision Records index under `docs/decisions/`.
+- Added a standard ADR template.
+- Added ADR-0001 documenting the decision to use the Lenovo ThinkPad E16 Gen 1 as the initial Proxmox host.
+- Defined ADR naming, status values, and usage guidance.
+
+### Why
+
+- Preserve the reasoning behind meaningful infrastructure decisions.
+- Make design tradeoffs clear for future maintenance and portfolio review.
+- Establish a repeatable process for documenting future platform, networking, storage, monitoring, and security decisions.
+
+### Lessons Learned
+
+- Architecture decisions are more useful when they document context and tradeoffs, not just the final choice.
+- The first Proxmox host decision is significant enough to preserve because it affects cost, power, noise, capacity, and growth options.
+- ADRs help future readers understand why the lab evolved the way it did.
+
+### Remaining Work
+
+- Add ADRs for future router/firewall decisions.
+- Add ADRs for VLAN segmentation when implemented.
+- Add ADRs for monitoring, backup, and security platform choices.
+
 ## 2026-07-07 - Services Documentation Templates
 
 ### Changed
