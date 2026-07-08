@@ -35,7 +35,7 @@ Avoid publishing:
 
 | Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `dns01` | Pi-hole DNS and local DNS records | Debian 13 | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md) |
+| `dns01` | Pi-hole DNS and local DNS records | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md) |
 
 ## Recovery Priority
 
