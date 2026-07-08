@@ -2,6 +2,37 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-07 - Architecture Documentation
+
+### Changed
+
+- Added the architecture documentation index under `docs/architecture/`.
+- Expanded the high-level architecture overview.
+- Documented the current network baseline, sanitized addressing model, and future segmentation plan.
+- Documented the Proxmox virtualization strategy and workload categories.
+- Documented storage assumptions, backup philosophy, and future NAS considerations.
+- Documented monitoring goals, scope, alerting philosophy, and future observability direction.
+- Documented security architecture, public documentation boundaries, management access, and security lab isolation goals.
+
+### Why
+
+- Create a clear architecture baseline before adding more hardware-specific and service-specific documentation.
+- Make the repository more useful as both an operational reference and a public portfolio.
+- Preserve the reasoning behind early design decisions while the lab is still simple enough to explain cleanly.
+
+### Lessons Learned
+
+- Architecture documentation should describe the intended operating model, not just list devices.
+- Sanitized placeholders allow useful public documentation without exposing sensitive infrastructure details.
+- Security lab work should be planned around isolation before offensive or intentionally vulnerable workloads are introduced.
+
+### Remaining Work
+
+- Document the hardware inventory and device roles.
+- Add switch, router, desktop, and server documentation.
+- Add service documentation templates and runbooks for future workloads.
+- Create architecture decision records for major design choices.
+
 ## 2026-07-07 - Documentation Foundation
 
 ### Changed
