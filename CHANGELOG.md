@@ -7,7 +7,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 ### Changed
 
 - Deployed the first production-style infrastructure VM, `dns01`.
-- Installed Debian 13 as a minimal headless server.
+- Installed Debian 13.5 (Trixie) as a minimal headless server.
 - Configured non-root administration with `sudo`.
 - Installed and verified the QEMU Guest Agent for Proxmox integration.
 - Configured a static IP for the DNS VM on the homelab LAN.
