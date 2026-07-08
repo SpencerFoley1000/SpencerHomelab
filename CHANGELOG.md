@@ -2,6 +2,51 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-08 - Project 001: Pi-hole DNS Service
+
+### Changed
+
+- Deployed the first production-style infrastructure VM, `dns01`.
+- Installed Debian 13 as a minimal headless server.
+- Configured non-root administration with `sudo`.
+- Installed and verified the QEMU Guest Agent for Proxmox integration.
+- Configured a static IP for the DNS VM on the homelab LAN.
+- Installed Pi-hole as the homelab DNS service.
+- Selected Cloudflare as the initial upstream DNS provider.
+- Added local DNS records for core homelab infrastructure.
+- Verified DNS resolution from a separate client.
+- Added service documentation for Pi-hole under `docs/services/pihole.md`.
+- Added VM inventory documentation under `docs/architecture/vm-inventory.md`.
+- Updated network architecture documentation to reflect the GL.iNet Opal as the homelab edge router.
+- Updated router documentation to clarify that the household network is an upstream dependency, not managed lab infrastructure.
+
+### Why
+
+- Establish DNS as the first foundational homelab service.
+- Provide readable internal names for infrastructure systems instead of relying on memorized IP addresses.
+- Create a safer isolated lab design behind the GL.iNet Opal router without affecting the household network.
+- Build practical skills in Linux administration, Proxmox VM deployment, static networking, DNS, and troubleshooting.
+- Start documenting real services in a portfolio-ready format as soon as they become part of the environment.
+
+### Lessons Learned
+
+- Hardware virtualization may need to be explicitly enabled in firmware before Proxmox can start KVM-backed VMs.
+- Debian installation behavior differs depending on whether a root password is configured; `sudo` access may need to be added manually.
+- Minimal Debian installs may not include convenience tools such as `curl` by default.
+- QEMU Guest Agent behavior depends on both the guest package and the Proxmox VM option being enabled.
+- Static IP configuration can succeed while DNS resolution fails if resolver configuration is incomplete.
+- Troubleshooting by layer is effective: verify gateway reachability, internet-by-IP, then DNS resolution.
+- The GL.iNet Opal topology gives the homelab a useful isolation boundary while still depending on upstream Wi-Fi for internet access.
+
+### Remaining Work
+
+- Configure the GL.iNet Opal DHCP settings to hand out Pi-hole as DNS for homelab clients after stability is validated.
+- Add a secondary DNS server before relying on Pi-hole for all homelab clients.
+- Export Pi-hole configuration after meaningful DNS changes.
+- Add monitoring for DNS availability and query health.
+- Add VM backup coverage and restore testing once backup infrastructure is deployed.
+- Consider Unbound as a future recursive DNS resolver project.
+
 ## 2026-07-07 - Architecture Decision Records
 
 ### Changed
@@ -53,7 +98,6 @@ This changelog records meaningful infrastructure, documentation, and process cha
 
 ### Remaining Work
 
-- Add the first real service page once a service is deployed.
 - Add service-specific runbooks as operational procedures are created.
 - Link future service decisions to architecture decision records when appropriate.
 
