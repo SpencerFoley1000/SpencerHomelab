@@ -1,8 +1,8 @@
-# Managed Switch
+# TP-Link TL-SG108E Managed Switch
 
 ## Purpose
 
-The managed switch provides wired connectivity for the homelab and will become the foundation for future VLAN segmentation.
+The TP-Link TL-SG108E Easy Smart Switch provides wired connectivity for the homelab and will become the foundation for future VLAN segmentation.
 
 It is currently part of the baseline network build. The immediate goal is reliable connectivity and management access. The long-term goal is to support management, lab, and security network separation.
 
@@ -10,7 +10,9 @@ It is currently part of the baseline network build. The immediate goal is reliab
 
 | Area | Details |
 | --- | --- |
+| Device | TP-Link TL-SG108E Easy Smart Switch |
 | Device role | Managed access switch |
+| Firmware | Stock firmware |
 | Current status | Active / baseline configuration |
 | Network role | Connects lab devices to the current private network |
 | Management | Internal management address; exact value omitted from public documentation |
@@ -19,20 +21,21 @@ It is currently part of the baseline network build. The immediate goal is reliab
 ## Current Configuration Notes
 
 - The switch is reachable on the current private network.
+- The switch is running stock firmware.
 - Management credentials should be stored in a password manager.
 - Exact management IP address should be documented privately or with a placeholder such as `<SWITCH_MGMT_IP>`.
 - VLAN design is planned but should not be treated as complete until configured, tested, and documented.
 
-## Design Reasoning
+## Design Decision
 
-A managed switch was added early because it gives the lab room to grow beyond a flat network.
+The homelab uses a TP-Link TL-SG108E as the initial managed switch because it provides a simple, affordable way to introduce managed switching concepts without adding unnecessary enterprise complexity early in the build.
 
-Benefits:
+This is useful for:
 
-- Supports future VLAN segmentation.
-- Provides a realistic networking component for systems and network administration practice.
-- Allows infrastructure devices to be wired instead of relying entirely on wireless connectivity.
-- Creates a foundation for management, lab services, and security testing networks.
+- Learning basic managed switch administration.
+- Preparing for VLAN segmentation.
+- Wiring infrastructure devices instead of relying entirely on wireless connectivity.
+- Building a realistic network foundation for future services and security labs.
 
 ## Management Access
 
@@ -71,7 +74,7 @@ VLAN IDs, subnet details, and port assignments should be documented after they a
 - Restrict switch management access where possible.
 - Avoid exposing management interfaces outside the internal network.
 - Back up or document the switch configuration once it becomes non-trivial.
-- Review firmware update options and document the update process.
+- Review stock firmware update options and document the update process.
 
 ## Maintenance Notes
 
