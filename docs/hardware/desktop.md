@@ -1,8 +1,10 @@
-# Desktop Workstation
+# Administrative Workstation
 
 ## Purpose
 
-The desktop workstation is the primary administrative and learning endpoint for the homelab. It is used to manage documentation, access infrastructure tools, interact with GitHub, and run local lab tasks when appropriate.
+The administrative workstation is the personal endpoint used to manage the homelab. It is used to maintain documentation, access infrastructure tools, interact with GitHub, and perform management tasks.
+
+This system is intentionally documented by role rather than hardware specifications because it is not core lab infrastructure.
 
 ## Current Role
 
@@ -11,12 +13,12 @@ The desktop workstation is the primary administrative and learning endpoint for 
 | Device role | Administrative workstation and general lab endpoint |
 | Current status | Active |
 | Primary use | Documentation, GitHub, management access, troubleshooting, and learning workflows |
-| Future use | Possible local VM testing, security tooling, or cloud/security learning tasks |
-| Public documentation | Personal usernames, exact hostnames, and sensitive paths omitted |
+| Future use | Possible security tooling, cloud tooling, or client-side testing |
+| Public documentation | Personal usernames, exact hostnames, local paths, and hardware specs omitted |
 
 ## Responsibilities
 
-The desktop workstation may be used for:
+The administrative workstation may be used for:
 
 - Editing and maintaining the GitHub documentation repository.
 - Accessing Proxmox and other internal management interfaces.
@@ -25,16 +27,18 @@ The desktop workstation may be used for:
 - Testing client-side access to internal services.
 - Supporting future Azure, security, or automation learning workflows.
 
-## Design Reasoning
+## Design Decision
 
-Keeping a dedicated administrative workstation role helps separate daily lab management from server workloads.
+The workstation is documented as an administrative endpoint instead of a lab infrastructure device.
+
+This avoids unnecessary personal hardware detail in the public repository while still documenting the operational role the workstation plays in managing the environment.
 
 Benefits:
 
-- Easier documentation workflow through VS Code and Git.
-- More realistic administration pattern than configuring everything directly on servers.
-- Provides a trusted endpoint for managing infrastructure.
-- Can support future security and cloud learning without making the Proxmox host a general-purpose desktop.
+- Keeps the repository focused on infrastructure.
+- Avoids publishing personal workstation specifications that do not materially affect the lab design.
+- Reduces maintenance when the personal workstation changes.
+- Still documents the management path used to operate the homelab.
 
 ## Security Considerations
 
@@ -42,19 +46,20 @@ Benefits:
 - Avoid storing secrets directly in project files.
 - Use a password manager for infrastructure credentials.
 - Keep GitHub authentication tokens and SSH private keys out of the repository.
-- Avoid committing personal usernames, local Windows paths, or screenshots that reveal sensitive details.
+- Avoid committing personal usernames, local paths, or screenshots that reveal sensitive details.
 - Keep the system patched, especially if it is used to access management interfaces.
 
 ## Documentation Boundaries
 
 Do not publish:
 
-- Personal Windows username if not intentionally public.
+- Personal operating system username if not intentionally public.
 - Local filesystem paths containing personal names.
 - Browser screenshots containing private tabs, account names, or internal IPs.
 - SSH private keys.
 - GitHub tokens.
 - Password manager exports.
+- Personal hardware specifications unless they become relevant to the lab design.
 
 Use placeholders:
 
