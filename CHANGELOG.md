@@ -2,7 +2,7 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
-## 2026-07-09 - Project 002: Monitoring Baseline, Node Exporter, Prometheus, and Grafana
+## 2026-07-09 - Project 002: Monitoring Baseline, Node Exporter, Prometheus, Grafana, and dns01 Monitoring
 
 ### Changed
 
@@ -15,13 +15,20 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Verified Node Exporter locally with `curl localhost:9100/metrics`.
 - Installed Prometheus using the Debian package repository.
 - Configured Prometheus to scrape itself on `localhost:9090` and Node Exporter on `localhost:9100`.
-- Validated Prometheus target health in the web UI, with both scrape targets reporting `UP`.
+- Validated Prometheus target health in the web UI, with both initial scrape targets reporting `UP`.
 - Ran initial PromQL validation queries including `up`, `node_memory_MemAvailable_bytes`, and root filesystem availability checks.
 - Installed Grafana using the Grafana APT repository.
 - Started and validated the `grafana-server` service.
 - Configured Grafana to use Prometheus as its first data source.
 - Imported a Node Exporter dashboard to validate end-to-end visualization.
+- Installed Node Exporter on `dns01`.
+- Validated the `dns01` Node Exporter endpoint locally with `curl localhost:9100/metrics`.
+- Validated remote scrape reachability from `mon01` to `dns01`.
+- Added `dns01` as the first remote Prometheus scrape target under the `node_exporter` job.
+- Confirmed Prometheus target health showed the `dns01` target as `UP`.
+- Confirmed Grafana can display both `mon01` and `dns01` when using the `node_exporter` job selector.
 - Added `mon01` to the VM inventory under `docs/architecture/vm-inventory.md`.
+- Updated `dns01` in the VM inventory to reflect monitored host metrics.
 - Updated monitoring architecture documentation under `docs/architecture/monitoring.md`.
 - Added Node Exporter service documentation under `docs/services/node-exporter.md`.
 - Added Prometheus service documentation under `docs/services/prometheus.md`.
@@ -34,6 +41,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Establish monitoring as a dedicated infrastructure role instead of combining it with DNS or the Proxmox host.
 - Build the observability stack from the bottom up by exposing metrics before installing Prometheus or Grafana.
 - Move from one-time metric inspection to time-series metric collection and dashboard visualization.
+- Expand monitoring coverage beyond the monitoring VM itself by adding `dns01`, the first production-style service VM.
 - Practice enterprise-style separation of responsibilities, validation, troubleshooting, and documentation.
 - Create a foundation for future host metrics, DNS health checks, dashboards, alerting, and capacity planning.
 
@@ -44,7 +52,10 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Prometheus scrapes configured targets on an interval and stores metric samples as time-series data.
 - Grafana connects to Prometheus as a data source and visualizes PromQL-backed metrics.
 - Building the stack layer-by-layer makes troubleshooting easier because each dependency can be validated independently.
+- Remote scrape targets should be validated with `curl` from the Prometheus host before Prometheus configuration is changed.
+- Scraping `dns01` by static IP avoids making DNS monitoring depend on DNS resolution from the same host being monitored.
 - Prometheus target health may briefly show `UNKNOWN` until the first scrape completes.
+- Imported Grafana dashboards may assume different Prometheus job names; selecting or adjusting the correct job variable may be required.
 - A successful `curl -I localhost:3000` response can validate Grafana even when a port listing is unclear.
 - If APT cannot locate a package from a third-party repository, verify the repository file, signing key, and `apt-get update` output.
 - QEMU Guest Agent depends on both the guest package and the Proxmox-provided virtio serial device.
@@ -53,11 +64,9 @@ This changelog records meaningful infrastructure, documentation, and process cha
 
 ### Remaining Work
 
-- Add Node Exporter to `dns01` as the first remote scrape target.
-- Configure Prometheus to scrape `dns01`.
-- Confirm Grafana dashboards display both `mon01` and `dns01` metrics.
 - Build a custom Linux host dashboard for learning and portfolio polish.
 - Add DNS availability checks and future Pi-hole metrics.
+- Add Proxmox monitoring approach.
 - Add alerting only after checks are documented and actionable.
 - Add backup coverage for `mon01` once backup infrastructure is deployed.
 
