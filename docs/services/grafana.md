@@ -27,6 +27,7 @@ Grafana helps answer operational questions such as:
 | Default Port | `3000/tcp` |
 | Data Source | Prometheus on `localhost:9090` |
 | Current Dashboard | Imported Node Exporter dashboard |
+| Current Dashboard Targets | `mon01`, `dns01` |
 
 ## Host
 
@@ -81,6 +82,7 @@ Current dashboard status:
 - Node Exporter dashboard imported.
 - Prometheus selected as the dashboard data source.
 - Dashboard panels display metrics collected from `mon01`.
+- After `dns01` was added as a remote Prometheus scrape target, the imported dashboard was able to display both `mon01` and `dns01` when the `node_exporter` job was selected.
 
 A custom dashboard will be built later for learning value and portfolio polish. The imported dashboard proves that the pipeline works, while a custom dashboard will demonstrate understanding of PromQL, panel design, and operational priorities.
 
@@ -114,7 +116,9 @@ Validate from the Grafana web UI:
 1. Log in to Grafana from the internal homelab network.
 2. Confirm the Prometheus data source test succeeds.
 3. Open the imported Node Exporter dashboard.
-4. Confirm panels show data from Prometheus.
+4. Select the `node_exporter` job.
+5. Confirm both `mon01` and `dns01` are available as monitored hosts.
+6. Confirm panels show data from Prometheus.
 
 ## Security Considerations
 
@@ -172,7 +176,13 @@ If Grafana is not responding:
    curl localhost:9090/-/healthy
    ```
 
-6. Restart Grafana if needed:
+6. Confirm Prometheus has scrape data for monitored hosts:
+
+   ```promql
+   up{job="node_exporter"}
+   ```
+
+7. Restart Grafana if needed:
 
    ```bash
    sudo systemctl restart grafana-server
@@ -214,18 +224,32 @@ Operational lesson:
 
 - If a port check is unclear, test the service directly with an application-layer check such as `curl` before assuming the service is broken.
 
+### Imported Dashboard Job Selector
+
+After adding `dns01`, the imported dashboard initially showed `mon01` under one dashboard job selector and both hosts only after switching to the `node_exporter` job.
+
+Resolution:
+
+- Waited for Prometheus to complete a scrape cycle.
+- Selected the `node_exporter` job in the imported dashboard.
+- Confirmed both `mon01` and `dns01` were visible.
+
+Operational lesson:
+
+- Imported dashboards may assume different job names than the local Prometheus configuration.
+- Dashboard variables may need to be adjusted or refreshed after adding new scrape targets.
+
 ## Maintenance Notes
 
 - Keep Grafana updated through normal package management.
 - Export important dashboards after they are customized.
 - Review data source health after Prometheus changes.
 - Avoid storing secrets in dashboards, panel queries, or documentation.
-- Build custom dashboards once monitoring coverage expands beyond `mon01`.
+- Build custom dashboards once monitoring coverage expands beyond imported dashboard validation.
 
 ## Future Improvements
 
-- Build a custom Linux host dashboard for `mon01`.
-- Add dashboard coverage for `dns01` after it becomes a Prometheus scrape target.
+- Build a custom Linux host dashboard for `mon01` and `dns01`.
 - Add DNS availability and Pi-hole panels.
 - Export important dashboards as JSON.
 - Consider dashboard provisioning from version-controlled configuration.
