@@ -36,7 +36,7 @@ Avoid publishing:
 | Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `dns01` | Pi-hole DNS and local DNS records | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md) |
-| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 2 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md) |
+| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 2 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md) |
 
 ## Recovery Priority
 
@@ -75,7 +75,7 @@ This format is short, readable, and easy to expand as the lab grows.
 
 - Add VM IDs if they can be documented safely.
 - Add backup schedule and retention once backup infrastructure exists.
-- Add monitoring status once Prometheus and Grafana are fully deployed.
+- Add monitoring status once additional hosts such as `dns01` are monitored.
 - Add owner, service tier, and restore-time expectations for critical services.
 - Link VM entries to service pages, runbooks, and architecture decision records.
 
@@ -86,4 +86,6 @@ This format is short, readable, and easy to expand as the lab grows.
 - [Monitoring and Observability](monitoring.md)
 - [Pi-hole Service](../services/pihole.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Prometheus Service](../services/prometheus.md)
+- [Grafana Service](../services/grafana.md)
 - [Hardware Inventory](../hardware/inventory.md)
