@@ -6,7 +6,7 @@ Active
 
 ## Purpose
 
-Node Exporter exposes Linux host metrics in a Prometheus-compatible format. It is the first monitoring component deployed for Project 002 because it provides the raw host metrics that Prometheus will later scrape and store.
+Node Exporter exposes Linux host metrics in a Prometheus-compatible format. It is the first monitoring component deployed for Project 002 because it provides the raw host metrics that Prometheus scrapes and stores.
 
 Node Exporter helps answer operational questions such as:
 
@@ -27,6 +27,7 @@ Node Exporter helps answer operational questions such as:
 | Deployment Method | Debian package repository |
 | Default Port | `9100/tcp` |
 | Metrics Path | `/metrics` |
+| Current Scraper | Prometheus on `mon01` |
 
 ## Host
 
@@ -55,6 +56,8 @@ curl localhost:9100/metrics
 
 The `curl` test returned Prometheus-formatted metric output, confirming that the exporter is exposing host metrics successfully.
 
+Prometheus has been configured to scrape this endpoint as the `node_exporter` job.
+
 ## Networking
 
 | Item | Value |
@@ -63,6 +66,7 @@ The `curl` test returned Prometheus-formatted metric output, confirming that the
 | Access Scope | Internal homelab only |
 | Public Exposure | None |
 | Intended Consumer | Prometheus on `mon01` |
+| Current Prometheus Target | `localhost:9100` |
 
 Node Exporter should not be exposed to the public internet. Metrics can reveal infrastructure details such as hostnames, filesystem paths, kernel information, network interfaces, and resource usage patterns.
 
@@ -94,6 +98,12 @@ Expected results:
 - The service returns `active`.
 - The `/metrics` endpoint returns a large text response containing metrics beginning with names such as `node_cpu`, `node_memory`, `node_filesystem`, and `node_network`.
 
+Prometheus validation:
+
+- In the Prometheus web UI, `Status -> Target health` should show the `node_exporter` job as `UP`.
+- The PromQL query `up` should return `1` for the Node Exporter target.
+- The PromQL query `node_memory_MemAvailable_bytes` should return memory metrics for `mon01`.
+
 ## Security Considerations
 
 - Keep Node Exporter internal-only.
@@ -109,7 +119,7 @@ Node Exporter itself is stateless. The package can be reinstalled from the Debia
 Important state belongs to:
 
 - Host configuration.
-- Prometheus scrape configuration after Prometheus is deployed.
+- Prometheus scrape configuration.
 - Documentation in this repository.
 
 ## Recovery Procedure
@@ -128,7 +138,12 @@ If Node Exporter is not responding:
    curl localhost:9100/metrics
    ```
 
-3. Confirm the host is reachable from Prometheus once Prometheus is deployed.
+3. Confirm Prometheus can scrape the target:
+
+   ```promql
+   up
+   ```
+
 4. Review logs if the service fails to start:
 
    ```bash
@@ -146,12 +161,12 @@ If Node Exporter is not responding:
 - Keep the package updated through normal Debian patching.
 - Revalidate the `/metrics` endpoint after major OS updates.
 - Watch for changes to exposed metrics when Debian or Node Exporter versions change.
-- Add this exporter as a Prometheus scrape target during the Prometheus milestone.
+- Confirm Prometheus target health after changes to Node Exporter or Prometheus configuration.
 
 ## Future Improvements
 
 - Install Node Exporter on `dns01`.
-- Add Prometheus scrape configuration for `mon01` and `dns01`.
+- Add Prometheus scrape configuration for `dns01`.
 - Add dashboards showing CPU, memory, disk, network, and uptime.
 - Add alerting only after Prometheus and Grafana are working and runbooks exist.
 
@@ -159,4 +174,5 @@ If Node Exporter is not responding:
 
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
+- [Prometheus Service](prometheus.md)
 - [VM Inventory](../architecture/vm-inventory.md)
