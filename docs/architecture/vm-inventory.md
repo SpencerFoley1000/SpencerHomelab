@@ -35,7 +35,7 @@ Avoid publishing:
 
 | Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `dns01` | Pi-hole DNS and local DNS records | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md) |
+| `dns01` | Pi-hole DNS, local DNS records, and monitored Linux host metrics | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md), [Node Exporter](../services/node-exporter.md) |
 | `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 2 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md) |
 
 ## Recovery Priority
@@ -64,9 +64,9 @@ This format is short, readable, and easy to expand as the lab grows.
 
 ## Notes
 
-- `dns01` is the first production-style infrastructure VM.
+- `dns01` is the first production-style infrastructure VM and is now monitored through Node Exporter.
 - `mon01` is the dedicated monitoring VM for Project 002.
-- Monitoring is intentionally separated from DNS to avoid combining unrelated infrastructure roles.
+- Monitoring is intentionally separated from DNS to avoid combining unrelated infrastructure roles on `dns01`.
 - Future infrastructure VMs should be added here before being considered complete.
 - Experimental VMs should be clearly labeled as experimental or temporary.
 - Backup status should be updated once Proxmox Backup Server or another backup target is deployed.
@@ -75,7 +75,7 @@ This format is short, readable, and easy to expand as the lab grows.
 
 - Add VM IDs if they can be documented safely.
 - Add backup schedule and retention once backup infrastructure exists.
-- Add monitoring status once additional hosts such as `dns01` are monitored.
+- Add monitoring status for future infrastructure VMs as they are onboarded.
 - Add owner, service tier, and restore-time expectations for critical services.
 - Link VM entries to service pages, runbooks, and architecture decision records.
 
