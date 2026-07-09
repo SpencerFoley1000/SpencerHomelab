@@ -6,7 +6,16 @@ This document describes the monitoring, logging, and alerting strategy for the h
 
 ## Current Status
 
-Monitoring is planned but not yet fully implemented. The immediate goal is to define what should eventually be monitored before adding tools.
+Monitoring implementation has started under Project 002.
+
+Current deployed components:
+
+| Component | Host | Status | Purpose |
+| --- | --- | --- | --- |
+| `mon01` | Proxmox VE | Active / In Progress | Dedicated monitoring and observability VM |
+| Node Exporter | `mon01` | Active | Exposes Linux host metrics over HTTP for future Prometheus scraping |
+
+Prometheus and Grafana are planned next. The current focus is building the stack from the bottom up by first validating that host metrics are being exposed correctly.
 
 Monitoring should start small and answer practical questions:
 
@@ -35,18 +44,69 @@ Monitoring should start small and answer practical questions:
 | Backups | Job success, failure, age, restore tests | Backups are only useful if they can be trusted |
 | Security events | Authentication failures, unexpected exposure, suspicious logs | Supports future defensive security projects |
 
+## Initial Architecture
+
+The monitoring stack is being built in layers:
+
+```text
+Linux hosts
+    |
+    | expose metrics
+    v
+Node Exporter
+    |
+    | HTTP /metrics endpoint
+    v
+Prometheus
+    |
+    | query and time-series storage
+    v
+Grafana
+```
+
+This order is intentional:
+
+1. Export metrics first.
+2. Collect and store metrics second.
+3. Visualize metrics last.
+
+This makes troubleshooting easier because each layer can be validated before the next layer depends on it.
+
 ## Tooling Direction
 
-Specific tools should be selected based on the problem being solved. The initial stack may eventually include:
+Initial selected tools:
 
-- Host metrics collection.
+| Tool | Role | Notes |
+| --- | --- | --- |
+| Node Exporter | Host metrics exporter | Installed first to expose Linux metrics from `mon01`. |
+| Prometheus | Metrics collection and time-series database | Planned next; will scrape Node Exporter endpoints. |
+| Grafana | Dashboard and visualization platform | Planned after Prometheus is collecting real data. |
+
+Future additions may include:
+
 - Service uptime checks.
 - Centralized dashboards.
 - Log collection.
 - Alert routing.
 - Backup job monitoring.
+- DNS-specific and Pi-hole-specific metrics.
 
 Tool choices should be documented in service pages and architecture decision records once selected.
+
+## Metrics Model
+
+A metric is a numerical measurement of system or application state at a point in time.
+
+Examples:
+
+- CPU time.
+- Available memory.
+- Filesystem size and free space.
+- Network bytes received and transmitted.
+- Uptime.
+- Service health.
+
+Node Exporter reads Linux kernel and operating system data from sources such as `/proc` and `/sys`, then exposes that data in a Prometheus-compatible text format at `/metrics`.
 
 ## Alerting Philosophy
 
@@ -58,6 +118,8 @@ Alerts should be actionable. An alert should usually answer:
 - Is there a runbook?
 
 Avoid creating alerts that are noisy, unclear, or ignored. A small number of useful alerts is better than a large number of low-value alerts.
+
+Alerting will not be enabled until the underlying checks are understood and documented.
 
 ## Dashboard Philosophy
 
@@ -88,16 +150,35 @@ Logs may contain sensitive information and should not be committed to the reposi
 ## Security Considerations
 
 - Monitoring tools often have broad visibility and should be protected.
+- Node Exporter should not be exposed outside trusted internal networks.
+- Prometheus should remain internal because metrics can reveal infrastructure details.
 - Dashboards should not be exposed publicly without strong authentication.
 - Alert destinations should not leak sensitive infrastructure details.
 - Logs should be treated as potentially sensitive.
 - Security lab systems should be monitored without allowing them to control trusted infrastructure.
 
+## Troubleshooting Lessons
+
+### QEMU Guest Agent Virtual Device
+
+During `mon01` setup, QEMU Guest Agent was enabled in Proxmox and installed inside Debian, but the service initially could not start because `/dev/virtio-ports/org.qemu.guest_agent.0` was missing.
+
+A full Proxmox stop/start recreated the VM hardware and exposed the virtio serial device. A guest-only reboot was not enough.
+
+Operational takeaway:
+
+- If a service depends on virtual hardware, check both the guest OS and the hypervisor configuration.
+- If virtual hardware is missing after a configuration change, perform a full power cycle from the hypervisor.
+
 ## Future Improvements
 
-- Select and document the initial monitoring stack.
-- Create a monitoring service page.
+- Install and configure Prometheus on `mon01`.
+- Configure Prometheus to scrape `mon01` Node Exporter.
+- Create a monitoring service page for Prometheus.
+- Add Grafana after Prometheus is collecting data.
 - Add host and service dashboards.
+- Add `dns01` host metrics.
+- Add DNS availability checks.
 - Add backup job monitoring.
 - Add alert routing for critical failures.
 - Add security detection experiments after segmentation is in place.
@@ -109,3 +190,6 @@ Logs may contain sensitive information and should not be committed to the reposi
 - [Virtualization Architecture](virtualization.md)
 - [Storage Architecture](storage.md)
 - [Security Architecture](security.md)
+- [VM Inventory](vm-inventory.md)
+- [Node Exporter Service](../services/node-exporter.md)
+- [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
