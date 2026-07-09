@@ -71,12 +71,13 @@ Prometheus is configured through:
 /etc/prometheus/prometheus.yml
 ```
 
-The initial scrape configuration includes:
+The current scrape configuration includes:
 
 | Job | Target | Purpose |
 | --- | --- | --- |
 | `prometheus` | `localhost:9090` | Prometheus self-monitoring |
 | `node_exporter` | `localhost:9100` | Linux host metrics from `mon01` |
+| `node_exporter` | `<DNS01_IP>:9100` | Linux host metrics from `dns01` |
 
 The Node Exporter scrape target includes labels for host and role identification:
 
@@ -87,6 +88,11 @@ The Node Exporter scrape target includes labels for host and role identification
       labels:
         host: 'mon01'
         role: 'monitoring'
+
+    - targets: ['<DNS01_IP>:9100']
+      labels:
+        host: 'dns01'
+        role: 'dns'
 ```
 
 Exact IP addresses are intentionally omitted from public documentation. Use sanitized placeholders such as `<MON01_IP>` and `<DNS01_IP>` when documenting browser access or remote scrape targets.
@@ -98,7 +104,7 @@ Exact IP addresses are intentionally omitted from public documentation. Use sani
 | Listen Port | `9090/tcp` |
 | Access Scope | Internal homelab only |
 | Public Exposure | None |
-| Current Scrape Targets | `localhost:9090`, `localhost:9100` |
+| Current Scrape Targets | `localhost:9090`, `localhost:9100`, `<DNS01_IP>:9100` |
 | Current Visualization Consumer | Grafana on `localhost:3000` |
 
 Prometheus should not be exposed to the public internet. Metrics can reveal hostnames, paths, service names, kernel information, resource usage patterns, and other infrastructure details.
@@ -145,8 +151,19 @@ Expected current targets:
 | --- | --- | --- |
 | `prometheus` | `localhost:9090` | `UP` |
 | `node_exporter` | `localhost:9100` | `UP` |
+| `node_exporter` | `<DNS01_IP>:9100` | `UP` |
 
 A newly added target may briefly show `UNKNOWN` until Prometheus completes a scrape cycle.
+
+### Remote Target Validation
+
+Before adding a remote target to Prometheus, validate the exporter from `mon01`:
+
+```bash
+curl http://<DNS01_IP>:9100/metrics
+```
+
+This confirms that the exporter is reachable from the Prometheus host before Prometheus configuration is changed.
 
 ### Grafana Data Source Validation
 
@@ -168,10 +185,16 @@ up
 Expected: configured healthy targets return `1`.
 
 ```promql
+up{job="node_exporter"}
+```
+
+Expected: both `mon01` and `dns01` return `1`.
+
+```promql
 node_memory_MemAvailable_bytes
 ```
 
-Expected: available memory metrics from Node Exporter.
+Expected: available memory metrics from Node Exporter for monitored hosts.
 
 ```promql
 node_filesystem_avail_bytes{mountpoint="/"}
@@ -221,19 +244,25 @@ If Prometheus is not responding:
    journalctl -u prometheus --no-pager -n 100
    ```
 
-5. Confirm Node Exporter is still responding:
+5. Confirm local Node Exporter is still responding:
 
    ```bash
    curl localhost:9100/metrics
    ```
 
-6. Confirm Grafana can query Prometheus:
+6. Confirm remote Node Exporter targets are reachable:
+
+   ```bash
+   curl http://<DNS01_IP>:9100/metrics
+   ```
+
+7. Confirm Grafana can query Prometheus:
 
    ```bash
    curl -I localhost:3000
    ```
 
-7. Restart Prometheus after fixing configuration or service issues:
+8. Restart Prometheus after fixing configuration or service issues:
 
    ```bash
    sudo systemctl restart prometheus
@@ -247,6 +276,7 @@ If Prometheus is not responding:
 - Avoid committing secrets, API tokens, credentials, or private URLs in scrape configurations.
 - Treat metrics as operationally sensitive because they can reveal infrastructure structure and behavior.
 - Add authentication or reverse proxy controls before any broader access is considered.
+- Use sanitized placeholders instead of exact internal IP addresses in public documentation.
 
 ## Maintenance Notes
 
@@ -259,7 +289,6 @@ If Prometheus is not responding:
 
 ## Future Improvements
 
-- Add Node Exporter on `dns01` and configure it as the first remote scrape target.
 - Add DNS availability checks.
 - Add Pi-hole metrics or DNS-specific exporters.
 - Add Proxmox monitoring through an appropriate exporter or API-based method.
