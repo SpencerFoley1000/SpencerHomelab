@@ -6,7 +6,7 @@ Active
 
 ## Purpose
 
-Prometheus collects, stores, and queries metrics for the homelab monitoring stack. It is the second deployed component in Project 002 after Node Exporter.
+Prometheus collects, stores, and queries metrics for the homelab monitoring stack. It is the second deployed component in Project 002 after Node Exporter and now serves as the data source for Grafana.
 
 Prometheus helps answer operational questions such as:
 
@@ -27,6 +27,7 @@ Prometheus helps answer operational questions such as:
 | Default Port | `9090/tcp` |
 | Configuration File | `/etc/prometheus/prometheus.yml` |
 | Data Model | Time-series metrics |
+| Current Visualization Consumer | Grafana on `mon01` |
 
 ## Host
 
@@ -54,6 +55,14 @@ curl localhost:9090/-/healthy
 
 The Prometheus web UI was also validated from the internal homelab network.
 
+Grafana is configured to query Prometheus using:
+
+```text
+http://localhost:9090
+```
+
+`localhost` is used because Grafana and Prometheus both run on `mon01`.
+
 ## Configuration
 
 Prometheus is configured through:
@@ -80,7 +89,7 @@ The Node Exporter scrape target includes labels for host and role identification
         role: 'monitoring'
 ```
 
-Exact IP addresses are intentionally omitted from public documentation. Use sanitized placeholders such as `<MON01_IP>` when documenting browser access or remote scrape targets.
+Exact IP addresses are intentionally omitted from public documentation. Use sanitized placeholders such as `<MON01_IP>` and `<DNS01_IP>` when documenting browser access or remote scrape targets.
 
 ## Networking
 
@@ -90,6 +99,7 @@ Exact IP addresses are intentionally omitted from public documentation. Use sani
 | Access Scope | Internal homelab only |
 | Public Exposure | None |
 | Current Scrape Targets | `localhost:9090`, `localhost:9100` |
+| Current Visualization Consumer | Grafana on `localhost:3000` |
 
 Prometheus should not be exposed to the public internet. Metrics can reveal hostnames, paths, service names, kernel information, resource usage patterns, and other infrastructure details.
 
@@ -137,6 +147,15 @@ Expected current targets:
 | `node_exporter` | `localhost:9100` | `UP` |
 
 A newly added target may briefly show `UNKNOWN` until Prometheus completes a scrape cycle.
+
+### Grafana Data Source Validation
+
+In Grafana:
+
+1. Open the Prometheus data source.
+2. Confirm the URL is `http://localhost:9090`.
+3. Use **Save & test**.
+4. Confirm Grafana successfully queries the Prometheus API.
 
 ### PromQL Smoke Tests
 
@@ -208,7 +227,13 @@ If Prometheus is not responding:
    curl localhost:9100/metrics
    ```
 
-6. Restart Prometheus after fixing configuration or service issues:
+6. Confirm Grafana can query Prometheus:
+
+   ```bash
+   curl -I localhost:3000
+   ```
+
+7. Restart Prometheus after fixing configuration or service issues:
 
    ```bash
    sudo systemctl restart prometheus
@@ -229,12 +254,12 @@ If Prometheus is not responding:
 - Keep the package updated through normal Debian patching.
 - Review target health after any scrape configuration change.
 - Add new scrape targets intentionally and document why each target matters.
+- Re-test the Grafana data source after Prometheus configuration changes.
 - Avoid adding alerts until they are actionable and tied to runbooks.
 
 ## Future Improvements
 
-- Install Grafana and configure Prometheus as a data source.
-- Add Node Exporter on `dns01`.
+- Add Node Exporter on `dns01` and configure it as the first remote scrape target.
 - Add DNS availability checks.
 - Add Pi-hole metrics or DNS-specific exporters.
 - Add Proxmox monitoring through an appropriate exporter or API-based method.
@@ -246,4 +271,5 @@ If Prometheus is not responding:
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [Node Exporter Service](node-exporter.md)
+- [Grafana Service](grafana.md)
 - [VM Inventory](../architecture/vm-inventory.md)
