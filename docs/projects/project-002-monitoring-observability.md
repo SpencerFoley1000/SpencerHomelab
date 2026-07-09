@@ -2,7 +2,18 @@
 
 ## Status
 
-Planned / In Progress
+In Progress
+
+## Current Progress
+
+| Milestone | Status | Notes |
+| --- | --- | --- |
+| Milestone 1: Design and VM Creation | Complete | `mon01` deployed as a dedicated Debian 13.5 monitoring VM on Proxmox VE. |
+| Milestone 2: Node Exporter | Complete | Node Exporter installed on `mon01` and local metrics endpoint validated. |
+| Milestone 3: Prometheus | Not Started | Prometheus will collect and store metrics exposed by Node Exporter. |
+| Milestone 4: Grafana | Not Started | Grafana will be added after Prometheus is validated. |
+| Milestone 5: Expand Monitoring Coverage | Not Started | Future scope includes `dns01`, Proxmox, Pi-hole, and service health checks. |
+| Milestone 6: Alerting and Operational Runbooks | Not Started | Alerting will be added only after useful checks and runbooks exist. |
 
 ## Purpose
 
@@ -22,28 +33,29 @@ This project builds on Project 001, where `dns01` was deployed as the first core
 
 ## Target Design
 
-A dedicated monitoring VM will be deployed:
+A dedicated monitoring VM has been deployed:
 
 | Component | Value |
 | --- | --- |
 | VM Name | `mon01` |
-| Operating System | Debian 13 |
+| Operating System | Debian 13.5 |
 | Deployment Model | Dedicated VM on Proxmox VE |
 | Primary Role | Monitoring and observability services |
 | Network Role | Internal-only monitoring endpoint |
 | Public Exposure | None planned |
+| Initial Resource Allocation | 2 vCPU, 2 GB RAM, 32 GB disk |
 
 ## Initial Software Stack
 
-| Tool | Role | Reason |
-| --- | --- | --- |
-| Prometheus | Metrics collection and time-series storage | Pulls metrics from configured targets and stores historical metric samples. |
-| Grafana | Visualization and dashboards | Provides human-readable dashboards backed by Prometheus data. |
-| Node Exporter | Host metrics exporter | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
+| Tool | Role | Status | Reason |
+| --- | --- | --- | --- |
+| Node Exporter | Host metrics exporter | Installed on `mon01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
+| Prometheus | Metrics collection and time-series storage | Planned | Pulls metrics from configured targets and stores historical metric samples. |
+| Grafana | Visualization and dashboards | Planned | Provides human-readable dashboards backed by Prometheus data. |
 
 ## Initial Monitoring Scope
 
-The first milestone will focus on host-level and service-level visibility for core infrastructure.
+The first phase focuses on host-level and service-level visibility for core infrastructure.
 
 | Target | Planned Metrics / Checks | Why It Matters |
 | --- | --- | --- |
@@ -56,7 +68,7 @@ The first milestone will focus on host-level and service-level visibility for co
 
 ### Dedicated Monitoring VM
 
-Monitoring will run on a separate VM instead of being installed directly on `dns01` or the Proxmox host.
+Monitoring runs on a separate VM instead of being installed directly on `dns01` or the Proxmox host.
 
 **Reasons:**
 
@@ -82,15 +94,74 @@ This separation is common in enterprise environments because collection, storage
 
 ### Exporter-Based Metrics
 
-Node Exporter will be used for Linux host metrics. Exporters translate system or application state into metric endpoints that Prometheus can scrape.
+Node Exporter is the first deployed monitoring component. Exporters translate system or application state into metric endpoints that Prometheus can scrape.
 
 This model allows Prometheus to collect metrics from many different systems using a consistent pull-based approach.
+
+## Implementation Notes
+
+### `mon01` Baseline
+
+`mon01` was installed as a minimal Debian 13.5 server with no desktop environment.
+
+Completed baseline items:
+
+- Installed Debian as a headless server.
+- Configured non-root administration with `sudo`.
+- Installed baseline administrative tools.
+- Installed and validated QEMU Guest Agent.
+- Verified basic network and package repository functionality.
+- Installed Node Exporter using the Debian package repository.
+- Validated Node Exporter locally with `curl localhost:9100/metrics`.
+
+### Node Exporter Validation
+
+Node Exporter exposes host metrics over HTTP on port `9100`.
+
+Validated locally from `mon01`:
+
+```bash
+curl localhost:9100/metrics
+```
+
+The endpoint returned Prometheus-formatted metrics, confirming that Linux host metrics are available for future Prometheus scraping.
+
+## Troubleshooting Notes
+
+### QEMU Guest Agent Device Missing
+
+During `mon01` setup, the QEMU Guest Agent package was installed, but the service remained inactive because the expected virtio serial device was missing.
+
+**Symptoms:**
+
+- `qemu-guest-agent` was installed but inactive.
+- Starting the service failed due to a dependency job.
+- `/dev/virtio-ports/` did not exist inside the VM.
+- Proxmox showed QEMU Guest Agent as enabled.
+- `qm config` showed `agent: 1`.
+
+**Root Cause:**
+
+The Proxmox VM configuration had the guest agent enabled, but the running VM process had not recreated the virtual hardware channel required by the guest agent.
+
+**Resolution:**
+
+- Shut down `mon01` completely from Proxmox.
+- Waited until the VM showed as stopped.
+- Started the VM again from Proxmox.
+- Verified `/dev/virtio-ports/org.qemu.guest_agent.0` existed.
+- Verified `qemu-guest-agent` returned `active`.
+
+**Lesson Learned:**
+
+A guest reboot restarts the operating system, but a full Proxmox stop/start recreates the virtual hardware presented to the VM. When virtual devices are missing, troubleshoot both the guest OS and the hypervisor layer.
 
 ## Security Considerations
 
 - Grafana should not be exposed to the public internet.
 - Prometheus should remain internal because metrics can reveal infrastructure details.
-- Default credentials must be changed during setup.
+- Node Exporter should only be reachable from trusted internal monitoring systems.
+- Default Grafana credentials must be changed during setup.
 - Dashboards and screenshots must not publish sensitive hostnames, IP addresses, usernames, tokens, or private topology details.
 - Monitoring credentials and API keys must not be committed to the repository.
 - Firewall exposure should be limited to required internal systems only.
@@ -110,20 +181,27 @@ This project mirrors enterprise infrastructure patterns at small scale:
 
 ### Milestone 1: Design and VM Creation
 
-- Define the purpose and scope of `mon01`.
-- Create the Debian VM in Proxmox.
-- Assign a static IP or DHCP reservation using sanitized documentation.
-- Install baseline packages and enable administrative access.
-- Verify network connectivity and DNS resolution.
+Status: Complete
+
+- Defined the purpose and scope of `mon01`.
+- Created the Debian VM in Proxmox.
+- Assigned static addressing using sanitized documentation.
+- Installed baseline packages and enabled administrative access.
+- Verified network connectivity and DNS resolution.
+- Validated QEMU Guest Agent.
 
 ### Milestone 2: Node Exporter
 
-- Install Node Exporter on `mon01`.
-- Validate the metrics endpoint locally.
-- Document what host metrics are exposed.
-- Add Node Exporter to the service documentation.
+Status: Complete
+
+- Installed Node Exporter on `mon01`.
+- Validated the metrics endpoint locally.
+- Confirmed host metrics are exposed in Prometheus text format.
+- Added Node Exporter service documentation.
 
 ### Milestone 3: Prometheus
+
+Status: Not Started
 
 - Install Prometheus on `mon01`.
 - Configure Prometheus to scrape `mon01`.
@@ -132,6 +210,8 @@ This project mirrors enterprise infrastructure patterns at small scale:
 
 ### Milestone 4: Grafana
 
+Status: Not Started
+
 - Install Grafana on `mon01`.
 - Configure Prometheus as a data source.
 - Create or import a basic Linux host dashboard.
@@ -139,12 +219,16 @@ This project mirrors enterprise infrastructure patterns at small scale:
 
 ### Milestone 5: Expand Monitoring Coverage
 
+Status: Not Started
+
 - Add `dns01` host metrics.
 - Add DNS availability checks.
 - Add Proxmox monitoring approach.
 - Plan Pi-hole metric collection.
 
 ### Milestone 6: Alerting and Operational Runbooks
+
+Status: Not Started
 
 - Define actionable alerts.
 - Avoid noisy alerts.
@@ -189,6 +273,7 @@ As this project progresses, update the following documentation:
 
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [VM Inventory](../architecture/vm-inventory.md)
+- [Node Exporter Service](../services/node-exporter.md)
 - [Pi-hole Service](../services/pihole.md)
 - [Roadmap](../../ROADMAP.md)
 - [Changelog](../../CHANGELOG.md)
