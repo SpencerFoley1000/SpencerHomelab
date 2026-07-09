@@ -10,8 +10,8 @@ In Progress
 | --- | --- | --- |
 | Milestone 1: Design and VM Creation | Complete | `mon01` deployed as a dedicated Debian 13.5 monitoring VM on Proxmox VE. |
 | Milestone 2: Node Exporter | Complete | Node Exporter installed on `mon01` and local metrics endpoint validated. |
-| Milestone 3: Prometheus | Not Started | Prometheus will collect and store metrics exposed by Node Exporter. |
-| Milestone 4: Grafana | Not Started | Grafana will be added after Prometheus is validated. |
+| Milestone 3: Prometheus | Complete | Prometheus installed on `mon01` and scraping both itself and Node Exporter. |
+| Milestone 4: Grafana | Not Started | Grafana will be added next for dashboarding and visualization. |
 | Milestone 5: Expand Monitoring Coverage | Not Started | Future scope includes `dns01`, Proxmox, Pi-hole, and service health checks. |
 | Milestone 6: Alerting and Operational Runbooks | Not Started | Alerting will be added only after useful checks and runbooks exist. |
 
@@ -50,19 +50,19 @@ A dedicated monitoring VM has been deployed:
 | Tool | Role | Status | Reason |
 | --- | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed on `mon01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
-| Prometheus | Metrics collection and time-series storage | Planned | Pulls metrics from configured targets and stores historical metric samples. |
+| Prometheus | Metrics collection and time-series storage | Installed on `mon01` | Scrapes metrics from configured targets and stores historical metric samples. |
 | Grafana | Visualization and dashboards | Planned | Provides human-readable dashboards backed by Prometheus data. |
 
 ## Initial Monitoring Scope
 
 The first phase focuses on host-level and service-level visibility for core infrastructure.
 
-| Target | Planned Metrics / Checks | Why It Matters |
+| Target | Current / Planned Metrics and Checks | Why It Matters |
 | --- | --- | --- |
-| `mon01` | CPU, memory, disk, network, uptime, service status | The monitoring system must monitor itself so failures are visible. |
-| `dns01` | CPU, memory, disk, network, uptime, DNS service health | DNS is foundational; if DNS fails, many other systems appear broken. |
-| Proxmox host | CPU, memory, storage, uptime, VM health | Hypervisor health affects every VM in the lab. |
-| Pi-hole | DNS availability and future query metrics | Confirms core name resolution remains reliable. |
+| `mon01` | Current: Prometheus self-monitoring and Node Exporter host metrics. Planned: Grafana dashboarding. | The monitoring system must monitor itself so failures are visible. |
+| `dns01` | Planned: CPU, memory, disk, network, uptime, DNS service health | DNS is foundational; if DNS fails, many other systems appear broken. |
+| Proxmox host | Planned: CPU, memory, storage, uptime, VM health | Hypervisor health affects every VM in the lab. |
+| Pi-hole | Planned: DNS availability and future query metrics | Confirms core name resolution remains reliable. |
 
 ## Design Decisions
 
@@ -85,9 +85,9 @@ Monitoring runs on a separate VM instead of being installed directly on `dns01` 
 
 ### Prometheus and Grafana Pairing
 
-Prometheus and Grafana will be deployed together because they solve different problems.
+Prometheus and Grafana are paired because they solve different problems.
 
-- Prometheus collects and stores metrics.
+- Prometheus collects, stores, and queries metrics.
 - Grafana visualizes metrics and helps humans interpret trends.
 
 This separation is common in enterprise environments because collection, storage, querying, visualization, and alerting are separate concerns.
@@ -97,6 +97,18 @@ This separation is common in enterprise environments because collection, storage
 Node Exporter is the first deployed monitoring component. Exporters translate system or application state into metric endpoints that Prometheus can scrape.
 
 This model allows Prometheus to collect metrics from many different systems using a consistent pull-based approach.
+
+### Pull-Based Metrics Collection
+
+Prometheus is configured to pull metrics from known targets instead of requiring each monitored host to push data somewhere.
+
+**Reasons:**
+
+- Scrape targets are centrally configured.
+- Prometheus controls scrape intervals.
+- Target health is visible from the Prometheus web UI.
+- Missing or unreachable targets become observable failures.
+- The model scales cleanly as additional homelab systems are added.
 
 ## Implementation Notes
 
@@ -113,6 +125,9 @@ Completed baseline items:
 - Verified basic network and package repository functionality.
 - Installed Node Exporter using the Debian package repository.
 - Validated Node Exporter locally with `curl localhost:9100/metrics`.
+- Installed Prometheus using the Debian package repository.
+- Configured Prometheus to scrape `localhost:9100` for Node Exporter metrics.
+- Validated Prometheus target health in the web UI.
 
 ### Node Exporter Validation
 
@@ -124,7 +139,37 @@ Validated locally from `mon01`:
 curl localhost:9100/metrics
 ```
 
-The endpoint returned Prometheus-formatted metrics, confirming that Linux host metrics are available for future Prometheus scraping.
+The endpoint returned Prometheus-formatted metrics, confirming that Linux host metrics are available for Prometheus scraping.
+
+### Prometheus Validation
+
+Prometheus runs on port `9090` and is currently configured with two scrape targets:
+
+| Job | Target | Status |
+| --- | --- | --- |
+| `prometheus` | `localhost:9090` | Up |
+| `node_exporter` | `localhost:9100` | Up |
+
+Validation completed:
+
+- Prometheus service started successfully.
+- Prometheus web UI loaded from the internal homelab network.
+- Target health page showed both configured targets as `UP`.
+- Initial PromQL queries returned data.
+
+Useful validation queries:
+
+```promql
+up
+```
+
+```promql
+node_memory_MemAvailable_bytes
+```
+
+```promql
+node_filesystem_avail_bytes{mountpoint="/"}
+```
 
 ## Troubleshooting Notes
 
@@ -155,6 +200,18 @@ The Proxmox VM configuration had the guest agent enabled, but the running VM pro
 **Lesson Learned:**
 
 A guest reboot restarts the operating system, but a full Proxmox stop/start recreates the virtual hardware presented to the VM. When virtual devices are missing, troubleshoot both the guest OS and the hypervisor layer.
+
+### Prometheus Target Initially Unknown
+
+After adding the Node Exporter target, Prometheus briefly showed the target state as `UNKNOWN`.
+
+**Resolution:**
+
+Waited for Prometheus to complete the next scrape cycle. The target changed to `UP` after the first successful scrape.
+
+**Lesson Learned:**
+
+Prometheus target health may not update instantly after a configuration reload or restart. `UNKNOWN` can mean the target exists in configuration but has not completed a scrape yet.
 
 ## Security Considerations
 
@@ -201,12 +258,14 @@ Status: Complete
 
 ### Milestone 3: Prometheus
 
-Status: Not Started
+Status: Complete
 
-- Install Prometheus on `mon01`.
-- Configure Prometheus to scrape `mon01`.
-- Validate metric collection.
-- Add future scrape targets for `dns01` and the Proxmox host.
+- Installed Prometheus on `mon01`.
+- Configured Prometheus to scrape `mon01` Node Exporter.
+- Validated Prometheus service health.
+- Confirmed Prometheus target health showed both `localhost:9090` and `localhost:9100` as `UP`.
+- Confirmed initial PromQL queries returned data.
+- Added Prometheus service documentation.
 
 ### Milestone 4: Grafana
 
@@ -260,6 +319,7 @@ As this project progresses, update the following documentation:
 
 ## Future Improvements
 
+- Grafana dashboards for Linux host metrics.
 - Pi-hole exporter or DNS-specific metrics.
 - Proxmox exporter or API-based monitoring.
 - Alertmanager.
@@ -274,6 +334,7 @@ As this project progresses, update the following documentation:
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [VM Inventory](../architecture/vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Prometheus Service](../services/prometheus.md)
 - [Pi-hole Service](../services/pihole.md)
 - [Roadmap](../../ROADMAP.md)
 - [Changelog](../../CHANGELOG.md)
