@@ -11,8 +11,8 @@ In Progress
 | Milestone 1: Design and VM Creation | Complete | `mon01` deployed as a dedicated Debian 13.5 monitoring VM on Proxmox VE. |
 | Milestone 2: Node Exporter | Complete | Node Exporter installed on `mon01` and local metrics endpoint validated. |
 | Milestone 3: Prometheus | Complete | Prometheus installed on `mon01` and scraping both itself and Node Exporter. |
-| Milestone 4: Grafana | Not Started | Grafana will be added next for dashboarding and visualization. |
-| Milestone 5: Expand Monitoring Coverage | Not Started | Future scope includes `dns01`, Proxmox, Pi-hole, and service health checks. |
+| Milestone 4: Grafana | Complete | Grafana installed on `mon01`, connected to Prometheus, and displaying an imported Node Exporter dashboard. |
+| Milestone 5: Expand Monitoring Coverage | Not Started | Next scope includes adding `dns01` as the first remote scrape target. |
 | Milestone 6: Alerting and Operational Runbooks | Not Started | Alerting will be added only after useful checks and runbooks exist. |
 
 ## Purpose
@@ -51,7 +51,7 @@ A dedicated monitoring VM has been deployed:
 | --- | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed on `mon01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
 | Prometheus | Metrics collection and time-series storage | Installed on `mon01` | Scrapes metrics from configured targets and stores historical metric samples. |
-| Grafana | Visualization and dashboards | Planned | Provides human-readable dashboards backed by Prometheus data. |
+| Grafana | Visualization and dashboards | Installed on `mon01` | Provides human-readable dashboards backed by Prometheus data. |
 
 ## Initial Monitoring Scope
 
@@ -59,8 +59,8 @@ The first phase focuses on host-level and service-level visibility for core infr
 
 | Target | Current / Planned Metrics and Checks | Why It Matters |
 | --- | --- | --- |
-| `mon01` | Current: Prometheus self-monitoring and Node Exporter host metrics. Planned: Grafana dashboarding. | The monitoring system must monitor itself so failures are visible. |
-| `dns01` | Planned: CPU, memory, disk, network, uptime, DNS service health | DNS is foundational; if DNS fails, many other systems appear broken. |
+| `mon01` | Current: Prometheus self-monitoring, Node Exporter host metrics, Grafana dashboarding. | The monitoring system must monitor itself so failures are visible. |
+| `dns01` | Planned next: CPU, memory, disk, network, uptime, DNS service health | DNS is foundational; if DNS fails, many other systems appear broken. |
 | Proxmox host | Planned: CPU, memory, storage, uptime, VM health | Hypervisor health affects every VM in the lab. |
 | Pi-hole | Planned: DNS availability and future query metrics | Confirms core name resolution remains reliable. |
 
@@ -110,6 +110,19 @@ Prometheus is configured to pull metrics from known targets instead of requiring
 - Missing or unreachable targets become observable failures.
 - The model scales cleanly as additional homelab systems are added.
 
+### Imported Dashboard First, Custom Dashboard Later
+
+An imported Node Exporter dashboard was used first to validate the full data path quickly.
+
+**Reasons:**
+
+- Confirms Grafana can query Prometheus successfully.
+- Confirms Prometheus has usable Node Exporter data.
+- Provides immediate visibility into CPU, memory, disk, and network metrics.
+- Allows the custom dashboard to be built later as a focused learning exercise.
+
+A custom dashboard is still planned for portfolio quality and to demonstrate understanding of PromQL, panel design, and operational priorities.
+
 ## Implementation Notes
 
 ### `mon01` Baseline
@@ -128,6 +141,9 @@ Completed baseline items:
 - Installed Prometheus using the Debian package repository.
 - Configured Prometheus to scrape `localhost:9100` for Node Exporter metrics.
 - Validated Prometheus target health in the web UI.
+- Installed Grafana using the Grafana APT repository.
+- Configured Grafana to use Prometheus as a data source.
+- Imported a Node Exporter dashboard to validate end-to-end visualization.
 
 ### Node Exporter Validation
 
@@ -169,6 +185,25 @@ node_memory_MemAvailable_bytes
 
 ```promql
 node_filesystem_avail_bytes{mountpoint="/"}
+```
+
+### Grafana Validation
+
+Grafana runs on port `3000` and is connected to Prometheus as its first data source.
+
+Validation completed:
+
+- `grafana-server` service started successfully.
+- Local HTTP check returned a redirect to `/login`.
+- Grafana web UI loaded from the internal homelab network.
+- Default credentials were changed during initial login.
+- Prometheus data source test succeeded.
+- Imported Node Exporter dashboard displayed metrics from Prometheus.
+
+Current visualization flow:
+
+```text
+Node Exporter -> Prometheus -> Grafana -> Dashboard
 ```
 
 ## Troubleshooting Notes
@@ -213,12 +248,46 @@ Waited for Prometheus to complete the next scrape cycle. The target changed to `
 
 Prometheus target health may not update instantly after a configuration reload or restart. `UNKNOWN` can mean the target exists in configuration but has not completed a scrape yet.
 
+### Grafana Package Not Found
+
+During Grafana setup, `apt-get install grafana` initially failed because APT could not locate the package.
+
+**Resolution:**
+
+- Verified the Grafana repository file and signing key.
+- Recreated the repository file using shell redirection.
+- Ran `apt-get update` after confirming the repository file existed.
+- Confirmed the package could be located and installed.
+
+**Lesson Learned:**
+
+When a package from a third-party repository cannot be located, verify the repository file, signing key, architecture, and `apt-get update` output before retrying the install.
+
+### Grafana Service Active but Port Check Unclear
+
+During Grafana validation, the service reported active but the first port check did not clearly show port `3000`.
+
+**Resolution:**
+
+Used an application-layer check:
+
+```bash
+curl -I localhost:3000
+```
+
+Grafana returned an HTTP redirect to `/login`, confirming the service was healthy and reachable.
+
+**Lesson Learned:**
+
+If a port check is unclear, test the service directly before assuming it is broken.
+
 ## Security Considerations
 
 - Grafana should not be exposed to the public internet.
 - Prometheus should remain internal because metrics can reveal infrastructure details.
 - Node Exporter should only be reachable from trusted internal monitoring systems.
 - Default Grafana credentials must be changed during setup.
+- Grafana credentials must be stored in a password manager and never committed to the repository.
 - Dashboards and screenshots must not publish sensitive hostnames, IP addresses, usernames, tokens, or private topology details.
 - Monitoring credentials and API keys must not be committed to the repository.
 - Firewall exposure should be limited to required internal systems only.
@@ -269,12 +338,13 @@ Status: Complete
 
 ### Milestone 4: Grafana
 
-Status: Not Started
+Status: Complete
 
-- Install Grafana on `mon01`.
-- Configure Prometheus as a data source.
-- Create or import a basic Linux host dashboard.
-- Document access, security, and maintenance considerations.
+- Installed Grafana on `mon01`.
+- Configured Prometheus as a data source.
+- Imported a Node Exporter dashboard.
+- Validated that Grafana displays metrics from Prometheus.
+- Added Grafana service documentation.
 
 ### Milestone 5: Expand Monitoring Coverage
 
@@ -319,7 +389,8 @@ As this project progresses, update the following documentation:
 
 ## Future Improvements
 
-- Grafana dashboards for Linux host metrics.
+- Custom Grafana dashboards for Linux host metrics.
+- Add `dns01` as a remote Prometheus scrape target.
 - Pi-hole exporter or DNS-specific metrics.
 - Proxmox exporter or API-based monitoring.
 - Alertmanager.
@@ -335,6 +406,7 @@ As this project progresses, update the following documentation:
 - [VM Inventory](../architecture/vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
 - [Prometheus Service](../services/prometheus.md)
+- [Grafana Service](../services/grafana.md)
 - [Pi-hole Service](../services/pihole.md)
 - [Roadmap](../../ROADMAP.md)
 - [Changelog](../../CHANGELOG.md)
