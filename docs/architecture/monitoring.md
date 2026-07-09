@@ -15,6 +15,7 @@ Current deployed components:
 | `mon01` | Proxmox VE | Active / In Progress | Dedicated monitoring and observability VM |
 | Node Exporter | `mon01` | Active | Exposes Linux host metrics over HTTP |
 | Prometheus | `mon01` | Active | Scrapes, stores, and queries metrics from configured targets |
+| Grafana | `mon01` | Active | Visualizes Prometheus metrics through dashboards |
 
 Current Prometheus scrape targets:
 
@@ -23,7 +24,15 @@ Current Prometheus scrape targets:
 | `prometheus` | `localhost:9090` | Up | Prometheus self-monitoring |
 | `node_exporter` | `localhost:9100` | Up | Linux host metrics for `mon01` |
 
-Grafana is planned next. The monitoring stack is being built from the bottom up so each layer is validated before the next layer depends on it.
+Current Grafana data sources and dashboards:
+
+| Item | Status | Purpose |
+| --- | --- | --- |
+| Prometheus data source | Active | Allows Grafana to query Prometheus on `localhost:9090` |
+| Imported Node Exporter dashboard | Active | Provides initial CPU, memory, disk, and network visibility for `mon01` |
+| Custom dashboard | Planned | Will be built later for learning value and portfolio polish |
+
+The core monitoring stack is now functional for `mon01`. The next operational milestone is expanding monitoring coverage to additional systems, starting with `dns01`.
 
 Monitoring should start small and answer practical questions:
 
@@ -77,17 +86,22 @@ Current completed layers:
 1. Node Exporter exposes `mon01` Linux host metrics on `localhost:9100`.
 2. Prometheus scrapes `localhost:9090` and `localhost:9100`.
 3. Prometheus stores collected samples as time-series data.
+4. Grafana queries Prometheus on `localhost:9090`.
+5. Grafana displays metrics through an imported Node Exporter dashboard.
 
 Next layer:
 
-1. Grafana will connect to Prometheus as a data source.
-2. Grafana will display host metrics through dashboards.
+1. Install Node Exporter on `dns01`.
+2. Add `dns01` as a remote Prometheus scrape target.
+3. Validate remote target health in Prometheus.
+4. Confirm Grafana dashboards display both local and remote host metrics.
 
 This order is intentional:
 
 1. Export metrics first.
 2. Collect and store metrics second.
 3. Visualize metrics last.
+4. Expand coverage only after the core pipeline is validated.
 
 This makes troubleshooting easier because each layer can be validated before the next layer depends on it.
 
@@ -99,12 +113,12 @@ Initial selected tools:
 | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed first to expose Linux metrics from `mon01`. |
 | Prometheus | Metrics collection and time-series database | Installed on `mon01`; currently scraping itself and Node Exporter. |
-| Grafana | Dashboard and visualization platform | Planned next after Prometheus target health has been validated. |
+| Grafana | Dashboard and visualization platform | Installed on `mon01`; currently connected to Prometheus and displaying an imported Node Exporter dashboard. |
 
 Future additions may include:
 
 - Service uptime checks.
-- Centralized dashboards.
+- Custom dashboards.
 - Log collection.
 - Alert routing.
 - Backup job monitoring.
@@ -128,6 +142,8 @@ Examples:
 Node Exporter reads Linux kernel and operating system data from sources such as `/proc` and `/sys`, then exposes that data in a Prometheus-compatible text format at `/metrics`.
 
 Prometheus repeatedly scrapes configured targets and stores returned metric samples with timestamps. This makes it possible to query both current state and historical trends.
+
+Grafana uses Prometheus as a data source and turns PromQL query results into dashboards.
 
 ## PromQL Validation Examples
 
@@ -175,6 +191,11 @@ Dashboards should support troubleshooting and capacity planning. Good dashboards
 - Backup status.
 - Recent security-relevant events where appropriate.
 
+Current dashboard state:
+
+- An imported Node Exporter dashboard is used for immediate visibility.
+- A custom dashboard is planned to demonstrate intentional panel design and PromQL understanding.
+
 Dashboards should avoid exposing sensitive values in screenshots or public documentation.
 
 ## Logging Strategy
@@ -195,6 +216,7 @@ Logs may contain sensitive information and should not be committed to the reposi
 - Monitoring tools often have broad visibility and should be protected.
 - Node Exporter should not be exposed outside trusted internal networks.
 - Prometheus should remain internal because metrics can reveal infrastructure details.
+- Grafana should remain internal and protected with non-default credentials.
 - Dashboards should not be exposed publicly without strong authentication.
 - Alert destinations should not leak sensitive infrastructure details.
 - Logs should be treated as potentially sensitive.
@@ -223,11 +245,30 @@ Operational takeaway:
 - If the target remains unhealthy, check target health details in the Prometheus web UI.
 - Validate local access to the exporter before troubleshooting Prometheus itself.
 
+### Grafana Package Installation
+
+Grafana package installation initially failed because APT could not locate the package from the third-party repository.
+
+Operational takeaway:
+
+- Verify third-party repository files under `/etc/apt/sources.list.d/`.
+- Verify signing keys under `/etc/apt/keyrings/`.
+- Run `apt-get update` after adding repositories.
+- Confirm package availability before retrying installation.
+
+### Grafana Service Validation
+
+Grafana service status showed active, but an initial port check did not clearly show port `3000`.
+
+Operational takeaway:
+
+- Use application-layer validation such as `curl -I localhost:3000`.
+- A redirect to `/login` confirms Grafana is responding.
+
 ## Future Improvements
 
-- Install Grafana and configure Prometheus as a data source.
-- Add host and service dashboards.
-- Add `dns01` host metrics.
+- Add `dns01` host metrics as the first remote scrape target.
+- Build a custom Grafana dashboard for Linux host metrics.
 - Add DNS availability checks.
 - Add backup job monitoring.
 - Add alert routing for critical failures.
@@ -243,4 +284,5 @@ Operational takeaway:
 - [VM Inventory](vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
 - [Prometheus Service](../services/prometheus.md)
+- [Grafana Service](../services/grafana.md)
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
