@@ -10,9 +10,9 @@ In Progress
 | --- | --- | --- |
 | Milestone 1: Design and VM Creation | Complete | `mon01` deployed as a dedicated Debian 13.5 monitoring VM on Proxmox VE. |
 | Milestone 2: Node Exporter | Complete | Node Exporter installed on `mon01` and local metrics endpoint validated. |
-| Milestone 3: Prometheus | Complete | Prometheus installed on `mon01` and scraping both itself and Node Exporter. |
+| Milestone 3: Prometheus | Complete | Prometheus installed on `mon01` and scraping itself plus Node Exporter. |
 | Milestone 4: Grafana | Complete | Grafana installed on `mon01`, connected to Prometheus, and displaying an imported Node Exporter dashboard. |
-| Milestone 5: Expand Monitoring Coverage | Not Started | Next scope includes adding `dns01` as the first remote scrape target. |
+| Milestone 5: Expand Monitoring Coverage | In Progress | `dns01` added as the first remote Node Exporter scrape target. DNS-specific checks, Pi-hole metrics, and Proxmox monitoring remain future work. |
 | Milestone 6: Alerting and Operational Runbooks | Not Started | Alerting will be added only after useful checks and runbooks exist. |
 
 ## Purpose
@@ -45,22 +45,22 @@ A dedicated monitoring VM has been deployed:
 | Public Exposure | None planned |
 | Initial Resource Allocation | 2 vCPU, 2 GB RAM, 32 GB disk |
 
-## Initial Software Stack
+## Current Software Stack
 
 | Tool | Role | Status | Reason |
 | --- | --- | --- | --- |
-| Node Exporter | Host metrics exporter | Installed on `mon01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
+| Node Exporter | Host metrics exporter | Installed on `mon01` and `dns01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
 | Prometheus | Metrics collection and time-series storage | Installed on `mon01` | Scrapes metrics from configured targets and stores historical metric samples. |
 | Grafana | Visualization and dashboards | Installed on `mon01` | Provides human-readable dashboards backed by Prometheus data. |
 
-## Initial Monitoring Scope
+## Current Monitoring Scope
 
 The first phase focuses on host-level and service-level visibility for core infrastructure.
 
 | Target | Current / Planned Metrics and Checks | Why It Matters |
 | --- | --- | --- |
 | `mon01` | Current: Prometheus self-monitoring, Node Exporter host metrics, Grafana dashboarding. | The monitoring system must monitor itself so failures are visible. |
-| `dns01` | Planned next: CPU, memory, disk, network, uptime, DNS service health | DNS is foundational; if DNS fails, many other systems appear broken. |
+| `dns01` | Current: Node Exporter host metrics. Planned: DNS availability checks and Pi-hole-specific metrics. | DNS is foundational; if DNS fails, many other systems appear broken. |
 | Proxmox host | Planned: CPU, memory, storage, uptime, VM health | Hypervisor health affects every VM in the lab. |
 | Pi-hole | Planned: DNS availability and future query metrics | Confirms core name resolution remains reliable. |
 
@@ -94,7 +94,7 @@ This separation is common in enterprise environments because collection, storage
 
 ### Exporter-Based Metrics
 
-Node Exporter is the first deployed monitoring component. Exporters translate system or application state into metric endpoints that Prometheus can scrape.
+Node Exporter was deployed first because it exposes host metrics in a format Prometheus can scrape.
 
 This model allows Prometheus to collect metrics from many different systems using a consistent pull-based approach.
 
@@ -109,6 +109,16 @@ Prometheus is configured to pull metrics from known targets instead of requiring
 - Target health is visible from the Prometheus web UI.
 - Missing or unreachable targets become observable failures.
 - The model scales cleanly as additional homelab systems are added.
+
+### Use Static IP for `dns01` Scrape Target
+
+`dns01` is scraped by IP address instead of depending on its own DNS name.
+
+**Reason:**
+
+If DNS fails, monitoring should still be able to check whether the DNS host is reachable. Using the static address avoids making the DNS server's monitoring path depend on DNS itself.
+
+The exact address is not published. Public documentation uses `<DNS01_IP>`.
 
 ### Imported Dashboard First, Custom Dashboard Later
 
@@ -145,38 +155,63 @@ Completed baseline items:
 - Configured Grafana to use Prometheus as a data source.
 - Imported a Node Exporter dashboard to validate end-to-end visualization.
 
+### `dns01` Remote Monitoring
+
+`dns01` was added as the first remote scrape target after the local `mon01` monitoring path was working.
+
+Completed items:
+
+- Installed Node Exporter on `dns01`.
+- Validated `dns01` metrics locally with `curl localhost:9100/metrics`.
+- Validated remote reachability from `mon01` to `http://<DNS01_IP>:9100/metrics`.
+- Added `<DNS01_IP>:9100` to the `node_exporter` scrape job in Prometheus.
+- Labeled the target as `host: dns01` and `role: dns`.
+- Validated Prometheus target health as `UP`.
+- Confirmed Grafana can display both `mon01` and `dns01` under the `node_exporter` job.
+
 ### Node Exporter Validation
 
 Node Exporter exposes host metrics over HTTP on port `9100`.
 
-Validated locally from `mon01`:
+Validated locally on monitored hosts:
 
 ```bash
 curl localhost:9100/metrics
+```
+
+For remote targets, validate from `mon01` before changing Prometheus:
+
+```bash
+curl http://<DNS01_IP>:9100/metrics
 ```
 
 The endpoint returned Prometheus-formatted metrics, confirming that Linux host metrics are available for Prometheus scraping.
 
 ### Prometheus Validation
 
-Prometheus runs on port `9090` and is currently configured with two scrape targets:
+Prometheus runs on port `9090` and is currently configured with three scrape targets:
 
 | Job | Target | Status |
 | --- | --- | --- |
 | `prometheus` | `localhost:9090` | Up |
 | `node_exporter` | `localhost:9100` | Up |
+| `node_exporter` | `<DNS01_IP>:9100` | Up |
 
 Validation completed:
 
 - Prometheus service started successfully.
 - Prometheus web UI loaded from the internal homelab network.
-- Target health page showed both configured targets as `UP`.
-- Initial PromQL queries returned data.
+- Target health page showed all configured targets as `UP`.
+- Initial PromQL queries returned data for both monitored hosts.
 
 Useful validation queries:
 
 ```promql
 up
+```
+
+```promql
+up{job="node_exporter"}
 ```
 
 ```promql
@@ -199,11 +234,12 @@ Validation completed:
 - Default credentials were changed during initial login.
 - Prometheus data source test succeeded.
 - Imported Node Exporter dashboard displayed metrics from Prometheus.
+- After selecting the `node_exporter` job and waiting for Prometheus to scrape, Grafana displayed both `mon01` and `dns01`.
 
 Current visualization flow:
 
 ```text
-Node Exporter -> Prometheus -> Grafana -> Dashboard
+Node Exporter on mon01/dns01 -> Prometheus -> Grafana -> Dashboard
 ```
 
 ## Troubleshooting Notes
@@ -238,7 +274,7 @@ A guest reboot restarts the operating system, but a full Proxmox stop/start recr
 
 ### Prometheus Target Initially Unknown
 
-After adding the Node Exporter target, Prometheus briefly showed the target state as `UNKNOWN`.
+After adding a new scrape target, Prometheus may briefly show the target state as `UNKNOWN`.
 
 **Resolution:**
 
@@ -281,6 +317,20 @@ Grafana returned an HTTP redirect to `/login`, confirming the service was health
 
 If a port check is unclear, test the service directly before assuming it is broken.
 
+### Imported Dashboard Job Selector
+
+The imported dashboard initially showed only `mon01` under one dashboard job selector.
+
+**Resolution:**
+
+- Waited for Prometheus to complete a scrape cycle.
+- Selected the `node_exporter` job in the dashboard.
+- Confirmed both `mon01` and `dns01` were available.
+
+**Lesson Learned:**
+
+Imported dashboards may assume different Prometheus job names. Dashboard variables may need to be refreshed, adjusted, or replaced with custom panels once the lab's monitoring design is better understood.
+
 ## Security Considerations
 
 - Grafana should not be exposed to the public internet.
@@ -291,6 +341,7 @@ If a port check is unclear, test the service directly before assuming it is brok
 - Dashboards and screenshots must not publish sensitive hostnames, IP addresses, usernames, tokens, or private topology details.
 - Monitoring credentials and API keys must not be committed to the repository.
 - Firewall exposure should be limited to required internal systems only.
+- Exact internal IP addresses should be replaced with placeholders such as `<DNS01_IP>` and `<MON01_IP>` in public documentation.
 
 ## Enterprise Considerations
 
@@ -300,6 +351,7 @@ This project mirrors enterprise infrastructure patterns at small scale:
 - Centralized metrics collection.
 - Historical performance data.
 - Dashboards for troubleshooting and capacity planning.
+- Host labeling by function and role.
 - Future alerting tied to actionable operational runbooks.
 - Documentation that explains design choices, not just commands.
 
@@ -348,12 +400,15 @@ Status: Complete
 
 ### Milestone 5: Expand Monitoring Coverage
 
-Status: Not Started
+Status: In Progress
 
-- Add `dns01` host metrics.
-- Add DNS availability checks.
-- Add Proxmox monitoring approach.
-- Plan Pi-hole metric collection.
+- Installed Node Exporter on `dns01`.
+- Validated `dns01` metrics locally.
+- Validated remote scrape reachability from `mon01`.
+- Configured Prometheus to scrape `<DNS01_IP>:9100`.
+- Confirmed `dns01` target health as `UP`.
+- Confirmed Grafana can display both `mon01` and `dns01` under the `node_exporter` job.
+- Remaining: add DNS availability checks, Proxmox monitoring approach, and Pi-hole metric planning.
 
 ### Milestone 6: Alerting and Operational Runbooks
 
@@ -390,7 +445,7 @@ As this project progresses, update the following documentation:
 ## Future Improvements
 
 - Custom Grafana dashboards for Linux host metrics.
-- Add `dns01` as a remote Prometheus scrape target.
+- DNS availability checks for `dns01`.
 - Pi-hole exporter or DNS-specific metrics.
 - Proxmox exporter or API-based monitoring.
 - Alertmanager.
