@@ -2,6 +2,49 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - Project 002: Monitoring Baseline and Node Exporter
+
+### Changed
+
+- Deployed `mon01` as the dedicated monitoring and observability VM.
+- Installed Debian 13.5 (Trixie) as a minimal headless server.
+- Configured non-root administration with `sudo`.
+- Installed baseline administrative tools and QEMU Guest Agent.
+- Validated package repositories, networking, and DNS resolution on `mon01`.
+- Installed Node Exporter using the Debian package repository.
+- Verified Node Exporter locally with `curl localhost:9100/metrics`.
+- Added `mon01` to the VM inventory under `docs/architecture/vm-inventory.md`.
+- Updated monitoring architecture documentation under `docs/architecture/monitoring.md`.
+- Added Node Exporter service documentation under `docs/services/node-exporter.md`.
+- Updated Project 002 progress documentation under `docs/projects/project-002-monitoring-observability.md`.
+- Added a QEMU Guest Agent troubleshooting runbook under `docs/runbooks/qemu-guest-agent-troubleshooting.md`.
+
+### Why
+
+- Establish monitoring as a dedicated infrastructure role instead of combining it with DNS or the Proxmox host.
+- Build the observability stack from the bottom up by exposing metrics before installing Prometheus or Grafana.
+- Practice enterprise-style separation of responsibilities, validation, troubleshooting, and documentation.
+- Create a foundation for future host metrics, DNS health checks, dashboards, alerting, and capacity planning.
+
+### Lessons Learned
+
+- Node Exporter exposes Linux host metrics through a simple HTTP `/metrics` endpoint.
+- Metrics are numerical measurements of system state over time, which Prometheus will later scrape and store.
+- Building monitoring from exporters first makes Prometheus easier to understand because the raw data source is visible before collection is configured.
+- QEMU Guest Agent depends on both the guest package and the Proxmox-provided virtio serial device.
+- If `/dev/virtio-ports/org.qemu.guest_agent.0` is missing despite `agent: 1` being enabled, a full Proxmox stop/start may be required to recreate the VM hardware channel.
+- A guest OS reboot is not always equivalent to a hypervisor-level power cycle.
+
+### Remaining Work
+
+- Install and configure Prometheus on `mon01`.
+- Configure Prometheus to scrape Node Exporter on `mon01`.
+- Install Grafana after Prometheus is collecting real metrics.
+- Add Node Exporter to `dns01` after the monitoring pattern is validated.
+- Add DNS availability checks and future Pi-hole metrics.
+- Add alerting only after checks are documented and actionable.
+- Add backup coverage for `mon01` once backup infrastructure is deployed.
+
 ## 2026-07-08 - Project 001: Pi-hole DNS Service
 
 ### Changed
