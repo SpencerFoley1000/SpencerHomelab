@@ -11,6 +11,19 @@ This repository is maintained as both operational documentation and a public por
 - Demonstrate troubleshooting, architecture, and security decision-making.
 - Develop skills relevant to help desk, systems administration, network administration, and security engineering roles.
 
+## Current Status
+
+The homelab currently includes:
+
+- A documented Proxmox-based virtualization host.
+- A dedicated DNS VM, `dns01`, running Pi-hole for homelab DNS and local records.
+- A dedicated monitoring VM, `mon01`, running Prometheus and Grafana.
+- Node Exporter host metrics for both `mon01` and `dns01`.
+- Multi-host metrics collection through Prometheus.
+- Grafana dashboard visibility for monitored Linux hosts.
+
+The monitoring foundation is functional, but future work remains for DNS-specific availability checks, Pi-hole metrics, Proxmox monitoring, alerting, backups, and restore testing.
+
 ## Documentation Structure
 
 - [`docs/architecture/`](docs/architecture/) - Core infrastructure architecture and design notes.
@@ -27,8 +40,4 @@ This repository is maintained as both operational documentation and a public por
 
 This repository is public by design. It avoids publishing secrets, personally identifying information, private network details, exact SSIDs, public IP addresses, serial numbers, and other sensitive operational data.
 
-Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
-
-## Current Status
-
-Initial documentation scaffold created. Detailed implementation documentation will be added as the homelab is built and modified.
+Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
