@@ -73,12 +73,16 @@ Avoid filenames that include secrets, internal-only names, personal identifiers,
 | Service | State | Host | Purpose | Documentation |
 | --- | --- | --- | --- | --- |
 | Pi-hole | Active | `dns01` | Internal DNS, local DNS records, and DNS-based blocking for the homelab LAN | [pihole.md](pihole.md) |
+| Node Exporter | Active | `mon01`, `dns01` | Linux host metrics exporter for Prometheus | [node-exporter.md](node-exporter.md) |
+| Prometheus | Active | `mon01` | Metrics scraping, storage, and PromQL querying | [prometheus.md](prometheus.md) |
+| Grafana | Active | `mon01` | Dashboarding and visualization for Prometheus metrics | [grafana.md](grafana.md) |
 
 ## Planned Candidates
 
 Future service candidates may include:
 
-- Monitoring and dashboards
+- DNS availability monitoring
+- Pi-hole metrics integration
 - Backup tooling
 - Container hosting
 - Reverse proxy and internal TLS
