@@ -22,22 +22,23 @@ Node Exporter helps answer operational questions such as:
 | --- | --- |
 | Service | Node Exporter |
 | Package | `prometheus-node-exporter` |
-| Host | `mon01` |
+| Hosts | `mon01`, `dns01` |
 | Operating System | Debian 13.5 |
 | Deployment Method | Debian package repository |
 | Default Port | `9100/tcp` |
 | Metrics Path | `/metrics` |
 | Current Scraper | Prometheus on `mon01` |
 
-## Host
+## Hosts
 
 Node Exporter is currently installed on:
 
-| Hostname | Role |
-| --- | --- |
-| `mon01` | Dedicated monitoring VM |
+| Hostname | Role | Prometheus Target |
+| --- | --- | --- |
+| `mon01` | Dedicated monitoring VM | `localhost:9100` |
+| `dns01` | Pi-hole DNS VM | `<DNS01_IP>:9100` |
 
-Future installations are planned for additional Linux systems such as `dns01`.
+`dns01` was added as the first remote scrape target after the local `mon01` monitoring path was validated.
 
 ## Deployment Notes
 
@@ -47,16 +48,16 @@ Node Exporter was installed from the Debian package repository:
 sudo apt install -y prometheus-node-exporter
 ```
 
-The service was validated locally from `mon01`:
+The service was validated locally on each monitored host:
 
 ```bash
-systemctl status prometheus-node-exporter
+systemctl is-active prometheus-node-exporter
 curl localhost:9100/metrics
 ```
 
 The `curl` test returned Prometheus-formatted metric output, confirming that the exporter is exposing host metrics successfully.
 
-Prometheus has been configured to scrape this endpoint as the `node_exporter` job.
+Prometheus has been configured to scrape both endpoints as part of the `node_exporter` job.
 
 ## Networking
 
@@ -66,7 +67,7 @@ Prometheus has been configured to scrape this endpoint as the `node_exporter` jo
 | Access Scope | Internal homelab only |
 | Public Exposure | None |
 | Intended Consumer | Prometheus on `mon01` |
-| Current Prometheus Target | `localhost:9100` |
+| Current Prometheus Targets | `localhost:9100`, `<DNS01_IP>:9100` |
 
 Node Exporter should not be exposed to the public internet. Metrics can reveal infrastructure details such as hostnames, filesystem paths, kernel information, network interfaces, and resource usage patterns.
 
@@ -98,11 +99,24 @@ Expected results:
 - The service returns `active`.
 - The `/metrics` endpoint returns a large text response containing metrics beginning with names such as `node_cpu`, `node_memory`, `node_filesystem`, and `node_network`.
 
+Remote scrape validation from `mon01`:
+
+```bash
+curl http://<DNS01_IP>:9100/metrics
+```
+
 Prometheus validation:
 
-- In the Prometheus web UI, `Status -> Target health` should show the `node_exporter` job as `UP`.
-- The PromQL query `up` should return `1` for the Node Exporter target.
-- The PromQL query `node_memory_MemAvailable_bytes` should return memory metrics for `mon01`.
+- In the Prometheus web UI, `Status -> Target health` should show the `node_exporter` targets as `UP`.
+- The PromQL query `up{job="node_exporter"}` should return `1` for both `mon01` and `dns01`.
+- The PromQL query `node_memory_MemAvailable_bytes` should return memory metrics for both monitored hosts.
+
+Grafana validation:
+
+- Open the imported Node Exporter dashboard.
+- Select the `node_exporter` job.
+- Confirm both `mon01` and `dns01` are available as monitored hosts.
+- Confirm dashboard panels populate after Prometheus completes a scrape cycle.
 
 ## Security Considerations
 
@@ -111,6 +125,7 @@ Prometheus validation:
 - Do not expose port `9100` to untrusted networks.
 - Restrict future Prometheus scrape access to trusted monitoring systems where practical.
 - Treat metrics as operationally sensitive because they can reveal infrastructure details.
+- Use sanitized placeholders such as `<DNS01_IP>` instead of publishing exact internal addresses.
 
 ## Backup Strategy
 
@@ -138,19 +153,25 @@ If Node Exporter is not responding:
    curl localhost:9100/metrics
    ```
 
-3. Confirm Prometheus can scrape the target:
+3. From `mon01`, confirm remote scrape reachability for remote targets:
 
-   ```promql
-   up
+   ```bash
+   curl http://<DNS01_IP>:9100/metrics
    ```
 
-4. Review logs if the service fails to start:
+4. Confirm Prometheus can scrape the target:
+
+   ```promql
+   up{job="node_exporter"}
+   ```
+
+5. Review logs if the service fails to start:
 
    ```bash
    journalctl -u prometheus-node-exporter --no-pager -n 50
    ```
 
-5. Reinstall the package if needed:
+6. Reinstall the package if needed:
 
    ```bash
    sudo apt install --reinstall prometheus-node-exporter
@@ -162,12 +183,13 @@ If Node Exporter is not responding:
 - Revalidate the `/metrics` endpoint after major OS updates.
 - Watch for changes to exposed metrics when Debian or Node Exporter versions change.
 - Confirm Prometheus target health after changes to Node Exporter or Prometheus configuration.
+- Add future Linux hosts to Prometheus intentionally and label them by host and role.
 
 ## Future Improvements
 
-- Install Node Exporter on `dns01`.
-- Add Prometheus scrape configuration for `dns01`.
-- Add dashboards showing CPU, memory, disk, network, and uptime.
+- Add DNS availability checks for `dns01`.
+- Add dashboards showing CPU, memory, disk, network, and uptime for all monitored hosts.
+- Add Proxmox host monitoring through an appropriate exporter or API-based method.
 - Add alerting only after Prometheus and Grafana are working and runbooks exist.
 
 ## Related Documentation
@@ -175,4 +197,5 @@ If Node Exporter is not responding:
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [Prometheus Service](prometheus.md)
+- [Grafana Service](grafana.md)
 - [VM Inventory](../architecture/vm-inventory.md)
