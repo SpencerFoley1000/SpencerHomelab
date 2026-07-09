@@ -2,7 +2,7 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
-## 2026-07-09 - Project 002: Monitoring Baseline and Node Exporter
+## 2026-07-09 - Project 002: Monitoring Baseline, Node Exporter, and Prometheus
 
 ### Changed
 
@@ -13,9 +13,14 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Validated package repositories, networking, and DNS resolution on `mon01`.
 - Installed Node Exporter using the Debian package repository.
 - Verified Node Exporter locally with `curl localhost:9100/metrics`.
+- Installed Prometheus using the Debian package repository.
+- Configured Prometheus to scrape itself on `localhost:9090` and Node Exporter on `localhost:9100`.
+- Validated Prometheus target health in the web UI, with both scrape targets reporting `UP`.
+- Ran initial PromQL validation queries including `up`, `node_memory_MemAvailable_bytes`, and root filesystem availability checks.
 - Added `mon01` to the VM inventory under `docs/architecture/vm-inventory.md`.
 - Updated monitoring architecture documentation under `docs/architecture/monitoring.md`.
 - Added Node Exporter service documentation under `docs/services/node-exporter.md`.
+- Added Prometheus service documentation under `docs/services/prometheus.md`.
 - Updated Project 002 progress documentation under `docs/projects/project-002-monitoring-observability.md`.
 - Added a QEMU Guest Agent troubleshooting runbook under `docs/runbooks/qemu-guest-agent-troubleshooting.md`.
 
@@ -23,23 +28,26 @@ This changelog records meaningful infrastructure, documentation, and process cha
 
 - Establish monitoring as a dedicated infrastructure role instead of combining it with DNS or the Proxmox host.
 - Build the observability stack from the bottom up by exposing metrics before installing Prometheus or Grafana.
+- Move from one-time metric inspection to time-series metric collection.
 - Practice enterprise-style separation of responsibilities, validation, troubleshooting, and documentation.
 - Create a foundation for future host metrics, DNS health checks, dashboards, alerting, and capacity planning.
 
 ### Lessons Learned
 
 - Node Exporter exposes Linux host metrics through a simple HTTP `/metrics` endpoint.
-- Metrics are numerical measurements of system state over time, which Prometheus will later scrape and store.
+- Metrics are numerical measurements of system state over time.
+- Prometheus scrapes configured targets on an interval and stores metric samples as time-series data.
 - Building monitoring from exporters first makes Prometheus easier to understand because the raw data source is visible before collection is configured.
+- Prometheus target health may briefly show `UNKNOWN` until the first scrape completes.
 - QEMU Guest Agent depends on both the guest package and the Proxmox-provided virtio serial device.
 - If `/dev/virtio-ports/org.qemu.guest_agent.0` is missing despite `agent: 1` being enabled, a full Proxmox stop/start may be required to recreate the VM hardware channel.
 - A guest OS reboot is not always equivalent to a hypervisor-level power cycle.
 
 ### Remaining Work
 
-- Install and configure Prometheus on `mon01`.
-- Configure Prometheus to scrape Node Exporter on `mon01`.
-- Install Grafana after Prometheus is collecting real metrics.
+- Install Grafana on `mon01`.
+- Configure Grafana to use Prometheus as a data source.
+- Create or import a Linux host dashboard for `mon01` metrics.
 - Add Node Exporter to `dns01` after the monitoring pattern is validated.
 - Add DNS availability checks and future Pi-hole metrics.
 - Add alerting only after checks are documented and actionable.
