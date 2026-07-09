@@ -13,9 +13,17 @@ Current deployed components:
 | Component | Host | Status | Purpose |
 | --- | --- | --- | --- |
 | `mon01` | Proxmox VE | Active / In Progress | Dedicated monitoring and observability VM |
-| Node Exporter | `mon01` | Active | Exposes Linux host metrics over HTTP for future Prometheus scraping |
+| Node Exporter | `mon01` | Active | Exposes Linux host metrics over HTTP |
+| Prometheus | `mon01` | Active | Scrapes, stores, and queries metrics from configured targets |
 
-Prometheus and Grafana are planned next. The current focus is building the stack from the bottom up by first validating that host metrics are being exposed correctly.
+Current Prometheus scrape targets:
+
+| Job | Target | Status | Purpose |
+| --- | --- | --- | --- |
+| `prometheus` | `localhost:9090` | Up | Prometheus self-monitoring |
+| `node_exporter` | `localhost:9100` | Up | Linux host metrics for `mon01` |
+
+Grafana is planned next. The monitoring stack is being built from the bottom up so each layer is validated before the next layer depends on it.
 
 Monitoring should start small and answer practical questions:
 
@@ -64,6 +72,17 @@ Prometheus
 Grafana
 ```
 
+Current completed layers:
+
+1. Node Exporter exposes `mon01` Linux host metrics on `localhost:9100`.
+2. Prometheus scrapes `localhost:9090` and `localhost:9100`.
+3. Prometheus stores collected samples as time-series data.
+
+Next layer:
+
+1. Grafana will connect to Prometheus as a data source.
+2. Grafana will display host metrics through dashboards.
+
 This order is intentional:
 
 1. Export metrics first.
@@ -79,8 +98,8 @@ Initial selected tools:
 | Tool | Role | Notes |
 | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed first to expose Linux metrics from `mon01`. |
-| Prometheus | Metrics collection and time-series database | Planned next; will scrape Node Exporter endpoints. |
-| Grafana | Dashboard and visualization platform | Planned after Prometheus is collecting real data. |
+| Prometheus | Metrics collection and time-series database | Installed on `mon01`; currently scraping itself and Node Exporter. |
+| Grafana | Dashboard and visualization platform | Planned next after Prometheus target health has been validated. |
 
 Future additions may include:
 
@@ -107,6 +126,30 @@ Examples:
 - Service health.
 
 Node Exporter reads Linux kernel and operating system data from sources such as `/proc` and `/sys`, then exposes that data in a Prometheus-compatible text format at `/metrics`.
+
+Prometheus repeatedly scrapes configured targets and stores returned metric samples with timestamps. This makes it possible to query both current state and historical trends.
+
+## PromQL Validation Examples
+
+Useful queries for the current deployment:
+
+```promql
+up
+```
+
+Shows whether configured scrape targets are currently reachable.
+
+```promql
+node_memory_MemAvailable_bytes
+```
+
+Shows available memory reported by Node Exporter.
+
+```promql
+node_filesystem_avail_bytes{mountpoint="/"}
+```
+
+Shows available disk space for the root filesystem.
 
 ## Alerting Philosophy
 
@@ -170,12 +213,19 @@ Operational takeaway:
 - If a service depends on virtual hardware, check both the guest OS and the hypervisor configuration.
 - If virtual hardware is missing after a configuration change, perform a full power cycle from the hypervisor.
 
+### Prometheus Target State
+
+After adding a new scrape target, Prometheus may briefly show the target as `UNKNOWN` until it completes a scrape cycle.
+
+Operational takeaway:
+
+- Wait for at least one scrape interval before assuming a newly added target is broken.
+- If the target remains unhealthy, check target health details in the Prometheus web UI.
+- Validate local access to the exporter before troubleshooting Prometheus itself.
+
 ## Future Improvements
 
-- Install and configure Prometheus on `mon01`.
-- Configure Prometheus to scrape `mon01` Node Exporter.
-- Create a monitoring service page for Prometheus.
-- Add Grafana after Prometheus is collecting data.
+- Install Grafana and configure Prometheus as a data source.
 - Add host and service dashboards.
 - Add `dns01` host metrics.
 - Add DNS availability checks.
@@ -192,4 +242,5 @@ Operational takeaway:
 - [Security Architecture](security.md)
 - [VM Inventory](vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Prometheus Service](../services/prometheus.md)
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
