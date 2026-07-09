@@ -36,12 +36,14 @@ Avoid publishing:
 | Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `dns01` | Pi-hole DNS and local DNS records | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md) |
+| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 2 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md) |
 
 ## Recovery Priority
 
 | Priority | VM | Reason |
 | --- | --- | --- |
 | High | `dns01` | Provides internal DNS for homelab services and local records |
+| Medium | `mon01` | Provides monitoring visibility; important for troubleshooting but not required for core connectivity |
 
 ## Naming Convention
 
@@ -63,6 +65,8 @@ This format is short, readable, and easy to expand as the lab grows.
 ## Notes
 
 - `dns01` is the first production-style infrastructure VM.
+- `mon01` is the dedicated monitoring VM for Project 002.
+- Monitoring is intentionally separated from DNS to avoid combining unrelated infrastructure roles.
 - Future infrastructure VMs should be added here before being considered complete.
 - Experimental VMs should be clearly labeled as experimental or temporary.
 - Backup status should be updated once Proxmox Backup Server or another backup target is deployed.
@@ -71,7 +75,7 @@ This format is short, readable, and easy to expand as the lab grows.
 
 - Add VM IDs if they can be documented safely.
 - Add backup schedule and retention once backup infrastructure exists.
-- Add monitoring status once the monitoring stack is deployed.
+- Add monitoring status once Prometheus and Grafana are fully deployed.
 - Add owner, service tier, and restore-time expectations for critical services.
 - Link VM entries to service pages, runbooks, and architecture decision records.
 
@@ -79,5 +83,7 @@ This format is short, readable, and easy to expand as the lab grows.
 
 - [Virtualization Architecture](virtualization.md)
 - [Network Architecture](network.md)
+- [Monitoring and Observability](monitoring.md)
 - [Pi-hole Service](../services/pihole.md)
+- [Node Exporter Service](../services/node-exporter.md)
 - [Hardware Inventory](../hardware/inventory.md)
