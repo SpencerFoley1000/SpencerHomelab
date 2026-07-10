@@ -14,6 +14,7 @@ Current deployed components:
 | --- | --- | --- | --- |
 | `mon01` | Proxmox VE | Active / In Progress | Dedicated monitoring and observability VM |
 | Node Exporter | `mon01`, `dns01` | Active | Exposes Linux host metrics over HTTP |
+| Blackbox Exporter | `mon01` | Active | Performs DNS/service reachability probes |
 | Prometheus | `mon01` | Active | Scrapes, stores, and queries metrics from configured targets |
 | Grafana | `mon01` | Active | Visualizes Prometheus metrics through dashboards |
 
@@ -24,6 +25,7 @@ Current Prometheus scrape targets:
 | `prometheus` | `localhost:9090` | Up | Prometheus self-monitoring |
 | `node_exporter` | `localhost:9100` | Up | Linux host metrics for `mon01` |
 | `node_exporter` | `<DNS01_IP>:9100` | Up | Linux host metrics for `dns01` |
+| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | Up | DNS availability probe for `dns01` |
 
 Current Grafana data sources and dashboards:
 
@@ -31,9 +33,10 @@ Current Grafana data sources and dashboards:
 | --- | --- | --- |
 | Prometheus data source | Active | Allows Grafana to query Prometheus on `localhost:9090` |
 | Imported Node Exporter dashboard | Active | Provides initial CPU, memory, disk, and network visibility for `mon01` and `dns01` |
+| DNS availability panel | Planned | Will display `probe_success{job="blackbox_dns"}` and DNS probe latency |
 | Custom dashboard | Planned | Will be built later for learning value and portfolio polish |
 
-The core monitoring stack is functional and now monitors both itself and the first production-style infrastructure VM, `dns01`. The next operational milestone is adding DNS-specific availability checks and future Pi-hole metrics.
+The core monitoring stack is functional and now includes both host-level and service-level monitoring for `dns01`. Node Exporter confirms the host is running; Blackbox Exporter confirms the DNS service answers queries.
 
 Monitoring should start small and answer practical questions:
 
@@ -58,42 +61,57 @@ Monitoring should start small and answer practical questions:
 | Network | Gateway reachability, switch availability, DNS/DHCP health | Connectivity issues affect every service |
 | Proxmox host | CPU, memory, disk, uptime, updates, VM state | Hypervisor health affects all workloads |
 | Storage | Disk usage, storage pool health, backup target availability | Storage failures can cause data loss |
-| Services | Uptime, ports, HTTP checks, process health | Confirms services are usable |
+| Services | DNS probes, future HTTP checks, process health | Confirms services are usable |
 | Backups | Job success, failure, age, restore tests | Backups are only useful if they can be trusted |
 | Security events | Authentication failures, unexpected exposure, suspicious logs | Supports future defensive security projects |
 
-## Initial Architecture
+## Architecture
 
 The monitoring stack is being built in layers:
 
 ```text
 Linux hosts
     |
-    | expose metrics
+    | expose host metrics
     v
 Node Exporter
     |
-    | HTTP /metrics endpoint
+    | /metrics
     v
 Prometheus
     |
-    | query and time-series storage
+    | PromQL and time-series storage
     v
 Grafana
+```
+
+Service checks add a second path:
+
+```text
+Prometheus
+    |
+    | scrape /probe locally
+    v
+Blackbox Exporter on mon01
+    |
+    | DNS probe
+    v
+dns01:53
 ```
 
 Current completed layers:
 
 1. Node Exporter exposes `mon01` Linux host metrics on `localhost:9100`.
 2. Node Exporter exposes `dns01` Linux host metrics on `<DNS01_IP>:9100`.
-3. Prometheus scrapes `localhost:9090`, `localhost:9100`, and `<DNS01_IP>:9100`.
-4. Prometheus stores collected samples as time-series data.
-5. Grafana queries Prometheus on `localhost:9090`.
-6. Grafana displays host metrics for both `mon01` and `dns01` through an imported Node Exporter dashboard.
+3. Blackbox Exporter runs on `mon01` and probes `<DNS01_IP>:53` for DNS availability.
+4. Prometheus scrapes `localhost:9090`, `localhost:9100`, `<DNS01_IP>:9100`, and the `blackbox_dns` probe through `localhost:9115`.
+5. Prometheus stores collected samples as time-series data.
+6. Grafana queries Prometheus on `localhost:9090`.
+7. Grafana displays host metrics through an imported Node Exporter dashboard; DNS availability visualization is planned next.
 
 Next layer:
 
-1. Add DNS availability checks.
+1. Add Grafana panels for DNS probe status and latency.
 2. Add Pi-hole-specific metrics or a DNS-focused exporter.
 3. Add Proxmox monitoring through an appropriate exporter or API-based approach.
 4. Build a custom dashboard that reflects the actual homelab service priorities.
@@ -102,8 +120,8 @@ This order is intentional:
 
 1. Export metrics first.
 2. Collect and store metrics second.
-3. Visualize metrics third.
-4. Expand coverage only after the core pipeline is validated.
+3. Add service probes after host metrics are validated.
+4. Visualize metrics after the underlying checks work.
 5. Add alerting only after checks are actionable and documented.
 
 This makes troubleshooting easier because each layer can be validated before the next layer depends on it.
@@ -115,17 +133,17 @@ Initial selected tools:
 | Tool | Role | Notes |
 | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed on `mon01` and `dns01` to expose Linux host metrics. |
-| Prometheus | Metrics collection and time-series database | Installed on `mon01`; currently scraping itself and Node Exporter on both monitored hosts. |
-| Grafana | Dashboard and visualization platform | Installed on `mon01`; currently connected to Prometheus and displaying an imported Node Exporter dashboard. |
+| Blackbox Exporter | Service probe exporter | Installed on `mon01`; currently probing DNS availability on `dns01`. |
+| Prometheus | Metrics collection and time-series database | Installed on `mon01`; scraping itself, Node Exporter targets, and Blackbox DNS probes. |
+| Grafana | Dashboard and visualization platform | Installed on `mon01`; connected to Prometheus and displaying an imported Node Exporter dashboard. |
 
 Future additions may include:
 
-- Service uptime checks.
 - Custom dashboards.
 - Log collection.
 - Alert routing.
 - Backup job monitoring.
-- DNS-specific and Pi-hole-specific metrics.
+- Pi-hole-specific metrics.
 
 Tool choices should be documented in service pages and architecture decision records once selected.
 
@@ -143,6 +161,8 @@ Examples:
 - Service health.
 
 Node Exporter reads Linux kernel and operating system data from sources such as `/proc` and `/sys`, then exposes that data in a Prometheus-compatible text format at `/metrics`.
+
+Blackbox Exporter performs external-style probes and exposes the result as metrics such as `probe_success`.
 
 Prometheus repeatedly scrapes configured targets and stores returned metric samples with timestamps. This makes it possible to query both current state and historical trends.
 
@@ -163,6 +183,12 @@ up{job="node_exporter"}
 ```
 
 Shows whether monitored Linux hosts are reachable through Node Exporter.
+
+```promql
+probe_success{job="blackbox_dns"}
+```
+
+Shows whether the DNS probe against `dns01` is succeeding.
 
 ```promql
 node_memory_MemAvailable_bytes
@@ -202,8 +228,9 @@ Dashboards should support troubleshooting and capacity planning. Good dashboards
 
 Current dashboard state:
 
-- An imported Node Exporter dashboard is used for immediate visibility.
+- An imported Node Exporter dashboard is used for immediate host visibility.
 - The dashboard can display both `mon01` and `dns01` when using the `node_exporter` job selector.
+- DNS probe metrics are available in Prometheus and should be added to a dashboard next.
 - A custom dashboard is planned to demonstrate intentional panel design and PromQL understanding.
 
 Dashboards should avoid exposing sensitive values in screenshots or public documentation.
@@ -225,6 +252,7 @@ Logs may contain sensitive information and should not be committed to the reposi
 
 - Monitoring tools often have broad visibility and should be protected.
 - Node Exporter should not be exposed outside trusted internal networks.
+- Blackbox Exporter should not be exposed outside trusted internal networks.
 - Prometheus should remain internal because metrics can reveal infrastructure details.
 - Grafana should remain internal and protected with non-default credentials.
 - Dashboards should not be exposed publicly without strong authentication.
@@ -254,6 +282,16 @@ Operational takeaway:
 - Wait for at least one scrape interval before assuming a newly added target is broken.
 - If the target remains unhealthy, check target health details in the Prometheus web UI.
 - Validate local access to the exporter before troubleshooting Prometheus itself.
+
+### Blackbox Probe Endpoint Scope
+
+Blackbox Exporter was active, but a test request to the `mon01` LAN IP on port `9115` failed.
+
+Operational takeaway:
+
+- A service can be healthy while only listening locally.
+- Because Prometheus and Blackbox Exporter both run on `mon01`, `localhost:9115` is sufficient and preferable.
+- Validate the local probe before wiring it into Prometheus.
 
 ### Grafana Package Installation
 
@@ -287,9 +325,9 @@ Operational takeaway:
 
 ## Future Improvements
 
-- Add DNS availability checks.
+- Add Grafana panels for DNS probe status and latency.
 - Add Pi-hole-specific metrics.
-- Build a custom Grafana dashboard for Linux host metrics.
+- Build a custom Grafana dashboard for Linux host and DNS service metrics.
 - Add backup job monitoring.
 - Add alert routing for critical failures.
 - Add security detection experiments after segmentation is in place.
@@ -303,6 +341,7 @@ Operational takeaway:
 - [Security Architecture](security.md)
 - [VM Inventory](vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Blackbox Exporter Service](../services/blackbox-exporter.md)
 - [Prometheus Service](../services/prometheus.md)
 - [Grafana Service](../services/grafana.md)
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
