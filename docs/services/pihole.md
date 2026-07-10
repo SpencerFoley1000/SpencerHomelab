@@ -16,19 +16,23 @@ This service is the first production-style infrastructure service deployed in th
 | Internal DNS name | `dns01.lab` |
 | Exposure | Internal homelab LAN only |
 | Public access | None |
-| Backup maturity | Rebuildable from documentation; no validated VM backup |
+| Backup maturity | Configuration inventory in progress; no validated VM backup |
 | Monitoring | Node Exporter host metrics and Blackbox DNS availability probe |
 
 ## Technology Stack
 
 | Component | Details |
 | --- | --- |
-| Application | Pi-hole |
+| Application | Pi-hole Core v6.4.3 |
+| Web interface | Pi-hole Web v6.6 |
+| DNS engine | Pi-hole FTL v6.7 |
 | Operating system | Debian 13.5 (Trixie) |
 | Platform | Proxmox VE virtual machine |
 | Deployment method | Official Pi-hole installer |
 | Upstream DNS | Cloudflare DNS selected during initial deployment |
 | Local DNS zone | `lab` |
+
+Versions were verified with `pihole version` during the Project 003 backup-readiness inventory on 2026-07-09.
 
 ## Architecture
 
@@ -117,9 +121,10 @@ Validation performed after deployment:
 - Confirmed the VM is reachable on the homelab LAN.
 - Confirmed QEMU Guest Agent is running.
 - Confirmed the Pi-hole dashboard is accessible internally.
-- Confirmed Pi-hole service status is active.
+- Confirmed Pi-hole FTL is active and enabled at boot.
 - Confirmed local DNS records resolve from a separate client.
 - Confirmed public DNS resolution works through Pi-hole.
+- Confirmed Node Exporter is active and enabled at boot.
 - Confirmed Node Exporter metrics are scraped by Prometheus.
 - Confirmed the Blackbox DNS probe returns `probe_success 1`.
 - Confirmed the Grafana service-health dashboard shows DNS probe data.
@@ -129,6 +134,8 @@ Useful service checks:
 ```bash
 systemctl status pihole-FTL
 pihole status
+systemctl is-active pihole-FTL prometheus-node-exporter
+systemctl is-enabled pihole-FTL prometheus-node-exporter
 ```
 
 From a client configured to use Pi-hole:
@@ -169,12 +176,51 @@ Pi-hole-specific application metrics such as query volume, blocked domains, and 
 - Query logs can reveal browsing behavior and should be treated as sensitive operational data.
 - Router, switch, Proxmox, Pi-hole, Prometheus, and Grafana management interfaces should remain reachable only from trusted networks.
 - Node Exporter and DNS probe endpoints should not be exposed to untrusted networks.
+- Raw `/etc/pihole/` contents must not be committed because the directory includes authentication data, TLS material, private DNS state, query history, and active databases.
+- Pi-hole Teleporter archives must be stored outside Git until inspected and must remain protected if they contain private operational details.
 
 ## Backup Strategy
 
-Current backup maturity is early-stage.
+Current backup maturity is early-stage and is being improved under Project 003.
 
-Until Project 003 deploys and validates a backup solution:
+### Verified Configuration Baseline
+
+The first read-only backup inventory confirmed:
+
+| Item | Verified state |
+| --- | --- |
+| Primary Pi-hole state directory | `/etc/pihole/` |
+| Approximate state size | 16 MB on 2026-07-09 |
+| Pi-hole FTL service | Active and enabled |
+| Node Exporter service | Active and enabled |
+| Pi-hole versions | Core v6.4.3, Web v6.6, FTL v6.7 |
+
+The directory contains a mixture of:
+
+- Pi-hole configuration.
+- Gravity databases and generated backups.
+- Local host and DNS-related state.
+- Query-history and FTL database files.
+- Active SQLite write-ahead-log files.
+- Authentication and TLS-related files.
+
+Because this state is both sensitive and actively changing, a raw live copy of `/etc/pihole/` is not the preferred portable backup method.
+
+### Planned Backup Layers
+
+1. **Proxmox VM backup**
+   - Provides the fastest whole-system recovery path.
+   - Must not be treated as reliable until a restore test succeeds.
+
+2. **Pi-hole Teleporter export**
+   - Provides an application-level, portable configuration recovery path.
+   - Must be stored privately and inspected before any sanitized artifact is committed.
+
+3. **Sanitized recovery documentation**
+   - Records versions, configuration locations, service dependencies, network assumptions, and validation steps.
+   - Must not contain credentials, exact private addresses, query history, or private key material.
+
+Until Project 003 deploys and validates the final backup solution:
 
 - Pi-hole should be considered recoverable from documentation and reinstallation.
 - Important configuration should be exported using Pi-hole Teleporter after meaningful changes.
@@ -193,24 +239,29 @@ If Pi-hole fails:
 
 1. Confirm the VM is powered on in Proxmox.
 2. Confirm network connectivity to `dns01`.
-3. Check Pi-hole service status:
+3. Check Pi-hole and Node Exporter service state:
 
    ```bash
    sudo systemctl status pihole-FTL
+   sudo systemctl status prometheus-node-exporter
    pihole status
    ```
 
 4. Check the DNS service from `mon01` using the documented Blackbox probe or a direct query.
 5. Temporarily point affected clients to a public resolver if DNS service is unavailable.
 6. Restore from a validated VM backup when available.
-7. If no validated backup exists, rebuild Debian and Pi-hole using this documentation and restore local records from a protected export or private notes.
-8. Revalidate Node Exporter, DNS probing, local records, and public resolution.
+7. If no validated backup exists, rebuild Debian and Pi-hole using this documentation and restore the reviewed Teleporter export or recreate equivalent settings from protected notes.
+8. Confirm upstream DNS settings and required local records.
+9. Revalidate Node Exporter, DNS probing, local records, and public resolution.
+
+This procedure remains a draft recovery baseline until it is exercised during a controlled restore test.
 
 ## Maintenance Notes
 
 Routine maintenance should include:
 
 - Apply Debian and Pi-hole updates during planned maintenance windows.
+- Record major version changes that affect recovery compatibility.
 - Review the Pi-hole dashboard for abnormal query patterns.
 - Export Pi-hole configuration after meaningful DNS-record or blocklist changes.
 - Document new local DNS records when infrastructure services are deployed.
@@ -230,6 +281,8 @@ These issues are preserved because they demonstrate realistic systems-administra
 
 ## Future Improvements
 
+- Complete the remaining `dns01` service-definition and network-configuration inventory under Project 003.
+- Create and protect a Pi-hole Teleporter export.
 - Configure the GL.iNet Opal DHCP service to provide Pi-hole as DNS after resilience is improved.
 - Deploy a secondary DNS server.
 - Add a local-record DNS probe to separate internal DNS health from upstream recursive resolution.
@@ -242,6 +295,7 @@ These issues are preserved because they demonstrate realistic systems-administra
 
 - [Services Index](README.md)
 - [Project 001: Pi-hole DNS Service](../projects/project-001-pihole-dns.md)
+- [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
 - [Network Architecture](../architecture/network.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
 - [VM Inventory](../architecture/vm-inventory.md)
