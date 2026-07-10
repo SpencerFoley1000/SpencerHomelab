@@ -14,13 +14,13 @@
 
 Project 003 is beginning with **Phase 003A: Backup Readiness and Configuration Inventory**.
 
-The external backup target is not yet available. This phase identifies the service state that must be preserved, records sanitized configuration locations, exports application-level configuration where practical, and drafts recovery procedures before automated VM backups are configured.
+The external backup target is not yet available. This phase identifies the state that must be preserved, records sanitized configuration locations, creates portable service exports, and drafts recovery procedures before automated VM backups are configured.
 
 ## Purpose
 
-Establish a documented, testable backup and recovery process for the homelab.
+Establish a documented and testable backup and recovery process for the homelab.
 
-The immediate question for each system is:
+The guiding question for each system is:
 
 > If this VM failed tonight, what information and service state would be required to rebuild it?
 
@@ -31,8 +31,8 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 - Identify critical configuration and service state on `dns01` and `mon01`.
 - Assign recovery priority based on service dependencies and operational impact.
 - Record verified configuration paths, package versions, and service dependencies.
-- Export Grafana dashboards and Pi-hole configuration for inspection.
-- Sanitize all artifacts before considering them for version control.
+- Export Pi-hole configuration and Grafana dashboards for protected storage and inspection.
+- Keep raw exports and sensitive values outside the public repository.
 - Draft service recovery notes before implementing the final Proxmox backup target.
 - Configure and validate VM backups after the external backup drive is available.
 - Perform at least one representative restore test and document the result.
@@ -46,10 +46,10 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 - Pi-hole Teleporter export.
 - Grafana dashboard JSON exports.
 - Prometheus and Blackbox Exporter configuration inventory.
-- Grafana data source and local state inventory.
+- Grafana data source and local-state inventory.
 - Node Exporter package and service-state inventory.
 - Sanitized rebuild and recovery notes.
-- Identification of sensitive values that must remain outside the public repository.
+- Identification of sensitive values that must remain outside Git.
 
 ### Backup Implementation Phase
 
@@ -76,7 +76,7 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Virtualization | Future Proxmox backup jobs will cover the current infrastructure VMs. Restore testing may create a temporary isolated recovery VM. |
 | Storage | Introduces a dedicated external backup destination instead of relying on the Proxmox system disk. |
 | Monitoring | Monitoring configuration and dashboards become defined backup assets. |
-| Security | Exports must be reviewed before commit. Secrets and private topology remain outside the repository. |
+| Security | Exports remain outside Git and are inspected before any sanitized artifact is versioned. |
 | Documentation | Project, runbook, service, architecture, and changelog pages are updated as milestones are completed. |
 
 ## Design Decisions
@@ -86,7 +86,7 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Inventory service state before configuring backup jobs | A successful VM backup is not a substitute for understanding what must be recovered. | Backup-job configuration waits for the external target, but recovery readiness improves first. |
 | Use VM backups and application-level exports | Provides fast full-system recovery plus portable service-level recovery. | More than one recovery method must be maintained. |
 | Restore `dns01` before `mon01` | DNS failure affects access to and troubleshooting of other services. | Monitoring visibility returns after DNS. |
-| Keep raw exports outside Git until inspected | Pi-hole and Grafana exports may expose private values. | Artifacts require manual review and possible sanitization. |
+| Keep raw exports outside Git | Pi-hole and Grafana exports may expose private operational values. | Artifacts require protected storage and manual review. |
 | Mark runbooks as planned until tested | Prevents draft instructions from being mistaken for validated procedures. | Documentation matures incrementally. |
 | Prefer Pi-hole Teleporter over a raw live directory copy | `/etc/pihole/` contains active databases, authentication data, TLS material, and generated state. | The Teleporter archive still requires protected storage and inspection. |
 
@@ -94,7 +94,7 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 
 | System | Role | Critical configuration and state | Planned backup method | Restore priority | Current notes |
 | --- | --- | --- | --- | --- | --- |
-| `dns01` | DNS and Pi-hole | Pi-hole settings, local records, upstream DNS configuration, static network configuration, service definitions, and Node Exporter state | Proxmox VM backup, Pi-hole Teleporter export, and sanitized rebuild notes | High | Live configuration inventory complete. Teleporter export remains pending. |
+| `dns01` | DNS and Pi-hole | Pi-hole settings, local records, upstream DNS configuration, static network configuration, service definitions, and Node Exporter state | Proxmox VM backup, Pi-hole Teleporter export, and sanitized rebuild notes | High | Live inventory complete. Teleporter ZIP created and stored outside Git; private inspection remains pending. |
 | `mon01` | Monitoring and observability | Prometheus and Blackbox configuration, Grafana dashboards and data source, Grafana local state, service definitions, and exporter state | Proxmox VM backup, reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Live configuration inventory remains pending. |
 
 ## Configuration Inventory
@@ -104,7 +104,7 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Item | Verified location or state |
 | --- | --- |
 | Pi-hole state directory | `/etc/pihole/`, approximately 16 MB during inventory |
-| Pi-hole portable export | Teleporter; export not yet created |
+| Pi-hole portable export | Teleporter ZIP created on 2026-07-09; 23,868 bytes; stored outside Git |
 | Pi-hole systemd unit | `/etc/systemd/system/pihole-FTL.service` |
 | Pi-hole unit overrides | None detected |
 | Pi-hole service state | Active, running, and enabled |
@@ -114,12 +114,14 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Node Exporter package | `prometheus-node-exporter` version `1.9.0-1+b4` |
 | Static network configuration | `/etc/network/interfaces` using `ifupdown` |
 | Interface model | `ens18` with a static `/24` address and sanitized gateway `<LAB_GATEWAY>` |
-| Host resolver configuration | Public resolvers are defined in `/etc/network/interfaces`; exact operational context is documented without publishing private addressing |
+| Host resolver configuration | Public resolvers defined in `/etc/network/interfaces` |
 | Pi-hole versions | Core v6.4.3, Web v6.6, FTL v6.7 |
 
 The host resolver does not depend on Pi-hole itself. This reduces circular dependency during Pi-hole troubleshooting or recovery, but DNS queries originating from `dns01` bypass local Pi-hole filtering.
 
 The `/etc/pihole/` directory includes configuration, gravity databases, local host data, generated backups, query-history databases, active SQLite write-ahead-log files, authentication material, and TLS-related files. Raw directory contents must not be committed to the public repository.
+
+The Teleporter archive is retained as the application-level recovery artifact. The original ZIP remains intact outside the repository. Any extracted inspection copy must also remain in protected private storage.
 
 ### `mon01` — Pending
 
@@ -144,7 +146,7 @@ The `/etc/pihole/` directory includes configuration, gravity databases, local ho
 | 1. Create backup inventory | Complete | Both systems have documented roles, recovery priorities, and intended backup methods. |
 | 2. Verify configuration locations | In Progress | `dns01` is complete; `mon01` remains pending. |
 | 3. Export Grafana dashboards | Not Started | Node Exporter and Homelab Service Health dashboards are exported and inspected. |
-| 4. Export Pi-hole configuration | Not Started | Teleporter archive is created, stored outside Git, and inspected. |
+| 4. Export Pi-hole configuration | In Progress | Teleporter archive exists outside Git; private content inspection remains pending. |
 | 5. Draft recovery notes | In Progress | Preliminary rebuild paths exist and will be refined from verified inventory. |
 | 6. Configure backup storage | Blocked | External backup target is mounted and added to Proxmox storage. |
 | 7. Run initial VM backups | Blocked | Backups complete successfully and retention is documented. |
@@ -192,7 +194,7 @@ The `/etc/pihole/` directory includes configuration, gravity databases, local ho
 2. For a manual rebuild, deploy a supported Debian VM with `ifupdown` networking.
 3. Recreate the static interface configuration in `/etc/network/interfaces` using protected operational values.
 4. Reinstall Pi-hole and Node Exporter.
-5. Restore the reviewed Pi-hole Teleporter export or recreate equivalent settings manually.
+5. Restore the protected Pi-hole Teleporter archive or recreate equivalent settings manually.
 6. Confirm upstream DNS configuration and local DNS records.
 7. Confirm `pihole-FTL` and `prometheus-node-exporter` are active and enabled.
 8. Validate public DNS queries, local records, Node Exporter metrics, and the Blackbox DNS probe.
@@ -212,10 +214,11 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 ## Results
 
 - **Completed:** Initial backup inventory and full live `dns01` configuration inventory.
+- **Created:** A 23,868-byte Pi-hole Teleporter ZIP stored outside the public repository.
 - **Verified:** Pi-hole state location and size, Pi-hole versions, service unit paths, service runtime and boot state, Node Exporter package version, and static network configuration path.
-- **Failed:** Nothing during the read-only inventory.
+- **Failed:** Initial PowerShell instructions incorrectly assumed a `.tar.gz` export format; the actual Pi-hole Teleporter artifact is a ZIP archive. The workflow was corrected without affecting the export.
 - **Design finding:** `dns01` host resolution is independent of Pi-hole, reducing circular dependency while bypassing local filtering for host-originated queries.
-- **Remaining:** Teleporter export, complete `mon01` inventory, Grafana exports, backup implementation, and restore testing.
+- **Remaining:** Private Teleporter content inspection, complete `mon01` inventory, Grafana exports, backup implementation, and restore testing.
 
 ## Lessons Learned
 
@@ -223,12 +226,15 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - A small configuration footprint does not make a directory safe for public version control.
 - Recovery planning must verify runtime state, boot-time enablement, unit locations, package versions, and network configuration.
 - Host-level resolver configuration can create an intentional resilience tradeoff that should be documented explicitly.
+- Export formats should be verified from the generated artifact rather than assumed from prior versions or unrelated tools.
+- Windows `Size` is the logical file length; `Size on disk` reflects filesystem allocation and is not the value used for backup artifact inventory.
 
 ## Follow-Up Tasks
 
 - [x] Create the initial backup inventory and recovery priorities.
 - [x] Verify `dns01` configuration locations, service definitions, package version, and live network configuration.
-- [ ] Export and inspect Pi-hole Teleporter configuration.
+- [x] Create and protect the Pi-hole Teleporter archive.
+- [ ] Inspect the Teleporter archive privately for sensitive or environment-specific content.
 - [ ] Verify all `mon01` configuration locations and service definitions.
 - [ ] Export and inspect both Grafana dashboards.
 - [ ] Expand `docs/runbooks/backup.md` with the selected schedule and retention.
