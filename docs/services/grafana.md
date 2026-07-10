@@ -28,7 +28,7 @@ Grafana helps answer operational questions such as:
 | Default port | `3000/tcp` |
 | Data source | Prometheus on `http://localhost:9090` |
 | Current dashboards | Imported Node Exporter dashboard; Homelab Service Health dashboard |
-| Backup maturity | Dashboard exports created and inspected; VM backup and restore validation pending |
+| Backup maturity | Dashboard exports and data-source recovery mapping complete; VM backup and restore validation pending |
 
 ## Host
 
@@ -68,15 +68,38 @@ Verified service baseline:
 
 | Setting | Value |
 | --- | --- |
-| Type | Prometheus |
+| Name | `prometheus` |
+| Type | `prometheus` |
 | URL | `http://localhost:9090` |
 | Access scope | Local from `mon01` |
 | Status | Successfully tested |
+| Current UID | Retained privately as `<PROMETHEUS_DATASOURCE_UID>` |
 | Storage model | Stored in local Grafana database state |
 
 `localhost` is used because Grafana and Prometheus run on the same VM.
 
-The current provisioning directories contain only package-provided sample files. The active Prometheus data source is therefore not yet represented as portable provisioning configuration. Recovery currently requires either a consistent restore of `grafana.db` or manual recreation of the data source before dashboard import.
+The data-source name, type, and current UID were verified through a read-only query against `/var/lib/grafana/grafana.db`. The exact UID is environment-specific and is retained with the private recovery artifacts rather than published in the repository.
+
+The current provisioning directories contain only package-provided sample files. The active Prometheus data source is therefore not represented as portable provisioning configuration. Recovery currently requires either:
+
+- A consistency-preserving restore of `grafana.db`.
+- Manual recreation of a Prometheus data source named `prometheus` with URL `http://localhost:9090`.
+
+### Dashboard Import Mapping
+
+Private inspection of both dashboard exports found:
+
+- No `__inputs` section.
+- No explicit `datasource` object discovered by the inspection script.
+- No sensitive-looking credential property names.
+
+The exports must not be assumed to bind automatically to the intended data source. During recovery:
+
+1. Create or restore the Prometheus data source first.
+2. Import each dashboard.
+3. Select or verify the Prometheus data source for panels and variables.
+4. Confirm the `node_exporter` and `blackbox_dns` queries return current data.
+5. Record any newly assigned UID if the original UID is not preserved.
 
 ## Dashboards
 
@@ -200,7 +223,7 @@ A successful parse verifies JSON syntax. It does not prove that the dashboard wi
 - Do not expose port `3000` to untrusted networks.
 - Treat dashboards as operationally sensitive.
 - Do not publish screenshots or raw JSON containing internal addresses, usernames, private URLs, tokens, or topology details.
-- Use placeholders such as `<MON01_IP>` and `<DNS01_IP>` in public documentation.
+- Use placeholders such as `<MON01_IP>`, `<DNS01_IP>`, and `<PROMETHEUS_DATASOURCE_UID>` in public documentation.
 - Keyword matches such as `token` do not automatically prove a secret exists; inspect JSON property paths without printing values.
 - Preserve original recovery exports outside Git even when sanitized portfolio copies are later created.
 
@@ -218,14 +241,18 @@ Grafana recovery uses multiple layers:
 
 3. **Dashboard JSON exports**
    - Provide portable dashboard recovery independent of the local database.
-   - Require data-source mapping during import.
+   - Require data-source verification during import.
    - Raw exports remain private because they contain environment-specific values.
 
-4. **Sanitized documentation**
+4. **Data-source recovery record**
+   - Records the data-source name, type, URL, and current UID.
+   - The exact UID remains in private storage; public documentation uses a placeholder.
+
+5. **Sanitized documentation**
    - Records package versions, paths, dependencies, state classification, and validation steps.
    - Excludes credentials and exact internal addressing.
 
-The current application-level backup milestone covers dashboard export and inspection. The full backup design is incomplete until Proxmox backup storage is available and restore testing succeeds.
+The current application-level backup milestone covers dashboard export, inspection, and data-source recovery mapping. The full backup design is incomplete until Proxmox backup storage is available and restore testing succeeds.
 
 ## Recovery Procedure
 
@@ -233,12 +260,17 @@ The current application-level backup milestone covers dashboard export and inspe
 2. For a manual rebuild, install a supported Grafana version on `mon01`.
 3. Restore modified configuration from `/etc/grafana/` as appropriate.
 4. Restore `grafana.db` using a consistency-preserving procedure, or recreate the Prometheus data source manually.
-5. Reinstall required non-bundled plugins.
-6. Import the Node Exporter dashboard JSON.
-7. Import the Homelab Service Health dashboard JSON.
-8. Map imported dashboards to the recreated Prometheus data source.
-9. Confirm `grafana-server` is active and enabled.
-10. Confirm both dashboards display current Prometheus data.
+5. When recreating the data source, use:
+   - Name: `prometheus`
+   - Type: `prometheus`
+   - URL: `http://localhost:9090`
+   - UID: protected value represented publicly as `<PROMETHEUS_DATASOURCE_UID>`, or a newly assigned UID that is recorded after creation
+6. Reinstall required non-bundled plugins.
+7. Import the Node Exporter dashboard JSON.
+8. Import the Homelab Service Health dashboard JSON.
+9. Select or verify the Prometheus data source for imported panels and variables.
+10. Confirm `grafana-server` is active and enabled.
+11. Confirm both dashboards display current Prometheus data.
 
 This procedure remains a draft recovery baseline until exercised during a controlled restore or rebuild test.
 
@@ -267,6 +299,16 @@ A redirect to `/login` confirms Grafana is responding.
 
 Imported dashboards may expect different Prometheus job names. Select or adjust the `node_exporter` job and refresh variables after adding or restoring targets.
 
+### Dashboard Import Has No Data
+
+Check in this order:
+
+1. The Prometheus data source exists and passes **Save & test**.
+2. Imported panels and variables reference the intended data source.
+3. Prometheus contains the `node_exporter` and `blackbox_dns` jobs.
+4. Expected targets are `UP`.
+5. Dashboard job and host variables are refreshed.
+
 ### Empty Service Health Panels
 
 Check the dependency chain in order:
@@ -287,14 +329,14 @@ Grafana is often where a monitoring failure becomes visible, not where it origin
 - Avoid storing secrets in dashboards, panel queries, or documentation.
 - Keep dashboard labels aligned with Prometheus job labels.
 - Record any manually installed plugins.
+- Update the private data-source recovery record if its UID changes.
 - Repeat private export inspection before publishing a sanitized dashboard copy.
 - Update Project 003 after backup or restore validation.
 
 ## Future Improvements
 
-- Document the Prometheus data-source UID and recovery mapping.
+- Create reviewed provisioning files for the Prometheus data source and dashboards.
 - Create sanitized dashboard copies suitable for version control.
-- Consider provisioning dashboards and data sources from reviewed files.
 - Build a custom Linux host dashboard for `mon01` and `dns01`.
 - Add Pi-hole-specific panels after metrics are available.
 - Add Proxmox and backup-health panels after those systems are monitored.
