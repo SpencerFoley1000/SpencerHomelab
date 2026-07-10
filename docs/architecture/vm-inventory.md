@@ -17,26 +17,29 @@ Each VM should document:
 - Resource allocation
 - Network placement
 - IP assignment model
-- Service owner or role
+- Lifecycle status
 - Backup status
 - Recovery priority
-- Documentation link
+- Monitoring coverage
+- Documentation links
 
 Avoid publishing:
 
-- Exact internal IPs unless they are necessary and intentionally sanitized.
+- Exact internal IPs unless necessary and intentionally sanitized.
 - MAC addresses.
-- Serial numbers.
+- VM IDs unless there is a documented reason.
 - Personal usernames.
 - Secrets, tokens, keys, or passwords.
 - Hostnames that reveal personally identifying information.
 
 ## Active Virtual Machines
 
-| Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `dns01` | Pi-hole DNS, local DNS records, and monitored Linux host metrics | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md), [Node Exporter](../services/node-exporter.md) |
-| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 3 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md) |
+| Hostname | Purpose | Platform | OS | vCPU | RAM | Disk | Network | IP Model | Lifecycle | Backup Status | Monitoring | Documentation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `dns01` | Pi-hole DNS, local records, and DNS-based blocking | Proxmox VE VM | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | Node Exporter host metrics and Blackbox DNS availability probe | [Pi-hole](../services/pihole.md), [Node Exporter](../services/node-exporter.md), [Blackbox Exporter](../services/blackbox-exporter.md) |
+| `mon01` | Monitoring and observability stack | Proxmox VE VM | Debian 13.5 (Trixie) | 2 | 3 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active | Not yet backed up | Prometheus self-monitoring and local Node Exporter metrics | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md), [Blackbox Exporter](../services/blackbox-exporter.md) |
+
+Project status and VM lifecycle are tracked separately. Project 002 remains active while `mon01` itself is an active infrastructure VM.
 
 ## Recovery Priority
 
@@ -44,6 +47,8 @@ Avoid publishing:
 | --- | --- | --- |
 | High | `dns01` | Provides internal DNS for homelab services and local records |
 | Medium | `mon01` | Provides monitoring visibility; important for troubleshooting but not required for core connectivity |
+
+Recovery priority should be revisited after additional services depend on monitoring, authentication, reverse proxying, or backup infrastructure.
 
 ## Naming Convention
 
@@ -62,31 +67,34 @@ Examples:
 
 This format is short, readable, and easy to expand as the lab grows.
 
-## Notes
+## Operational Notes
 
-- `dns01` is the first production-style infrastructure VM and is now monitored through Node Exporter.
+- `dns01` is the first production-style infrastructure VM.
 - `mon01` is the dedicated monitoring VM for Project 002.
 - `mon01` memory was increased from 2 GB to 3 GB after Grafana showed sustained memory usage near the original allocation.
 - Monitoring is intentionally separated from DNS to avoid combining unrelated infrastructure roles on `dns01`.
-- Future infrastructure VMs should be added here before being considered complete.
+- QEMU Guest Agent is installed on both stable Debian VMs.
+- Future infrastructure VMs should be added here before their deployment is considered complete.
 - Experimental VMs should be clearly labeled as experimental or temporary.
-- Backup status should be updated once Proxmox Backup Server or another backup target is deployed.
+- Backup status must be updated after Project 003 implements and validates a backup target.
 
 ## Future Improvements
 
-- Add VM IDs if they can be documented safely.
-- Add backup schedule and retention once backup infrastructure exists.
-- Add monitoring status for future infrastructure VMs as they are onboarded.
-- Add owner, service tier, and restore-time expectations for critical services.
-- Link VM entries to service pages, runbooks, and architecture decision records.
+- Add service tier and restore-time expectations for critical VMs.
+- Add backup schedule, retention, and last restore-test date.
+- Add sanitized Proxmox node placement if additional nodes are introduced.
+- Add monitoring status for future infrastructure VMs during onboarding.
+- Link VM entries to relevant runbooks and ADRs.
 
 ## Related Documentation
 
 - [Virtualization Architecture](virtualization.md)
 - [Network Architecture](network.md)
 - [Monitoring and Observability](monitoring.md)
+- [Proxmox Platform](../services/proxmox.md)
 - [Pi-hole Service](../services/pihole.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Blackbox Exporter Service](../services/blackbox-exporter.md)
 - [Prometheus Service](../services/prometheus.md)
 - [Grafana Service](../services/grafana.md)
 - [Hardware Inventory](../hardware/inventory.md)
