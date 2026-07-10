@@ -21,22 +21,22 @@ Grafana helps answer operational questions such as:
 | Component | Value |
 | --- | --- |
 | Service | Grafana |
-| Package | `grafana` |
+| Package | `grafana` version `13.1.0` |
 | Host | `mon01` |
-| Operating System | Debian 13.5 |
-| Deployment Method | Grafana APT repository |
-| Default Port | `3000/tcp` |
-| Data Source | Prometheus on `localhost:9090` |
-| Current Dashboards | Imported Node Exporter dashboard; Homelab Service Health dashboard |
-| Current Dashboard Targets | `mon01`, `dns01`, DNS service probe for `dns01` |
+| Operating system | Debian 13.5 |
+| Deployment method | Grafana APT repository |
+| Default port | `3000/tcp` |
+| Data source | Prometheus on `http://localhost:9090` |
+| Current dashboards | Imported Node Exporter dashboard; Homelab Service Health dashboard |
+| Backup maturity | Dashboard exports created and inspected; VM backup and restore validation pending |
 
 ## Host
-
-Grafana is currently installed on:
 
 | Hostname | Role |
 | --- | --- |
 | `mon01` | Dedicated monitoring VM |
+
+Exact private addresses are intentionally omitted. Use `<MON01_IP>` and `<DNS01_IP>` in public documentation.
 
 ## Deployment Notes
 
@@ -46,73 +46,116 @@ High-level deployment steps:
 
 1. Added the Grafana APT signing key under `/etc/apt/keyrings/`.
 2. Added the Grafana stable APT repository under `/etc/apt/sources.list.d/`.
-3. Refreshed package indexes with `apt-get update`.
+3. Refreshed package indexes.
 4. Installed the `grafana` package.
-5. Enabled and started the `grafana-server` systemd service.
+5. Enabled and started `grafana-server`.
+6. Configured Prometheus as the first data source.
+7. Imported a Node Exporter dashboard.
+8. Created the Homelab Service Health dashboard manually.
 
-Service validation:
+Verified service baseline:
 
-```bash
-systemctl is-active grafana-server
-curl -I localhost:3000
-```
-
-The local HTTP check returned a redirect to `/login`, confirming that Grafana was responding.
+| Item | State |
+| --- | --- |
+| Systemd unit | `/usr/lib/systemd/system/grafana-server.service` |
+| Unit overrides | None detected |
+| Runtime state | Active and running |
+| Boot state | Enabled |
 
 ## Data Sources
 
 ### Prometheus
 
-Grafana is configured with Prometheus as its first data source.
-
 | Setting | Value |
 | --- | --- |
 | Type | Prometheus |
 | URL | `http://localhost:9090` |
-| Access Scope | Local from `mon01` |
+| Access scope | Local from `mon01` |
 | Status | Successfully tested |
+| Storage model | Stored in local Grafana database state |
 
-`localhost` is used because Grafana and Prometheus both run on `mon01`.
+`localhost` is used because Grafana and Prometheus run on the same VM.
+
+The current provisioning directories contain only package-provided sample files. The active Prometheus data source is therefore not yet represented as portable provisioning configuration. Recovery currently requires either a consistent restore of `grafana.db` or manual recreation of the data source before dashboard import.
 
 ## Dashboards
 
 ### Imported Node Exporter Dashboard
 
-An imported Node Exporter dashboard is used for host-level monitoring visibility.
+The imported Node Exporter dashboard provides host-level visibility for `mon01` and `dns01`.
 
-Current status:
+Current behavior:
 
-- Node Exporter dashboard imported.
-- Prometheus selected as the dashboard data source.
-- Dashboard panels display metrics collected from `mon01`.
-- After `dns01` was added as a remote Prometheus scrape target, the imported dashboard was able to display both `mon01` and `dns01` when the `node_exporter` job was selected.
+- Prometheus is selected as the dashboard data source.
+- The `node_exporter` job exposes both monitored hosts.
+- Dashboard variables may require the correct job selection after import.
+- The export is large because panel definitions, queries, variables, thresholds, and formatting are embedded in JSON.
+
+Protected export:
+
+| Item | Value |
+| --- | --- |
+| Filename | `node-exporter-dashboard.json` |
+| Logical size | 723,648 bytes |
+| JSON validation | Successful |
+| Storage | Private location outside Git |
 
 ### Homelab Service Health Dashboard
 
-A custom service health dashboard was created to visualize service-level checks separately from host-level metrics.
+The custom service health dashboard visualizes service-level checks separately from host metrics.
 
-Current panels:
-
-| Panel | Prometheus Metric | Purpose |
+| Panel | Prometheus metric | Purpose |
 | --- | --- | --- |
-| `dns01 DNS Availability` | `probe_success` for the `blackbox_dns` job | Shows whether the DNS probe is currently succeeding. |
-| `dns01 DNS Probe Duration` | `probe_duration_seconds` for the `blackbox_dns` job | Shows DNS probe response time over time. |
-| `dns01 DNS Probe Status` | `probe_success` for the `blackbox_dns` job | Shows DNS probe state over time. |
+| `dns01 DNS Availability` | `probe_success` for `blackbox_dns` | Shows whether the DNS probe is succeeding |
+| `dns01 DNS Probe Duration` | `probe_duration_seconds` for `blackbox_dns` | Shows probe response time over time |
+| `dns01 DNS Probe Status` | `probe_success` for `blackbox_dns` | Shows probe state over time |
 
-This dashboard is intentionally separate from the imported Node Exporter dashboard. Host dashboards answer whether a server is healthy; service dashboards answer whether a service is usable.
+Protected export:
 
-A more polished dashboarding strategy is planned later. The current dashboards prioritize practical validation and learning over visual polish.
+| Item | Value |
+| --- | --- |
+| Filename | `homelab-service-health-dashboard.json` |
+| Logical size | 11,873 bytes |
+| JSON validation | Successful |
+| Storage | Private location outside Git |
+
+Both dashboard exports were inspected privately on 2026-07-10. They contain expected internal environment values, including private addressing, but no JSON property names suggesting passwords, secrets, API keys, authorization headers, bearer values, or authentication tokens. The original exports must remain outside the public repository unless sanitized copies are created.
 
 ## Networking
 
 | Item | Value |
 | --- | --- |
-| Listen Port | `3000/tcp` |
-| Access Scope | Internal homelab only |
-| Public Exposure | None |
-| Browser Access | `http://<MON01_IP>:3000` |
+| Listen port | `3000/tcp` |
+| Access scope | Internal homelab only |
+| Public exposure | None |
+| Browser access | `http://<MON01_IP>:3000` |
 
-Grafana should remain internal-only. Do not expose Grafana directly to the public internet.
+Grafana should remain internal-only. Do not expose it directly to the public internet.
+
+## Local State Inventory
+
+| Item | Verified location or size |
+| --- | --- |
+| Main configuration | `/etc/grafana/grafana.ini` |
+| Configuration directory | Approximately 156 KB under `/etc/grafana/` |
+| Provisioning directory | `/etc/grafana/provisioning/`; sample files only |
+| SQLite database | `/var/lib/grafana/grafana.db`, approximately 2.2 MB |
+| Installed plugins | Approximately 112 MB under `/var/lib/grafana/plugins/` |
+| Bundled plugins | Approximately 64 MB under `/var/lib/grafana/plugins-bundled/` |
+| CSV export directory | Approximately 4 KB |
+| PDF export directory | Approximately 4 KB |
+| PNG export directory | Approximately 4 KB |
+| Unified-search state | Approximately 8 KB |
+
+Approximately 176 MB of the 177 MB Grafana state directory is plugin content. Operationally unique recovery state is concentrated primarily in:
+
+- `grafana.db`
+- Dashboard JSON exports
+- Prometheus data-source settings
+- Modified Grafana configuration
+- Any future non-bundled plugin requirements
+
+Plugin directories are mostly replaceable through package or plugin reinstallation. They should not be treated as more important merely because they occupy more space.
 
 ## Validation Procedure
 
@@ -120,174 +163,148 @@ Run on `mon01`:
 
 ```bash
 systemctl is-active grafana-server
+systemctl is-enabled grafana-server
 curl -I localhost:3000
 ```
 
 Expected results:
 
-- `systemctl` returns `active`.
-- `curl` returns an HTTP response, commonly a redirect to `/login`.
+- The service is active.
+- The service is enabled.
+- The HTTP request returns a response, commonly a redirect to `/login`.
 
-Validate from the Grafana web UI:
+Validate from the Grafana web interface:
 
-1. Log in to Grafana from the internal homelab network.
-2. Confirm the Prometheus data source test succeeds.
-3. Open the imported Node Exporter dashboard.
-4. Select the `node_exporter` job.
-5. Confirm both `mon01` and `dns01` are available as monitored hosts.
-6. Confirm host panels show data from Prometheus.
-7. Open the `Homelab Service Health` dashboard.
-8. Confirm the DNS availability panel shows a successful value.
-9. Confirm the DNS duration panel shows timing data.
-10. Confirm the DNS status panel shows state over time.
+1. Confirm the Prometheus data source test succeeds.
+2. Open the imported Node Exporter dashboard.
+3. Select the `node_exporter` job.
+4. Confirm `mon01` and `dns01` are available.
+5. Confirm host panels display current data.
+6. Open the Homelab Service Health dashboard.
+7. Confirm DNS availability reports success.
+8. Confirm duration and status-history panels contain data.
+
+Dashboard export validation on the private workstation:
+
+```powershell
+Get-Content <DASHBOARD_JSON> -Raw | ConvertFrom-Json
+```
+
+A successful parse verifies JSON syntax. It does not prove that the dashboard will import correctly against a recreated data source, so a controlled import test remains required.
 
 ## Security Considerations
 
-- Change the default `admin` password during initial setup.
-- Store Grafana credentials in a password manager, not in this repository.
-- Do not publish dashboard screenshots that expose sensitive hostnames, IP addresses, usernames, tokens, private URLs, or detailed internal topology.
-- Keep Grafana internal-only unless a future reverse proxy and authentication design is documented.
-- Treat dashboards as operationally sensitive because they can reveal infrastructure health, capacity, and service names.
-- Use sanitized placeholders such as `<MON01_IP>` and `<DNS01_IP>` in public documentation.
+- Change the default administrative password during initial setup.
+- Store Grafana credentials in a password manager, not in Git.
+- Keep Grafana internal-only.
+- Do not expose port `3000` to untrusted networks.
+- Treat dashboards as operationally sensitive.
+- Do not publish screenshots or raw JSON containing internal addresses, usernames, private URLs, tokens, or topology details.
+- Use placeholders such as `<MON01_IP>` and `<DNS01_IP>` in public documentation.
+- Keyword matches such as `token` do not automatically prove a secret exists; inspect JSON property paths without printing values.
+- Preserve original recovery exports outside Git even when sanitized portfolio copies are later created.
 
 ## Backup Strategy
 
-Grafana configuration and dashboards may become important operational state as the lab matures.
+Grafana recovery uses multiple layers:
 
-Important state includes:
+1. **Proxmox VM backup**
+   - Preserves the complete VM, package installation, plugins, database, and configuration.
+   - Remains unvalidated until a restore test succeeds.
 
-- Grafana configuration files.
-- Data source configuration.
-- Dashboard definitions.
-- User and authentication configuration.
-- Documentation in this repository.
+2. **Consistent Grafana database backup**
+   - Protects dashboards, users, data sources, and other local database state.
+   - Direct copies must use a procedure that preserves SQLite consistency.
 
-Until backup infrastructure is deployed, Grafana should be treated as rebuildable but not fully protected. Dashboards should eventually be exported as JSON or provisioned from version-controlled files after they become important.
+3. **Dashboard JSON exports**
+   - Provide portable dashboard recovery independent of the local database.
+   - Require data-source mapping during import.
+   - Raw exports remain private because they contain environment-specific values.
+
+4. **Sanitized documentation**
+   - Records package versions, paths, dependencies, state classification, and validation steps.
+   - Excludes credentials and exact internal addressing.
+
+The current application-level backup milestone covers dashboard export and inspection. The full backup design is incomplete until Proxmox backup storage is available and restore testing succeeds.
 
 ## Recovery Procedure
 
-If Grafana is not responding:
+1. Restore the validated VM backup when available.
+2. For a manual rebuild, install a supported Grafana version on `mon01`.
+3. Restore modified configuration from `/etc/grafana/` as appropriate.
+4. Restore `grafana.db` using a consistency-preserving procedure, or recreate the Prometheus data source manually.
+5. Reinstall required non-bundled plugins.
+6. Import the Node Exporter dashboard JSON.
+7. Import the Homelab Service Health dashboard JSON.
+8. Map imported dashboards to the recreated Prometheus data source.
+9. Confirm `grafana-server` is active and enabled.
+10. Confirm both dashboards display current Prometheus data.
 
-1. Check service status:
-
-   ```bash
-   systemctl status grafana-server
-   ```
-
-2. Check local HTTP response:
-
-   ```bash
-   curl -I localhost:3000
-   ```
-
-3. Confirm the service is listening:
-
-   ```bash
-   sudo ss -tulpn | grep grafana
-   ```
-
-4. Review logs:
-
-   ```bash
-   journalctl -u grafana-server --no-pager -n 100
-   ```
-
-5. Confirm Prometheus is healthy.
-
-6. Confirm Prometheus has host metric data from the `node_exporter` job.
-
-7. Confirm Prometheus has DNS probe data from the `blackbox_dns` job.
-
-8. Confirm the service probe exporter is responding locally if DNS panels are empty.
-
-9. Restart Grafana if needed:
-
-   ```bash
-   sudo systemctl restart grafana-server
-   ```
+This procedure remains a draft recovery baseline until exercised during a controlled restore or rebuild test.
 
 ## Troubleshooting Notes
 
 ### Grafana Package Not Found
 
-During setup, `apt-get install grafana` initially failed because APT could not locate the package.
+If APT cannot locate Grafana from the third-party repository:
 
-Root cause pattern:
+- Verify the repository file exists under `/etc/apt/sources.list.d/`.
+- Verify the signing key and architecture.
+- Run `apt-get update` and inspect repository errors.
+- Retry installation only after the package appears in APT metadata.
 
-- The Grafana APT repository file was not being created or read correctly.
-- APT could not index the Grafana repository until the repository file existed and `apt-get update` completed successfully.
+### Service Active but Port Check Is Unclear
 
-Resolution:
+Use an application-layer request before assuming the service is broken:
 
-- Recreated the repository file using a shell redirection method.
-- Verified the file existed under `/etc/apt/sources.list.d/`.
-- Ran `apt-get update`.
-- Confirmed APT could locate the `grafana` package.
+```bash
+curl -I localhost:3000
+```
 
-Operational lesson:
-
-- If APT cannot locate a package from a third-party repository, verify the repository file, signing key, architecture, and `apt-get update` output before retrying the install.
-
-### Grafana Service Active but Port Not Visible in Initial Check
-
-During validation, `grafana-server` reported active, but an initial port check did not show `3000` in the expected output.
-
-Resolution:
-
-- Checked Grafana locally with `curl -I localhost:3000`.
-- Confirmed Grafana returned an HTTP redirect to `/login`.
-- Verified that the service was running and reachable.
-
-Operational lesson:
-
-- If a port check is unclear, test the service directly with an application-layer check such as `curl` before assuming the service is broken.
+A redirect to `/login` confirms Grafana is responding.
 
 ### Imported Dashboard Job Selector
 
-After adding `dns01`, the imported dashboard initially showed `mon01` under one dashboard job selector and both hosts only after switching to the `node_exporter` job.
+Imported dashboards may expect different Prometheus job names. Select or adjust the `node_exporter` job and refresh variables after adding or restoring targets.
 
-Resolution:
+### Empty Service Health Panels
 
-- Waited for Prometheus to complete a scrape cycle.
-- Selected the `node_exporter` job in the imported dashboard.
-- Confirmed both `mon01` and `dns01` were visible.
+Check the dependency chain in order:
 
-Operational lesson:
+1. Grafana data source
+2. Prometheus service and target health
+3. `blackbox_dns` job presence
+4. Blackbox Exporter local endpoint
+5. Manual DNS probe result
 
-- Imported dashboards may assume different job names than the local Prometheus configuration.
-- Dashboard variables may need to be adjusted or refreshed after adding new scrape targets.
-
-### Service Health Dashboard Panels
-
-The service health dashboard was built manually using Prometheus metrics rather than an imported dashboard.
-
-Operational lesson:
-
-- Imported dashboards are useful for quick validation, but manually built panels demonstrate better understanding of the metrics being displayed.
-- `probe_success` is useful as a simple availability signal.
-- `probe_duration_seconds` adds latency context to the binary up/down status.
+Grafana is often where a monitoring failure becomes visible, not where it originates.
 
 ## Maintenance Notes
 
 - Keep Grafana updated through normal package management.
-- Export important dashboards after they are customized.
-- Review data source health after Prometheus changes.
+- Export dashboards after meaningful changes.
+- Review data-source health after Prometheus changes.
 - Avoid storing secrets in dashboards, panel queries, or documentation.
-- Keep service health panels aligned with Prometheus job labels.
-- Build custom dashboards once monitoring coverage expands beyond imported dashboard validation.
+- Keep dashboard labels aligned with Prometheus job labels.
+- Record any manually installed plugins.
+- Repeat private export inspection before publishing a sanitized dashboard copy.
+- Update Project 003 after backup or restore validation.
 
 ## Future Improvements
 
+- Document the Prometheus data-source UID and recovery mapping.
+- Create sanitized dashboard copies suitable for version control.
+- Consider provisioning dashboards and data sources from reviewed files.
 - Build a custom Linux host dashboard for `mon01` and `dns01`.
 - Add Pi-hole-specific panels after metrics are available.
-- Add Proxmox and backup health panels after those systems are monitored.
-- Export important dashboards as JSON.
-- Consider dashboard provisioning from version-controlled configuration.
-- Add authentication and reverse proxy design only if broader access is needed.
+- Add Proxmox and backup-health panels after those systems are monitored.
+- Validate Grafana database backup and restore.
+- Add authentication and reverse-proxy design only if broader access is needed.
 
 ## Related Documentation
 
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
+- [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [Prometheus Service](prometheus.md)
 - [Blackbox Exporter Service](blackbox-exporter.md)
