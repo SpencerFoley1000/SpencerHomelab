@@ -2,6 +2,28 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - mon01 Resource Tuning
+
+### Changed
+
+- Increased `mon01` memory allocation from 2 GB to 3 GB.
+- Left `mon01` CPU and disk allocation unchanged.
+- Updated `docs/architecture/vm-inventory.md` to reflect the new RAM allocation.
+- Updated `docs/projects/project-002-monitoring-observability.md` with the sizing rationale and troubleshooting lesson.
+
+### Why
+
+- Grafana showed `mon01` using roughly 1.55 GB of RAM consistently, with occasional spikes near 1.85 GB.
+- `mon01` runs Prometheus, Grafana, and Node Exporter, making it the core monitoring system for the homelab.
+- Additional headroom is appropriate before adding more monitoring components such as DNS availability checks or Blackbox Exporter.
+- 3 GB provides a safer operating margin without overcommitting the current 16 GB Proxmox host.
+
+### Lessons Learned
+
+- Monitoring infrastructure should be monitored and resized based on observed behavior.
+- Linux memory graphs should be interpreted carefully, but sustained pressure near the VM limit is still worth addressing.
+- Small resource changes should still be documented because they affect capacity planning and future troubleshooting.
+
 ## 2026-07-09 - Project 002: Monitoring Baseline, Node Exporter, Prometheus, Grafana, and dns01 Monitoring
 
 ### Changed
@@ -133,7 +155,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 ### Lessons Learned
 
 - Architecture decisions are more useful when they document context and tradeoffs, not just the final choice.
-- The first Proxmox host decision is significant enough to preserve because it affects cost, power, noise, capacity, and growth options.
+- The first Proxmox host decision is significant enough to preserve because it affects cost, power, noise, and growth options.
 - ADRs help future readers understand why the lab evolved the way it did.
 
 ### Remaining Work
