@@ -9,8 +9,9 @@ Hardware documentation is sanitized for a public repository. It should explain t
 - [Inventory](inventory.md) - Sanitized inventory of physical devices and their roles.
 - [Switch](switch.md) - Managed switch role, management access, and future VLAN usage.
 - [Router](router.md) - Routing/firewall role and current upstream dependency.
-- [Desktop](desktop.md) - Desktop system role in administration, lab work, and future testing.
 - [Server](server.md) - Primary virtualization server and Proxmox host notes.
+
+The personal administrative workstation is intentionally referenced only by role because it is not core homelab infrastructure and detailed hardware specifications are not required to explain the architecture.
 
 ## Documentation Rules
 
