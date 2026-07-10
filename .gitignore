@@ -1,0 +1,41 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local environment and secret files
+.env
+.env.*
+!.env.example
+secrets/
+private/
+*.key
+*.p12
+*.pfx
+*.kdbx
+
+# Temporary configuration backups
+*.bak
+*.tmp
+*.orig
+
+# Infrastructure state that must not be committed
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Local logs and generated output
+*.log
+coverage/
+dist/
+build/
