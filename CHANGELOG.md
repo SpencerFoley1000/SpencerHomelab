@@ -2,6 +2,38 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - Grafana Service Health Dashboard
+
+### Changed
+
+- Created a `Homelab Service Health` dashboard in Grafana.
+- Added a `dns01 DNS Availability` stat panel backed by the `blackbox_dns` probe.
+- Added a `dns01 DNS Probe Duration` time series panel.
+- Added a `dns01 DNS Probe Status` state timeline panel.
+- Updated Grafana service documentation to describe the service health dashboard.
+- Updated monitoring architecture documentation to reflect DNS probe visualization.
+- Updated Project 002 documentation to mark DNS probe dashboarding as active.
+
+### Why
+
+- Prometheus already confirmed DNS availability, but Grafana makes the service state easier to understand at a glance.
+- DNS service health should be visible separately from host health because a VM can be online while DNS itself is broken.
+- Manually created panels demonstrate understanding of Prometheus metrics and dashboard design instead of relying only on imported dashboards.
+
+### Lessons Learned
+
+- `probe_success` is useful for simple service availability visualization.
+- `probe_duration_seconds` adds latency context to a binary up/down signal.
+- Separate host-health and service-health dashboards make troubleshooting clearer.
+- Building panels manually improves understanding of what each PromQL query is actually showing.
+
+### Remaining Work
+
+- Export important Grafana dashboards as JSON once they are worth preserving as versioned artifacts.
+- Add Pi-hole-specific metrics or a DNS-focused exporter.
+- Create runbooks before adding DNS-related alerts.
+- Add Proxmox monitoring approach.
+
 ## 2026-07-09 - DNS Availability Monitoring
 
 ### Changed
@@ -32,7 +64,6 @@ This changelog records meaningful infrastructure, documentation, and process cha
 
 ### Remaining Work
 
-- Add Grafana panels for DNS probe status and latency.
 - Add Pi-hole-specific metrics or a DNS-focused exporter.
 - Create runbooks before adding DNS-related alerts.
 - Add Proxmox monitoring approach.
