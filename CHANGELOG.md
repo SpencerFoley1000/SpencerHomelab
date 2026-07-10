@@ -2,6 +2,38 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - Prometheus Scrape Configuration Troubleshooting
+
+### Changed
+
+- Troubleshot a Grafana Node Exporter dashboard that stopped showing current host metrics.
+- Confirmed the issue was not Grafana by querying Prometheus directly.
+- Identified that `up{job="node_exporter"}` returned no data, indicating the `node_exporter` scrape job was missing, renamed, or malformed in Prometheus.
+- Restored the Prometheus scrape configuration so `prometheus`, `node_exporter`, and `blackbox_dns` jobs were all present again.
+- Confirmed host metrics and DNS probe metrics recovered after the Prometheus configuration was fixed.
+- Added `docs/runbooks/prometheus-scrape-target-troubleshooting.md`.
+- Updated the runbooks index to include the new Prometheus scrape target troubleshooting runbook.
+
+### Why
+
+- Grafana dashboards depend on Prometheus data, so missing dashboard data should be traced upstream before changing dashboard panels.
+- The incident showed that Prometheus configuration can be syntactically valid while still being operationally wrong if expected scrape jobs are missing.
+- A repeatable runbook will make future scrape target failures faster to diagnose and safer to recover from.
+
+### Lessons Learned
+
+- Grafana is often the symptom when dashboard data disappears, not the root cause.
+- `up{job="node_exporter"}` returning no data is different from returning `0`; no data usually means the job is missing, renamed, or not being scraped.
+- `promtool check config` should be paired with PromQL validation after configuration changes.
+- Prometheus scrape jobs should be checked with `count by (job, instance) (up)` after edits.
+- Back up `/etc/prometheus/prometheus.yml` before adding or changing scrape jobs.
+
+### Remaining Work
+
+- Consider exporting important Grafana dashboards as JSON once the dashboard layout stabilizes.
+- Add a more formal Prometheus configuration backup process when Project 003 backup work begins.
+- Add alerting only after service checks have clear runbooks.
+
 ## 2026-07-09 - Grafana Service Health Dashboard
 
 ### Changed
