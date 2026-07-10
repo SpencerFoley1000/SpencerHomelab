@@ -12,7 +12,7 @@ In Progress
 | Milestone 2: Node Exporter | Complete | Node Exporter installed on `mon01` and local metrics endpoint validated. |
 | Milestone 3: Prometheus | Complete | Prometheus installed on `mon01` and scraping itself plus Node Exporter. |
 | Milestone 4: Grafana | Complete | Grafana installed on `mon01`, connected to Prometheus, and displaying an imported Node Exporter dashboard. |
-| Milestone 5: Expand Monitoring Coverage | In Progress | `dns01` added as the first remote Node Exporter scrape target. DNS-specific checks, Pi-hole metrics, and Proxmox monitoring remain future work. |
+| Milestone 5: Expand Monitoring Coverage | In Progress | `dns01` host metrics and DNS availability probes are active. Pi-hole metrics and Proxmox monitoring remain future work. |
 | Milestone 6: Alerting and Operational Runbooks | Not Started | Alerting will be added only after useful checks and runbooks exist. |
 
 ## Purpose
@@ -31,7 +31,7 @@ This project builds on Project 001, where `dns01` was deployed as the first core
 - Practice Linux service installation, validation, and troubleshooting.
 - Build operational habits around documentation, validation, and change tracking.
 
-## Target Design
+## Monitoring VM
 
 A dedicated monitoring VM has been deployed:
 
@@ -51,19 +51,18 @@ A dedicated monitoring VM has been deployed:
 | Tool | Role | Status | Reason |
 | --- | --- | --- | --- |
 | Node Exporter | Host metrics exporter | Installed on `mon01` and `dns01` | Exposes Linux host metrics such as CPU, memory, disk, network, and uptime. |
+| Blackbox Exporter | Service probe exporter | Installed on `mon01` | Probes whether `dns01` answers DNS queries. |
 | Prometheus | Metrics collection and time-series storage | Installed on `mon01` | Scrapes metrics from configured targets and stores historical metric samples. |
 | Grafana | Visualization and dashboards | Installed on `mon01` | Provides human-readable dashboards backed by Prometheus data. |
 
 ## Current Monitoring Scope
 
-The first phase focuses on host-level and service-level visibility for core infrastructure.
-
 | Target | Current / Planned Metrics and Checks | Why It Matters |
 | --- | --- | --- |
-| `mon01` | Current: Prometheus self-monitoring, Node Exporter host metrics, Grafana dashboarding. | The monitoring system must monitor itself so failures are visible. |
-| `dns01` | Current: Node Exporter host metrics. Planned: DNS availability checks and Pi-hole-specific metrics. | DNS is foundational; if DNS fails, many other systems appear broken. |
+| `mon01` | Current: Prometheus self-monitoring, Node Exporter host metrics, Grafana dashboarding, Blackbox Exporter service. | The monitoring system must monitor itself so failures are visible. |
+| `dns01` | Current: Node Exporter host metrics and DNS availability probe. Planned: Pi-hole-specific metrics. | DNS is foundational; if DNS fails, many other systems appear broken. |
 | Proxmox host | Planned: CPU, memory, storage, uptime, VM health | Hypervisor health affects every VM in the lab. |
-| Pi-hole | Planned: DNS availability and future query metrics | Confirms core name resolution remains reliable. |
+| Pi-hole | Current: DNS availability through Blackbox Exporter. Planned: query metrics. | Confirms core name resolution remains reliable. |
 
 ## Design Decisions
 
@@ -112,7 +111,7 @@ This separation is common in enterprise environments because collection, storage
 
 Node Exporter was deployed first because it exposes host metrics in a format Prometheus can scrape.
 
-This model allows Prometheus to collect metrics from many different systems using a consistent pull-based approach.
+Blackbox Exporter was added after host metrics were working because service availability is a different layer of monitoring. A host can be powered on while a service is broken, so `dns01` needs both host metrics and DNS query probes.
 
 ### Pull-Based Metrics Collection
 
@@ -126,13 +125,13 @@ Prometheus is configured to pull metrics from known targets instead of requiring
 - Missing or unreachable targets become observable failures.
 - The model scales cleanly as additional homelab systems are added.
 
-### Use Static IP for `dns01` Scrape Target
+### Use Static IP for `dns01` Monitoring Targets
 
-`dns01` is scraped by IP address instead of depending on its own DNS name.
+`dns01` is monitored by IP address instead of depending on its own DNS name.
 
 **Reason:**
 
-If DNS fails, monitoring should still be able to check whether the DNS host is reachable. Using the static address avoids making the DNS server's monitoring path depend on DNS itself.
+If DNS fails, monitoring should still be able to check whether the DNS host and DNS service are reachable. Using the static address avoids making the DNS server's monitoring path depend on DNS itself.
 
 The exact address is not published. Public documentation uses `<DNS01_IP>`.
 
@@ -153,8 +152,6 @@ A custom dashboard is still planned for portfolio quality and to demonstrate und
 
 ### `mon01` Baseline
 
-`mon01` was installed as a minimal Debian 13.5 server with no desktop environment.
-
 Completed baseline items:
 
 - Installed Debian as a headless server.
@@ -171,8 +168,9 @@ Completed baseline items:
 - Configured Grafana to use Prometheus as a data source.
 - Imported a Node Exporter dashboard to validate end-to-end visualization.
 - Increased VM memory from 2 GB to 3 GB after monitoring showed limited headroom.
+- Installed Blackbox Exporter using the Debian package repository.
 
-### `dns01` Remote Monitoring
+### `dns01` Remote Host Monitoring
 
 `dns01` was added as the first remote scrape target after the local `mon01` monitoring path was working.
 
@@ -185,6 +183,30 @@ Completed items:
 - Labeled the target as `host: dns01` and `role: dns`.
 - Validated Prometheus target health as `UP`.
 - Confirmed Grafana can display both `mon01` and `dns01` under the `node_exporter` job.
+
+### `dns01` DNS Availability Monitoring
+
+Blackbox Exporter was added on `mon01` to monitor whether `dns01` is actually answering DNS queries.
+
+Completed items:
+
+- Installed `prometheus-blackbox-exporter` on `mon01`.
+- Added a `dns_udp` module in `/etc/prometheus/blackbox.yml`.
+- Validated Blackbox Exporter locally on `localhost:9115`.
+- Manually validated the DNS probe against `<DNS01_IP>:53`.
+- Confirmed `probe_success 1` from the manual probe.
+- Added a `blackbox_dns` scrape job to Prometheus.
+- Validated Prometheus configuration with `promtool check config`.
+- Restarted Prometheus successfully.
+- Confirmed `probe_success{job="blackbox_dns"}` returns `1`.
+
+Current probe flow:
+
+```text
+Prometheus -> Blackbox Exporter on localhost:9115 -> dns01:53
+```
+
+## Validation
 
 ### Node Exporter Validation
 
@@ -202,24 +224,38 @@ For remote targets, validate from `mon01` before changing Prometheus:
 curl http://<DNS01_IP>:9100/metrics
 ```
 
-The endpoint returned Prometheus-formatted metrics, confirming that Linux host metrics are available for Prometheus scraping.
+### Blackbox Exporter Validation
+
+Blackbox Exporter exposes probe metrics over HTTP on port `9115`.
+
+Validated locally from `mon01`:
+
+```bash
+curl localhost:9115/metrics
+```
+
+Manual DNS probe:
+
+```bash
+curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
+```
+
+Successful result:
+
+```text
+probe_success 1
+```
 
 ### Prometheus Validation
 
-Prometheus runs on port `9090` and is currently configured with three scrape targets:
+Prometheus runs on port `9090` and is currently configured with these scrape targets:
 
 | Job | Target | Status |
 | --- | --- | --- |
 | `prometheus` | `localhost:9090` | Up |
 | `node_exporter` | `localhost:9100` | Up |
 | `node_exporter` | `<DNS01_IP>:9100` | Up |
-
-Validation completed:
-
-- Prometheus service started successfully.
-- Prometheus web UI loaded from the internal homelab network.
-- Target health page showed all configured targets as `UP`.
-- Initial PromQL queries returned data for both monitored hosts.
+| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | Up |
 
 Useful validation queries:
 
@@ -229,6 +265,10 @@ up
 
 ```promql
 up{job="node_exporter"}
+```
+
+```promql
+probe_success{job="blackbox_dns"}
 ```
 
 ```promql
@@ -253,29 +293,13 @@ Validation completed:
 - Imported Node Exporter dashboard displayed metrics from Prometheus.
 - After selecting the `node_exporter` job and waiting for Prometheus to scrape, Grafana displayed both `mon01` and `dns01`.
 
-Current visualization flow:
-
-```text
-Node Exporter on mon01/dns01 -> Prometheus -> Grafana -> Dashboard
-```
+Grafana visualization for DNS probe status is planned next.
 
 ## Troubleshooting Notes
 
 ### QEMU Guest Agent Device Missing
 
 During `mon01` setup, the QEMU Guest Agent package was installed, but the service remained inactive because the expected virtio serial device was missing.
-
-**Symptoms:**
-
-- `qemu-guest-agent` was installed but inactive.
-- Starting the service failed due to a dependency job.
-- `/dev/virtio-ports/` did not exist inside the VM.
-- Proxmox showed QEMU Guest Agent as enabled.
-- `qm config` showed `agent: 1`.
-
-**Root Cause:**
-
-The Proxmox VM configuration had the guest agent enabled, but the running VM process had not recreated the virtual hardware channel required by the guest agent.
 
 **Resolution:**
 
@@ -301,6 +325,20 @@ Waited for Prometheus to complete the next scrape cycle. The target changed to `
 
 Prometheus target health may not update instantly after a configuration reload or restart. `UNKNOWN` can mean the target exists in configuration but has not completed a scrape yet.
 
+### Blackbox Exporter Probe Endpoint Scope
+
+Blackbox Exporter was active, but a test request to the `mon01` LAN IP on port `9115` failed.
+
+**Resolution:**
+
+- Used `localhost:9115` from `mon01` instead.
+- Confirmed the DNS probe returned `probe_success 1`.
+- Configured Prometheus to use `localhost:9115` as the Blackbox scrape endpoint.
+
+**Lesson Learned:**
+
+A service can be healthy while only listening locally. Local-only access is acceptable and safer when Prometheus and the exporter run on the same host.
+
 ### Grafana Package Not Found
 
 During Grafana setup, `apt-get install grafana` initially failed because APT could not locate the package.
@@ -312,28 +350,6 @@ During Grafana setup, `apt-get install grafana` initially failed because APT cou
 - Ran `apt-get update` after confirming the repository file existed.
 - Confirmed the package could be located and installed.
 
-**Lesson Learned:**
-
-When a package from a third-party repository cannot be located, verify the repository file, signing key, architecture, and `apt-get update` output before retrying the install.
-
-### Grafana Service Active but Port Check Unclear
-
-During Grafana validation, the service reported active but the first port check did not clearly show port `3000`.
-
-**Resolution:**
-
-Used an application-layer check:
-
-```bash
-curl -I localhost:3000
-```
-
-Grafana returned an HTTP redirect to `/login`, confirming the service was healthy and reachable.
-
-**Lesson Learned:**
-
-If a port check is unclear, test the service directly before assuming it is broken.
-
 ### Imported Dashboard Job Selector
 
 The imported dashboard initially showed only `mon01` under one dashboard job selector.
@@ -344,29 +360,12 @@ The imported dashboard initially showed only `mon01` under one dashboard job sel
 - Selected the `node_exporter` job in the dashboard.
 - Confirmed both `mon01` and `dns01` were available.
 
-**Lesson Learned:**
-
-Imported dashboards may assume different Prometheus job names. Dashboard variables may need to be refreshed, adjusted, or replaced with custom panels once the lab's monitoring design is better understood.
-
-### Monitoring VM Memory Headroom
-
-Grafana showed `mon01` using roughly 1.55 GB of RAM consistently, with spikes near 1.85 GB, while the VM had only 2 GB allocated.
-
-**Resolution:**
-
-- Increased `mon01` memory allocation from 2 GB to 3 GB.
-- Kept CPU and disk allocation unchanged.
-- Documented the resource change in the VM inventory and project notes.
-
-**Lesson Learned:**
-
-Monitoring systems should be monitored like any other production service. Sustained resource pressure is a valid reason to adjust VM sizing before adding more components.
-
 ## Security Considerations
 
 - Grafana should not be exposed to the public internet.
 - Prometheus should remain internal because metrics can reveal infrastructure details.
 - Node Exporter should only be reachable from trusted internal monitoring systems.
+- Blackbox Exporter should remain internal and only perform intentional probes.
 - Default Grafana credentials must be changed during setup.
 - Grafana credentials must be stored in a password manager and never committed to the repository.
 - Dashboards and screenshots must not publish sensitive hostnames, IP addresses, usernames, tokens, or private topology details.
@@ -383,9 +382,9 @@ This project mirrors enterprise infrastructure patterns at small scale:
 - Historical performance data.
 - Dashboards for troubleshooting and capacity planning.
 - Host labeling by function and role.
+- Service-level probing in addition to host-level metrics.
 - Future alerting tied to actionable operational runbooks.
 - Documentation that explains design choices, not just commands.
-- Capacity observation and VM resource tuning based on measured usage.
 
 ## Milestones
 
@@ -440,8 +439,10 @@ Status: In Progress
 - Configured Prometheus to scrape `<DNS01_IP>:9100`.
 - Confirmed `dns01` target health as `UP`.
 - Confirmed Grafana can display both `mon01` and `dns01` under the `node_exporter` job.
-- Increased `mon01` memory from 2 GB to 3 GB based on observed monitoring workload usage.
-- Remaining: add DNS availability checks, Proxmox monitoring approach, and Pi-hole metric planning.
+- Installed Blackbox Exporter on `mon01`.
+- Added DNS availability probing for `<DNS01_IP>:53`.
+- Confirmed `probe_success{job="blackbox_dns"}` returns `1`.
+- Remaining: add Grafana DNS probe panels, Proxmox monitoring approach, and Pi-hole metric planning.
 
 ### Milestone 6: Alerting and Operational Runbooks
 
@@ -459,6 +460,7 @@ Each milestone should include validation before being considered complete:
 - Confirm services are enabled and running.
 - Confirm listening ports are expected.
 - Confirm metrics endpoints respond locally before remote scraping.
+- Confirm service probes work manually before Prometheus scrapes them.
 - Confirm Prometheus targets show as healthy.
 - Confirm Grafana dashboards display real data.
 - Confirm documentation is updated with sanitized values.
@@ -469,7 +471,7 @@ As this project progresses, update the following documentation:
 
 - `docs/projects/project-002-monitoring-observability.md`
 - `docs/architecture/monitoring.md`
-- `docs/services/` service pages for Prometheus, Grafana, and Node Exporter
+- `docs/services/` service pages for Prometheus, Grafana, Node Exporter, and Blackbox Exporter
 - `docs/architecture/vm-inventory.md`
 - `docs/runbooks/` for monitoring troubleshooting procedures
 - `docs/decisions/` if a major architecture decision is made
@@ -477,13 +479,12 @@ As this project progresses, update the following documentation:
 
 ## Future Improvements
 
-- Custom Grafana dashboards for Linux host metrics.
-- DNS availability checks for `dns01`.
+- Custom Grafana dashboards for Linux host metrics and DNS probe status.
 - Pi-hole exporter or DNS-specific metrics.
 - Proxmox exporter or API-based monitoring.
 - Alertmanager.
 - Email or chat-based notifications.
-- Blackbox probing for DNS, HTTP, and ICMP checks.
+- Additional Blackbox probes for DNS, HTTP, and ICMP checks.
 - Capacity planning dashboards.
 - Backup and restore monitoring after Project 003.
 - Security monitoring integration with future Wazuh, Suricata, and Zeek projects.
@@ -493,6 +494,7 @@ As this project progresses, update the following documentation:
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [VM Inventory](../architecture/vm-inventory.md)
 - [Node Exporter Service](../services/node-exporter.md)
+- [Blackbox Exporter Service](../services/blackbox-exporter.md)
 - [Prometheus Service](../services/prometheus.md)
 - [Grafana Service](../services/grafana.md)
 - [Pi-hole Service](../services/pihole.md)
