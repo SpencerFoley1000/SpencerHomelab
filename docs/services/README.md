@@ -19,7 +19,7 @@ Service documentation exists to answer practical operational questions:
 
 ## Documentation Standard
 
-Use [Service Template](TEMPLATE.md) when adding a new service.
+Use the [Service Template](TEMPLATE.md) when adding a new service.
 
 Each service should document, when applicable:
 
@@ -68,10 +68,11 @@ Examples:
 
 Avoid filenames that include secrets, internal-only names, personal identifiers, or exact hostnames that should not be public.
 
-## Current Services
+## Current Services and Platforms
 
-| Service | State | Host | Purpose | Documentation |
+| Service / Platform | State | Host | Purpose | Documentation |
 | --- | --- | --- | --- | --- |
+| Proxmox VE | Active | `pve01` | Virtualization platform for homelab VMs and infrastructure workloads | [proxmox.md](proxmox.md) |
 | Pi-hole | Active | `dns01` | Internal DNS, local DNS records, and DNS-based blocking for the homelab LAN | [pihole.md](pihole.md) |
 | Node Exporter | Active | `mon01`, `dns01` | Linux host metrics exporter for Prometheus | [node-exporter.md](node-exporter.md) |
 | Prometheus | Active | `mon01` | Metrics scraping, storage, and PromQL querying | [prometheus.md](prometheus.md) |
@@ -92,8 +93,8 @@ Future service candidates may include:
 ## Templates
 
 - [Service Template](TEMPLATE.md)
-- [Runbook Template](RUNBOOK_TEMPLATE.md)
-- [Project Template](PROJECT_TEMPLATE.md)
+- [Runbook Template](../runbooks/TEMPLATE.md)
+- [Project Template](../projects/TEMPLATE.md)
 
 ## Related Documentation
 
