@@ -2,6 +2,41 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - DNS Availability Monitoring
+
+### Changed
+
+- Installed Blackbox Exporter on `mon01` using the Debian package repository.
+- Added a `dns_udp` probe module for DNS availability checks.
+- Validated Blackbox Exporter locally on `localhost:9115`.
+- Validated DNS probing against `dns01` with `probe_success 1`.
+- Added a Prometheus `blackbox_dns` scrape job for `<DNS01_IP>:53`.
+- Confirmed `probe_success{job="blackbox_dns"}` returns `1`.
+- Added Blackbox Exporter service documentation under `docs/services/blackbox-exporter.md`.
+- Updated monitoring architecture, Prometheus service documentation, Project 002 documentation, and the services index.
+
+### Why
+
+- Host metrics prove that `dns01` is running, but they do not prove that DNS queries are working.
+- DNS is foundational infrastructure, so service-level monitoring is necessary before relying on the lab more heavily.
+- Blackbox Exporter adds an external-style check from the monitoring system's point of view.
+- This creates a cleaner path toward future HTTP, ICMP, TCP, and alerting checks.
+
+### Lessons Learned
+
+- Node Exporter and Blackbox Exporter solve different monitoring problems: host health versus service availability.
+- A service can be healthy while only listening locally; `localhost:9115` is acceptable because Prometheus and Blackbox Exporter both run on `mon01`.
+- Manual probe validation should happen before adding Prometheus scrape configuration.
+- `probe_success` provides a simple service health signal that can later feed dashboards and alerts.
+- DNS monitoring should avoid depending on DNS resolution from the same server being monitored, so sanitized static target placeholders are used in documentation.
+
+### Remaining Work
+
+- Add Grafana panels for DNS probe status and latency.
+- Add Pi-hole-specific metrics or a DNS-focused exporter.
+- Create runbooks before adding DNS-related alerts.
+- Add Proxmox monitoring approach.
+
 ## 2026-07-09 - mon01 Resource Tuning
 
 ### Changed
