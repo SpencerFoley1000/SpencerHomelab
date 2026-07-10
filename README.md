@@ -15,14 +15,16 @@ This repository is maintained as both operational documentation and a public por
 
 The homelab currently includes:
 
-- A documented Proxmox-based virtualization host.
-- A dedicated DNS VM, `dns01`, running Pi-hole for homelab DNS and local records.
-- A dedicated monitoring VM, `mon01`, running Prometheus and Grafana.
+- A documented Proxmox VE virtualization host.
+- A dedicated DNS VM, `dns01`, running Pi-hole for homelab DNS, local records, and DNS-based blocking.
+- A dedicated monitoring VM, `mon01`, running Prometheus, Grafana, and Blackbox Exporter.
 - Node Exporter host metrics for both `mon01` and `dns01`.
 - Multi-host metrics collection through Prometheus.
-- Grafana dashboard visibility for monitored Linux hosts.
+- DNS availability probing for `dns01` through Blackbox Exporter.
+- Grafana dashboards for Linux host metrics and DNS service health.
+- Operational troubleshooting runbooks based on issues encountered during deployment.
 
-The monitoring foundation is functional, but future work remains for DNS-specific availability checks, Pi-hole metrics, Proxmox monitoring, alerting, backups, and restore testing.
+The monitoring foundation is functional. Current work focuses on stability validation, Pi-hole-specific metrics, Proxmox monitoring, actionable alerting, and Project 003 backup and restore testing.
 
 ## Documentation Structure
 
@@ -35,6 +37,7 @@ The monitoring foundation is functional, but future work remains for DNS-specifi
 - [`CHANGELOG.md`](CHANGELOG.md) - Chronological record of meaningful changes.
 - [`ROADMAP.md`](ROADMAP.md) - Current project direction and future improvements.
 - [`SECURITY.md`](SECURITY.md) - Public documentation and sanitization policy.
+- [`DOCS_STYLE.md`](DOCS_STYLE.md) - Repository documentation standards.
 
 ## Public Documentation Notice
 

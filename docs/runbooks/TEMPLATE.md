@@ -4,6 +4,14 @@
 
 Describe what this runbook is used for and when it should be followed.
 
+## Status
+
+| Area | Details |
+| --- | --- |
+| Lifecycle | Draft / Operational / Retired |
+| Last validated | YYYY-MM-DD or Not yet validated |
+| Owner | Homelab administrator |
+
 ## Scope
 
 This runbook applies to:
@@ -13,7 +21,7 @@ This runbook applies to:
 - Environment:
 - Related documentation:
 
-## Prerequisites
+## Preconditions
 
 Before starting, confirm:
 
@@ -74,6 +82,6 @@ Record observations, lessons learned, or follow-up tasks.
 
 ## Related Documentation
 
-- [Services README](README.md)
-- [Service Template](TEMPLATE.md)
+- [Runbooks README](README.md)
 - [Architecture Overview](../architecture/overview.md)
+- [Services Documentation](../services/)

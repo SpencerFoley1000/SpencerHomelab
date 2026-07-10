@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The homelab needed an initial virtualization platform capable of running infrastructure services, test workloads, and future security lab systems.
+The homelab needed an initial virtualization platform capable of running infrastructure services, test workloads, and future security-lab systems.
 
 The first host needed to balance:
 
@@ -39,7 +39,7 @@ Reasons:
 - It provides enough compute capacity for early VMs, containers, and infrastructure services.
 - It is quieter and more power-efficient than typical rack server hardware.
 - It avoids the cost and complexity of enterprise server hardware before the lab requires it.
-- It keeps the initial environment physically simple while networking and documentation foundations are still being built.
+- It keeps the initial environment physically simple while networking and documentation foundations are being built.
 - The integrated battery provides limited ride-through during brief power interruptions, although it should not be treated as a long-term substitute for a proper UPS.
 - Proxmox VE provides practical experience with virtualization concepts used in systems administration and infrastructure roles.
 
@@ -72,15 +72,17 @@ Reasons:
 
 ### Follow-Up Work
 
-- [ ] Document Proxmox host maintenance procedures.
-- [ ] Add VM inventory once workloads are deployed.
-- [ ] Add monitoring for host health.
+- [ ] Document and test Proxmox host maintenance procedures.
+- [x] Add a VM inventory once workloads are deployed.
+- [ ] Add monitoring for Proxmox host health.
 - [ ] Add backup and restore validation.
-- [ ] Reassess host capacity after core services are deployed.
+- [x] Reassess host capacity after core services are deployed.
+
+The first capacity review resulted in increasing `mon01` from 2 GB to 3 GB RAM after monitoring showed limited headroom. The current host remains suitable for the deployed DNS and monitoring workloads, but memory and local storage remain the primary growth constraints.
 
 ## Validation
 
-This decision should be validated over time by tracking:
+This decision is validated over time by tracking:
 
 - Host stability.
 - Resource utilization.
@@ -89,11 +91,20 @@ This decision should be validated over time by tracking:
 - Backup and restore reliability.
 - Whether future workloads exceed the hardware limits.
 
+Current validation evidence:
+
+- `dns01` and `mon01` are active on the host.
+- Monitoring identified and justified a resource adjustment for `mon01`.
+- The host has sufficient capacity for the current foundation while retaining limited headroom.
+- Backup and Proxmox host-monitoring validation remain incomplete.
+
 If the host becomes a bottleneck, a future ADR should document whether to upgrade memory, add storage, add another Proxmox node, or move to dedicated server hardware.
 
 ## Related Documentation
 
 - [Architecture Overview](../architecture/overview.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
+- [VM Inventory](../architecture/vm-inventory.md)
 - [Storage Architecture](../architecture/storage.md)
+- [Monitoring Architecture](../architecture/monitoring.md)
 - [Lenovo ThinkPad E16 Gen 1 Proxmox Host](../hardware/server.md)

@@ -83,7 +83,7 @@ Describe how the project can be reversed if needed.
 
 1. Rollback step one.
 2. Rollback step two.
-3. Confirm environment is stable.
+3. Confirm the environment is stable.
 
 ## Results
 
@@ -106,7 +106,7 @@ Document what actually happened after implementation.
 
 ## Related Documentation
 
-- [Services README](README.md)
+- [Projects README](README.md)
 - [Architecture Overview](../architecture/overview.md)
 - [Network Architecture](../architecture/network.md)
 - [Security Architecture](../architecture/security.md)
