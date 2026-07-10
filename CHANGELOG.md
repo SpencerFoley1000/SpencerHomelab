@@ -2,6 +2,50 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-09 - Repository Documentation Audit and Consistency Cleanup
+
+### Changed
+
+- Audited the public repository for stale status text, broken links, misplaced files, unclear lifecycle labels, and documentation inconsistencies.
+- Updated the repository README, roadmap, architecture index, architecture overview, network architecture, virtualization architecture, VM inventory, and monitoring architecture to match the deployed environment.
+- Replaced the obsolete planned Proxmox placeholder with active platform documentation.
+- Added a dedicated Project 001 Pi-hole project summary.
+- Reworked the projects index to use numbered project files with lifecycle status recorded in each document.
+- Moved the runbook and project templates into their respective documentation directories.
+- Updated the runbooks index to distinguish tested procedures, operational checklists, draft baselines, and planned recovery documents.
+- Fixed stale or broken links, including the documentation style guide, service template, removed desktop page, and missing QEMU Guest Agent runbook index entry.
+- Updated Pi-hole, Node Exporter, Prometheus, and Blackbox Exporter documentation to remove completed future work and clarify monitoring responsibilities.
+- Clarified that the current public-name Blackbox DNS probe validates the complete recursive-resolution path rather than Pi-hole alone.
+- Added ADR-0002 documenting the Prometheus, Grafana, Node Exporter, and Blackbox Exporter monitoring stack decision.
+- Updated ADR-0001 follow-up status and recorded the first capacity review.
+- Added a dependency-free relative Markdown link validator under `scripts/check-markdown-links.py`.
+- Added `.gitignore` rules for editor files, local secrets, temporary backups, Python artifacts, and future infrastructure state.
+- Expanded the documentation standard with lifecycle, synchronization, link-validation, and review requirements.
+
+### Why
+
+- Detailed service pages accurately reflected recent work, but several entry points and indexes still described the pre-monitoring environment.
+- Broken links and obsolete placeholders reduce trust in the repository as an operational reference and public portfolio.
+- Runbooks must clearly distinguish tested procedures from unvalidated backup and disaster-recovery plans.
+- Monitoring documentation should state exactly what each probe proves so future incidents are diagnosed correctly.
+- Lightweight validation and ignore rules reduce the chance of repeated link drift or accidental local-file commits.
+
+### Lessons Learned
+
+- Documentation drift usually appears first in summaries, indexes, roadmaps, and future-work lists rather than detailed implementation pages.
+- Historical changelog entries should remain unchanged, while current-state pages must be actively synchronized.
+- A service probe name can be technically correct but operationally ambiguous if the complete dependency path is not documented.
+- Templates are easier to discover and maintain when stored with the documentation type they govern.
+- Public portfolio quality depends on consistency and honest maturity labels as much as technical detail.
+
+### Remaining Work
+
+- Run `python scripts/check-markdown-links.py` from a local clone after future file moves or renames.
+- Export stable Grafana dashboards after their design matures.
+- Add a local-record DNS probe to separate internal DNS health from upstream recursive resolution.
+- Implement and validate Project 003 backup and recovery procedures.
+- Add Proxmox host monitoring through a documented least-privilege method.
+
 ## 2026-07-09 - Prometheus Scrape Configuration Troubleshooting
 
 ### Changed
