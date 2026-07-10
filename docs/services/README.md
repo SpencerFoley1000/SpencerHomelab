@@ -76,12 +76,12 @@ Avoid filenames that include secrets, internal-only names, personal identifiers,
 | Node Exporter | Active | `mon01`, `dns01` | Linux host metrics exporter for Prometheus | [node-exporter.md](node-exporter.md) |
 | Prometheus | Active | `mon01` | Metrics scraping, storage, and PromQL querying | [prometheus.md](prometheus.md) |
 | Grafana | Active | `mon01` | Dashboarding and visualization for Prometheus metrics | [grafana.md](grafana.md) |
+| Blackbox Exporter | Active | `mon01` | Service-level probes for DNS availability and future reachability checks | [blackbox-exporter.md](blackbox-exporter.md) |
 
 ## Planned Candidates
 
 Future service candidates may include:
 
-- DNS availability monitoring
 - Pi-hole metrics integration
 - Backup tooling
 - Container hosting
