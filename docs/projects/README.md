@@ -27,7 +27,7 @@ Use the [Project Template](TEMPLATE.md) when starting a new project.
 | --- | --- | --- |
 | [Project 001: Pi-hole DNS Service](project-001-pihole-dns.md) | Completed | Deployed `dns01` and established Pi-hole as the first production-style homelab service. |
 | [Project 002: Monitoring and Observability Stack](project-002-monitoring-observability.md) | Active | Deployed `mon01`, Prometheus, Grafana, Node Exporter, Blackbox Exporter, host metrics, and DNS availability monitoring. |
-| Project 003: Backup and Recovery | Planned | Define backup targets, retention, recovery priorities, and tested restore procedures. |
+| [Project 003: Backup and Recovery](project-003-backup-recovery.md) | Active | Inventorying critical service configuration and recovery requirements before implementing external Proxmox backups and restore testing. |
 
 ## Project Status Values
 
