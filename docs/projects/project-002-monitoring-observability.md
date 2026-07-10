@@ -44,6 +44,7 @@ A dedicated monitoring VM has been deployed:
 | Network Role | Internal-only monitoring endpoint |
 | Public Exposure | None planned |
 | Initial Resource Allocation | 2 vCPU, 2 GB RAM, 32 GB disk |
+| Current Resource Allocation | 2 vCPU, 3 GB RAM, 32 GB disk |
 
 ## Current Software Stack
 
@@ -82,6 +83,21 @@ Monitoring runs on a separate VM instead of being installed directly on `dns01` 
 - Consumes additional CPU, memory, and storage.
 - Adds another system that must be patched, backed up, and monitored.
 - Requires clear documentation so the lab does not become a collection of disconnected services.
+
+### Monitoring VM Memory Increase
+
+`mon01` was increased from 2 GB RAM to 3 GB RAM after Grafana showed sustained memory usage near the original allocation.
+
+**Reasons:**
+
+- Prometheus and Grafana are the core monitoring services and should have enough headroom to remain stable.
+- Prometheus memory usage can grow as scrape targets, metrics, retention, and dashboards increase.
+- Grafana dashboards can create short-term memory pressure during query and panel rendering.
+- 3 GB provides additional breathing room without overcommitting the 16 GB Proxmox host.
+
+**Tradeoff:**
+
+The VM now consumes 1 GB more host memory, but the added stability margin is appropriate before adding more monitoring components such as DNS probes or exporters.
 
 ### Prometheus and Grafana Pairing
 
@@ -154,6 +170,7 @@ Completed baseline items:
 - Installed Grafana using the Grafana APT repository.
 - Configured Grafana to use Prometheus as a data source.
 - Imported a Node Exporter dashboard to validate end-to-end visualization.
+- Increased VM memory from 2 GB to 3 GB after monitoring showed limited headroom.
 
 ### `dns01` Remote Monitoring
 
@@ -331,6 +348,20 @@ The imported dashboard initially showed only `mon01` under one dashboard job sel
 
 Imported dashboards may assume different Prometheus job names. Dashboard variables may need to be refreshed, adjusted, or replaced with custom panels once the lab's monitoring design is better understood.
 
+### Monitoring VM Memory Headroom
+
+Grafana showed `mon01` using roughly 1.55 GB of RAM consistently, with spikes near 1.85 GB, while the VM had only 2 GB allocated.
+
+**Resolution:**
+
+- Increased `mon01` memory allocation from 2 GB to 3 GB.
+- Kept CPU and disk allocation unchanged.
+- Documented the resource change in the VM inventory and project notes.
+
+**Lesson Learned:**
+
+Monitoring systems should be monitored like any other production service. Sustained resource pressure is a valid reason to adjust VM sizing before adding more components.
+
 ## Security Considerations
 
 - Grafana should not be exposed to the public internet.
@@ -354,6 +385,7 @@ This project mirrors enterprise infrastructure patterns at small scale:
 - Host labeling by function and role.
 - Future alerting tied to actionable operational runbooks.
 - Documentation that explains design choices, not just commands.
+- Capacity observation and VM resource tuning based on measured usage.
 
 ## Milestones
 
@@ -408,6 +440,7 @@ Status: In Progress
 - Configured Prometheus to scrape `<DNS01_IP>:9100`.
 - Confirmed `dns01` target health as `UP`.
 - Confirmed Grafana can display both `mon01` and `dns01` under the `node_exporter` job.
+- Increased `mon01` memory from 2 GB to 3 GB based on observed monitoring workload usage.
 - Remaining: add DNS availability checks, Proxmox monitoring approach, and Pi-hole metric planning.
 
 ### Milestone 6: Alerting and Operational Runbooks
