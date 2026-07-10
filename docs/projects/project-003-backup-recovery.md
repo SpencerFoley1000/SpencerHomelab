@@ -12,7 +12,7 @@
 
 ## Current Phase
 
-Project 003 is beginning with **Phase 003A: Backup Readiness and Configuration Inventory**.
+Project 003 is in **Phase 003A: Backup Readiness and Configuration Inventory**.
 
 The external backup target is not yet available. This phase identifies the state that must be preserved, records sanitized configuration locations, creates portable service exports, and drafts recovery procedures before automated VM backups are configured.
 
@@ -46,7 +46,7 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 - Pi-hole Teleporter export.
 - Grafana dashboard JSON exports.
 - Prometheus and Blackbox Exporter configuration inventory.
-- Grafana data source and local-state inventory.
+- Grafana data-source and local-state inventory.
 - Node Exporter package and service-state inventory.
 - Sanitized rebuild and recovery notes.
 - Identification of sensitive values that must remain outside Git.
@@ -91,14 +91,14 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Prefer Pi-hole Teleporter over a raw live directory copy | `/etc/pihole/` contains active databases, authentication data, TLS material, and generated state. | The Teleporter archive still requires protected storage and inspection. |
 | Preserve Prometheus configuration separately from metrics history | Configuration is small and essential; short-term historical metrics are less critical at the current scale. | A manual rebuild may lose historical monitoring data. |
 | Export Grafana dashboards even when `grafana.db` is protected | Portable JSON exports reduce dependence on a single local database and make dashboard recovery easier to validate. | Exports and data-source mappings must be maintained after meaningful changes. |
-| Treat Grafana plugin directories as replaceable package/application content | Plugin files account for nearly all Grafana state-directory usage and can be restored through VM backup or reinstallation. | Custom or externally installed plugins must still be recorded if introduced later. |
+| Treat Grafana plugin directories as replaceable content | Plugin files account for nearly all Grafana state-directory usage and can be restored through VM backup or reinstallation. | Custom or externally installed plugins must still be recorded if introduced later. |
 
 ## Backup Inventory
 
 | System | Role | Critical configuration and state | Planned backup method | Restore priority | Current notes |
 | --- | --- | --- | --- | --- | --- |
 | `dns01` | DNS and Pi-hole | Pi-hole settings, local records, upstream DNS configuration, static network configuration, service definitions, and Node Exporter state | Proxmox VM backup, Pi-hole Teleporter export, and sanitized rebuild notes | High | Live inventory complete. Teleporter ZIP created and stored outside Git; private inspection remains pending. |
-| `mon01` | Monitoring and observability | Prometheus and Blackbox configuration, Grafana dashboards and data source, Grafana database, service definitions, and exporter state | Proxmox VM backup, reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Live inventory and storage classification complete. Grafana dashboard exports remain pending. |
+| `mon01` | Monitoring and observability | Prometheus and Blackbox configuration, Grafana dashboards and data source, Grafana database, service definitions, and exporter state | Proxmox VM backup, reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Live inventory and storage classification complete. Both dashboard exports exist outside Git; private validation and inspection remain pending. |
 
 ## Configuration Inventory
 
@@ -120,11 +120,11 @@ Full-VM backups are valuable, but they are not a substitute for understanding se
 | Host resolver configuration | Public resolvers defined in `/etc/network/interfaces` |
 | Pi-hole versions | Core v6.4.3, Web v6.6, FTL v6.7 |
 
-The host resolver does not depend on Pi-hole itself. This reduces circular dependency during Pi-hole troubleshooting or recovery, but DNS queries originating from `dns01` bypass local Pi-hole filtering.
+The host resolver does not depend on Pi-hole itself. This reduces circular dependency during troubleshooting or recovery, but DNS queries originating from `dns01` bypass local Pi-hole filtering.
 
-The `/etc/pihole/` directory includes configuration, gravity databases, local host data, generated backups, query-history databases, active SQLite write-ahead-log files, authentication material, and TLS-related files. Raw directory contents must not be committed to the public repository.
+The `/etc/pihole/` directory mixes configuration, gravity databases, local host data, generated backups, query-history databases, active SQLite files, authentication material, and TLS-related files. Raw directory contents must not be committed to the public repository.
 
-The Teleporter archive is retained as the application-level recovery artifact. The original ZIP remains intact outside the repository. Any extracted inspection copy must also remain in protected private storage.
+The original Teleporter ZIP remains intact outside the repository. Any extracted inspection copy must also remain in protected private storage.
 
 ### `mon01` — Verified
 
@@ -154,12 +154,13 @@ The Teleporter archive is retained as the application-level recovery artifact. T
 | Grafana bundled plugins | Approximately 64 MB under `/var/lib/grafana/plugins-bundled/` |
 | Grafana generated export directories | `csv/`, `pdf/`, and `png/`; approximately 4 KB each |
 | Grafana unified-search state | Approximately 8 KB under `/var/lib/grafana/unified-search/` |
-| Grafana dashboards | Stored in local Grafana database state; JSON exports pending |
+| Node Exporter dashboard export | `node-exporter-dashboard.json`, 723,648 bytes; stored outside Git |
+| Service Health dashboard export | `homelab-service-health-dashboard.json`, 11,873 bytes; stored outside Git |
 | Grafana Prometheus data source | Stored in local Grafana database state; portable recovery notes pending |
 
-Approximately 176 MB of the 177 MB Grafana state directory is plugin content. The operationally unique Grafana state is therefore concentrated primarily in `grafana.db`, dashboard JSON, data-source configuration, and any future custom plugin requirements.
+Approximately 176 MB of the 177 MB Grafana state directory is plugin content. Operationally unique state is concentrated primarily in `grafana.db`, dashboard JSON, data-source configuration, modified settings, and any future custom plugin requirements.
 
-A full VM backup should preserve the complete installation. For application-level recovery, the priority is the SQLite database, reviewed dashboard JSON, data-source details, modified Grafana configuration, and a record of any non-bundled plugins. Direct SQLite file copies must be performed through a procedure that preserves database consistency.
+A full VM backup should preserve the complete installation. For application-level recovery, the priority is the SQLite database, reviewed dashboard JSON, data-source details, modified Grafana configuration, and a record of any non-bundled plugins. Direct SQLite file copies must use a procedure that preserves database consistency.
 
 #### Prometheus Validation
 
@@ -171,7 +172,7 @@ Verified scrape job names:
 - `node_exporter`
 - `blackbox_dns`
 
-The configuration directory also contains several manually created `.bak-*` copies. These are useful short-term rollback artifacts but are not a substitute for protected, versioned, and tested backup procedures.
+The configuration directory also contains several manually created `.bak-*` copies. These are useful short-term rollback artifacts but are not a substitute for protected, versioned, and tested backups.
 
 ## Milestones
 
@@ -179,7 +180,7 @@ The configuration directory also contains several manually created `.bak-*` copi
 | --- | --- | --- |
 | 1. Create backup inventory | Complete | Both systems have documented roles, recovery priorities, and intended backup methods. |
 | 2. Verify configuration locations | Complete | Live configuration, service state, package versions, storage footprints, and state classification are documented for `dns01` and `mon01`. |
-| 3. Export Grafana dashboards | Not Started | Node Exporter and Homelab Service Health dashboards are exported and inspected. |
+| 3. Export Grafana dashboards | In Progress | Both JSON files exist outside Git; JSON validation and private content inspection remain pending. |
 | 4. Export Pi-hole configuration | In Progress | Teleporter archive exists outside Git; private content inspection remains pending. |
 | 5. Draft recovery notes | In Progress | Preliminary rebuild paths exist and will be refined from verified inventory. |
 | 6. Configure backup storage | Blocked | External backup target is mounted and added to Proxmox storage. |
@@ -194,10 +195,10 @@ The configuration directory also contains several manually created `.bak-*` copi
 - Confirm expected Prometheus jobs remain present with PromQL.
 - Confirm Pi-hole answers public and local DNS queries after recovery.
 - Confirm Node Exporter and Blackbox Exporter metrics recover.
+- Validate both dashboard files as JSON and inspect them privately for secrets or environment-specific values.
 - Confirm Grafana can reconnect to Prometheus and import both dashboard exports.
 - Confirm Proxmox backup jobs report success and produce reasonable artifacts.
 - Restore at least one representative VM in an isolated or controlled state.
-- Review every export before commit.
 - Run `python scripts/check-markdown-links.py` after documentation changes.
 
 ## Risks
@@ -206,7 +207,7 @@ The configuration directory also contains several manually created `.bak-*` copi
 | --- | --- | --- |
 | Raw exports expose private values | High | Store exports outside Git and commit only sanitized artifacts. |
 | Raw copies of live Pi-hole state are inconsistent | High | Use Teleporter for portable configuration and Proxmox backup for whole-system recovery. |
-| Grafana dashboards exist only in local database state | High | Export dashboards as JSON and document data-source mapping. |
+| Grafana dashboards depend on local database state | High | Preserve `grafana.db` consistently and maintain portable dashboard JSON. |
 | Inconsistent direct copy of `grafana.db` | High | Use a controlled backup procedure that preserves SQLite integrity. |
 | Backup target resides on the source disk | High | Use the planned external drive. |
 | Backup completes but restore fails | High | Require a representative restore test before project completion. |
@@ -255,6 +256,8 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 
 - **Completed:** Initial backup inventory and live configuration inventory for both `dns01` and `mon01`.
 - **Created:** A 23,868-byte Pi-hole Teleporter ZIP stored outside the public repository.
+- **Created:** A 723,648-byte Node Exporter dashboard JSON export stored outside Git.
+- **Created:** An 11,873-byte Homelab Service Health dashboard JSON export stored outside Git.
 - **Verified on `dns01`:** Pi-hole state location and size, Pi-hole versions, service unit paths, runtime and boot state, Node Exporter package version, and static network configuration path.
 - **Verified on `mon01`:** Four active and enabled monitoring services, package versions, standard package unit paths, configuration locations, storage footprints, Grafana database location, valid Prometheus syntax, and expected scrape job names.
 - **Classified:** Grafana state is approximately 112 MB installed plugins, 64 MB bundled plugins, 2.2 MB SQLite database, and negligible generated-export/search directories.
@@ -262,7 +265,7 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - **Failed:** Initial PowerShell instructions incorrectly assumed a `.tar.gz` Teleporter format; the actual export is a ZIP archive. The workflow was corrected without affecting the export.
 - **Design finding:** `dns01` host resolution is independent of Pi-hole, reducing circular dependency while bypassing local filtering for host-originated queries.
 - **Design finding:** Grafana dashboards and data source are not actively provisioned from files, increasing the importance of JSON exports and local database protection.
-- **Remaining:** Private Teleporter inspection, Grafana dashboard exports, data-source recovery notes, backup implementation, and restore testing.
+- **Remaining:** Private export inspection, Grafana data-source recovery notes, backup implementation, and restore testing.
 
 ## Lessons Learned
 
@@ -276,6 +279,7 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - Package-provided sample provisioning files do not protect dashboards or data sources created through the Grafana UI.
 - Local `.bak-*` files improve short-term rollback but do not replace external backups and restore testing.
 - Directory size alone does not indicate recovery importance; replaceable plugin binaries can occupy far more space than unique application state.
+- Imported dashboards can produce very large JSON exports because panel definitions, queries, variables, thresholds, and formatting are embedded in the file.
 
 ## Follow-Up Tasks
 
@@ -286,7 +290,8 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - [x] Verify all `mon01` configuration locations, package versions, service definitions, and storage footprints.
 - [x] Classify additional content under `/var/lib/grafana/` beyond `grafana.db`.
 - [x] Classify Prometheus local data under `/var/lib/prometheus/`.
-- [ ] Export and inspect both Grafana dashboards.
+- [x] Export both Grafana dashboards to protected JSON files.
+- [ ] Validate and inspect both dashboard exports privately.
 - [ ] Document the Grafana Prometheus data-source recovery requirements.
 - [ ] Expand `docs/runbooks/backup.md` with the selected schedule and retention.
 - [ ] Expand `docs/runbooks/disaster-recovery.md` with tested recovery order.
