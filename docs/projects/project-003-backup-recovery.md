@@ -4,7 +4,7 @@
 
 | Area | Details |
 | --- | --- |
-| Status | Active |
+| Status | Active — Phase 003A complete; implementation blocked pending external backup storage |
 | Start date | 2026-07-09 |
 | Completion date | Pending |
 | Owner | Homelab administrator |
@@ -12,11 +12,11 @@
 
 ## Current Phase
 
-Project 003 is in **Phase 003A: Backup Readiness and Configuration Inventory**.
+**Phase 003A: Backup Readiness and Configuration Inventory is complete.**
 
-The external backup target is not yet available. Phase 003A identifies the state that must be preserved, records sanitized configuration locations, creates portable service exports, and drafts recovery procedures before automated VM backups are configured.
+The recoverable state, dependencies, configuration locations, portable exports, sensitive-data boundaries, and preliminary recovery procedures for `dns01` and `mon01` are documented. The repository link validator checked 51 Markdown files without finding broken relative links.
 
-The live inventory and application-export work are complete. Remaining work is documentation validation plus the future backup-storage, VM-backup, and restore-test phases.
+Project 003 now waits for the external backup target before beginning the backup implementation, retention, VM-backup, and restore-test phases.
 
 ## Purpose
 
@@ -206,20 +206,27 @@ Local `.bak-*` files are useful short-term rollback artifacts but are not a subs
 | 6. Configure backup storage | Blocked | External backup target is mounted and added to Proxmox storage. |
 | 7. Run initial VM backups | Blocked | Backups complete successfully and retention is documented. |
 | 8. Perform restore test | Blocked | A representative VM restore succeeds and service validation is documented. |
-| 9. Final documentation review | In Progress | Link validation and future implementation synchronization remain. |
+| 9. Phase 003A documentation review | Complete | The milestone is recorded in the changelog and 51 Markdown files passed relative-link validation. |
 
 ## Validation Plan
 
-- Confirm inventoried services are active and enabled.
-- Validate Prometheus configuration with `promtool`.
-- Confirm expected Prometheus jobs remain present with PromQL.
+Completed during Phase 003A:
+
+- Confirmed inventoried services are active and enabled.
+- Validated Prometheus configuration with `promtool`.
+- Confirmed expected Prometheus job names.
+- Validated application-export syntax or archive integrity.
+- Inspected exports without publishing private values.
+- Ran `python scripts/check-markdown-links.py`; 51 Markdown files passed with no broken relative links.
+
+Required during backup implementation and restore testing:
+
 - Confirm Pi-hole answers public and local DNS queries after recovery.
 - Confirm Node Exporter and Blackbox Exporter metrics recover.
-- Confirm Grafana can reconnect to Prometheus and import both dashboard exports.
+- Confirm Grafana reconnects to Prometheus and imports both dashboard exports.
 - Verify imported dashboard panels and variables against the recreated data source.
 - Confirm Proxmox backup jobs report success and produce reasonable artifacts.
 - Restore at least one representative VM in an isolated or controlled state.
-- Run `python scripts/check-markdown-links.py` after documentation changes.
 
 ## Risks
 
@@ -282,6 +289,7 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - Verified the Grafana Prometheus data-source recovery mapping.
 - Added a reusable service configuration export and inspection runbook.
 - Corrected the recorded Teleporter filename after the original timestamp was found to be inaccurate.
+- Validated 51 Markdown files with no broken relative links.
 - Confirmed raw exports must remain outside Git.
 
 ## Lessons Learned
@@ -307,12 +315,12 @@ These procedures remain unvalidated until a controlled restore or rebuild test s
 - [x] Export and inspect both Grafana dashboards.
 - [x] Document the Grafana data-source recovery mapping.
 - [x] Add `docs/runbooks/service-config-export.md`.
+- [x] Run the Markdown link validator.
+- [x] Record the completed Phase 003A milestone in `CHANGELOG.md`.
 - [ ] Expand `docs/runbooks/backup.md` with the selected schedule and retention after the target is available.
 - [ ] Expand `docs/runbooks/disaster-recovery.md` from restore-test findings.
 - [ ] Add `docs/runbooks/proxmox-vm-restore.md`.
 - [ ] Update `docs/architecture/storage.md` after the backup target is implemented.
-- [ ] Run the Markdown link validator.
-- [ ] Record the completed Phase 003A milestone in `CHANGELOG.md`.
 
 ## Related Documentation
 
