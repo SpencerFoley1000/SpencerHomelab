@@ -33,10 +33,10 @@ Current Grafana data sources and dashboards:
 | --- | --- | --- |
 | Prometheus data source | Active | Allows Grafana to query Prometheus on `localhost:9090` |
 | Imported Node Exporter dashboard | Active | Provides initial CPU, memory, disk, and network visibility for `mon01` and `dns01` |
-| DNS availability panel | Planned | Will display `probe_success{job="blackbox_dns"}` and DNS probe latency |
-| Custom dashboard | Planned | Will be built later for learning value and portfolio polish |
+| Homelab Service Health dashboard | Active | Displays DNS availability, probe duration, and probe status for `dns01` |
+| Custom Linux host dashboard | Planned | Will be built later for learning value and portfolio polish |
 
-The core monitoring stack is functional and now includes both host-level and service-level monitoring for `dns01`. Node Exporter confirms the host is running; Blackbox Exporter confirms the DNS service answers queries.
+The core monitoring stack is functional and now includes both host-level and service-level monitoring for `dns01`. Node Exporter confirms the host is running; Blackbox Exporter confirms the DNS service answers queries; Grafana displays the DNS probe as a service-health dashboard.
 
 Monitoring should start small and answer practical questions:
 
@@ -107,14 +107,15 @@ Current completed layers:
 4. Prometheus scrapes `localhost:9090`, `localhost:9100`, `<DNS01_IP>:9100`, and the `blackbox_dns` probe through `localhost:9115`.
 5. Prometheus stores collected samples as time-series data.
 6. Grafana queries Prometheus on `localhost:9090`.
-7. Grafana displays host metrics through an imported Node Exporter dashboard; DNS availability visualization is planned next.
+7. Grafana displays host metrics through an imported Node Exporter dashboard.
+8. Grafana displays DNS service health through the Homelab Service Health dashboard.
 
 Next layer:
 
-1. Add Grafana panels for DNS probe status and latency.
-2. Add Pi-hole-specific metrics or a DNS-focused exporter.
-3. Add Proxmox monitoring through an appropriate exporter or API-based approach.
-4. Build a custom dashboard that reflects the actual homelab service priorities.
+1. Add Pi-hole-specific metrics or a DNS-focused exporter.
+2. Add Proxmox monitoring through an appropriate exporter or API-based approach.
+3. Build a custom dashboard that reflects the actual homelab service priorities.
+4. Add alerting only after checks are actionable and documented.
 
 This order is intentional:
 
@@ -135,7 +136,7 @@ Initial selected tools:
 | Node Exporter | Host metrics exporter | Installed on `mon01` and `dns01` to expose Linux host metrics. |
 | Blackbox Exporter | Service probe exporter | Installed on `mon01`; currently probing DNS availability on `dns01`. |
 | Prometheus | Metrics collection and time-series database | Installed on `mon01`; scraping itself, Node Exporter targets, and Blackbox DNS probes. |
-| Grafana | Dashboard and visualization platform | Installed on `mon01`; connected to Prometheus and displaying an imported Node Exporter dashboard. |
+| Grafana | Dashboard and visualization platform | Installed on `mon01`; connected to Prometheus and displaying host and DNS service health dashboards. |
 
 Future additions may include:
 
@@ -191,6 +192,12 @@ probe_success{job="blackbox_dns"}
 Shows whether the DNS probe against `dns01` is succeeding.
 
 ```promql
+probe_duration_seconds{job="blackbox_dns"}
+```
+
+Shows DNS probe duration from the monitoring system's point of view.
+
+```promql
 node_memory_MemAvailable_bytes
 ```
 
@@ -229,9 +236,9 @@ Dashboards should support troubleshooting and capacity planning. Good dashboards
 Current dashboard state:
 
 - An imported Node Exporter dashboard is used for immediate host visibility.
-- The dashboard can display both `mon01` and `dns01` when using the `node_exporter` job selector.
-- DNS probe metrics are available in Prometheus and should be added to a dashboard next.
-- A custom dashboard is planned to demonstrate intentional panel design and PromQL understanding.
+- The imported dashboard can display both `mon01` and `dns01` when using the `node_exporter` job selector.
+- The Homelab Service Health dashboard displays DNS availability, DNS probe duration, and DNS probe status over time.
+- A custom Linux host dashboard is planned to demonstrate intentional panel design and PromQL understanding.
 
 Dashboards should avoid exposing sensitive values in screenshots or public documentation.
 
@@ -323,9 +330,17 @@ Operational takeaway:
 - The current Prometheus job name is `node_exporter`.
 - After Prometheus completed a scrape cycle, selecting the `node_exporter` job allowed Grafana to display both `mon01` and `dns01`.
 
+### Service Health Dashboard Design
+
+The DNS service health dashboard was built manually using direct Prometheus queries.
+
+Operational takeaway:
+
+- Manually built panels help confirm understanding of what each metric means.
+- Host metrics and service availability should be displayed separately because they answer different operational questions.
+
 ## Future Improvements
 
-- Add Grafana panels for DNS probe status and latency.
 - Add Pi-hole-specific metrics.
 - Build a custom Grafana dashboard for Linux host and DNS service metrics.
 - Add backup job monitoring.
