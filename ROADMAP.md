@@ -4,24 +4,27 @@ This roadmap tracks planned homelab work at a high level. Detailed implementatio
 
 ## Current Focus
 
-- Stabilize and validate the Project 002 monitoring foundation.
-- Confirm the monitoring stack survives normal shutdowns, restarts, and overnight operation.
-- Add DNS-specific availability checks after host-level monitoring is confirmed stable.
-- Begin planning Project 003: Backup and Recovery.
-- Continue updating public, sanitized, portfolio-quality documentation as each meaningful milestone is completed.
+- Stabilize and validate the Project 002 monitoring stack through normal shutdowns, restarts, and extended operation.
+- Define a safe and maintainable approach for Proxmox host monitoring.
+- Evaluate Pi-hole-specific metrics beyond the existing DNS availability probe.
+- Add alerting only after each alert has a clear operational response and supporting runbook.
+- Begin Project 003: Backup and Recovery planning, including backup targets, retention, and restore testing.
+- Continue updating public, sanitized, portfolio-quality documentation after each meaningful milestone.
 
-## Recently Completed Foundation Work
+## Recently Completed Monitoring Work
 
-Project 002 has delivered the first functional monitoring foundation:
+Project 002 has delivered a functional host- and service-monitoring foundation:
 
 - Dedicated monitoring VM: `mon01`.
-- Prometheus metrics collection.
+- Prometheus metrics collection and PromQL validation.
 - Grafana dashboarding.
 - Node Exporter host metrics for `mon01` and `dns01`.
 - Multi-host Prometheus scrape targets.
-- Grafana visibility for both monitored Linux hosts.
+- Blackbox Exporter DNS availability probing for `dns01`.
+- Grafana visibility for Linux host metrics and DNS service health.
+- A Prometheus scrape-target troubleshooting runbook based on a real configuration incident.
 
-Remaining monitoring work should focus on service-level checks and operational maturity rather than adding more host metrics for their own sake.
+Remaining monitoring work should improve operational coverage and recovery value rather than add tools without a defined purpose.
 
 ## Planned Projects
 
@@ -31,13 +34,16 @@ Remaining monitoring work should focus on service-level checks and operational m
      - Prometheus
      - Grafana
      - Node Exporter
+     - Blackbox Exporter
      - Host metrics for `mon01` and `dns01`
+     - DNS availability monitoring
+     - DNS service-health dashboard
    - Remaining improvements:
-     - DNS/service health checks
-     - Custom Grafana dashboard
-     - Pi-hole metrics
+     - Custom Linux host dashboard
+     - Pi-hole-specific metrics
      - Proxmox monitoring
      - Alerting after runbooks exist
+     - Monitoring configuration backup coverage
 
 2. Project 003: Backup and Recovery
    - Proxmox Backup Server or another documented backup target
@@ -77,4 +83,4 @@ Remaining monitoring work should focus on service-level checks and operational m
 - Initial network documentation.
 - Virtualization host setup and documentation.
 - Project 001: Pi-hole DNS service on `dns01`.
-- Project 002 monitoring foundation: Prometheus, Grafana, and Node Exporter host metrics for `mon01` and `dns01`.
+- Project 002 monitoring foundation: Prometheus, Grafana, Node Exporter, Blackbox Exporter, multi-host metrics, DNS availability probing, and DNS service-health visualization.
