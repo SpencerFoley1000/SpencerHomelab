@@ -90,13 +90,14 @@ This phase prevents VM-level backups from becoming the only recovery strategy. F
 | Treat `dns01` as the highest-priority application VM | DNS failure affects access to and troubleshooting of other services. | Monitoring may be restored later even though it provides useful visibility. |
 | Keep raw exports outside Git until inspected | Pi-hole and Grafana exports may expose private names, addresses, or embedded connection details. | Artifacts require manual review and possible sanitization before versioning. |
 | Mark runbooks as planned until tested | Prevents draft instructions from being mistaken for validated procedures. | Recovery documentation will mature incrementally rather than appearing complete immediately. |
+| Prefer Pi-hole Teleporter over a raw live directory copy | `/etc/pihole/` contains live databases, authentication data, TLS material, and generated files in addition to configuration. | The portable export must still be protected and inspected, and a VM backup remains necessary for fastest full recovery. |
 
 ## Backup Inventory
 
 | System | Role | Critical configuration and state | Planned backup method | Restore priority | Current notes |
 | --- | --- | --- | --- | --- | --- |
-| `dns01` | DNS and Pi-hole | Pi-hole settings, local DNS records, upstream DNS configuration, service configuration, Node Exporter service state, static addressing assumptions | Proxmox VM backup plus Pi-hole Teleporter export and sanitized rebuild notes | High | DNS outage can make otherwise healthy services appear unavailable. Exact configuration locations must be verified. |
-| `mon01` | Monitoring and observability | Prometheus scrape configuration, Blackbox Exporter modules, Grafana dashboards, Grafana data source, Grafana local state, exporter service state, service dependencies | Proxmox VM backup plus reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Monitoring does not provide production traffic, but losing it removes health visibility and historical metrics. |
+| `dns01` | DNS and Pi-hole | Pi-hole settings, local DNS records, upstream DNS configuration, service configuration, Node Exporter service state, static addressing assumptions | Proxmox VM backup plus Pi-hole Teleporter export and sanitized rebuild notes | High | `/etc/pihole/` is verified as the main Pi-hole state directory and currently uses approximately 16 MB. Pi-hole FTL and Node Exporter are active and enabled. |
+| `mon01` | Monitoring and observability | Prometheus scrape configuration, Blackbox Exporter modules, Grafana dashboards, Grafana data source, Grafana local state, exporter service state, service dependencies | Proxmox VM backup plus reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Monitoring does not provide production traffic, but losing it removes health visibility and historical metrics. Live configuration inventory remains pending. |
 
 ## Configuration Inventory
 
@@ -104,14 +105,29 @@ The following locations are expected based on the current deployment and must be
 
 ### `dns01`
 
-| Item | Candidate location or method | Verification status |
+| Item | Location or method | Verification status |
 | --- | --- | --- |
-| Pi-hole configuration and local DNS data | `/etc/pihole/` | Pending |
+| Pi-hole configuration and local DNS data | `/etc/pihole/` | Verified; approximately 16 MB on 2026-07-09 |
 | Pi-hole portable export | Pi-hole Teleporter | Pending |
 | Pi-hole service definition | `systemctl cat pihole-FTL` | Pending |
+| Pi-hole service state | `systemctl is-active` and `systemctl is-enabled` | Verified active and enabled |
 | Node Exporter service definition | `systemctl cat prometheus-node-exporter` | Pending |
-| Static addressing configuration | Debian network configuration and documented Proxmox/network assumptions | Pending |
-| Installed service versions | Pi-hole version command and package inventory | Pending |
+| Node Exporter service state | `systemctl is-active` and `systemctl is-enabled` | Verified active and enabled |
+| Static addressing configuration | Debian network configuration and documented Proxmox/network assumptions | Documented static assignment; live configuration path pending verification |
+| Installed Pi-hole versions | `pihole version` | Verified: Core v6.4.3, Web v6.6, FTL v6.7 |
+| Installed package inventory | Debian package inventory | Pending |
+
+#### Observed Pi-hole State
+
+The `/etc/pihole/` inventory includes:
+
+- Primary Pi-hole configuration and generated DNS configuration.
+- Gravity databases and Pi-hole-generated configuration backups.
+- Local host data and list cache directories.
+- The active FTL database and SQLite write-ahead-log files.
+- Authentication and TLS-related files that must be treated as sensitive.
+
+Raw directory contents must not be committed to the public repository. Query-history databases, private DNS information, authentication material, and TLS private material require protected storage outside Git.
 
 ### `mon01`
 
@@ -133,8 +149,8 @@ The following locations are expected based on the current deployment and must be
 
 | Milestone | Status | Completion criteria |
 | --- | --- | --- |
-| 1. Create backup inventory | In Progress | Both systems have documented roles, critical state, recovery priority, and intended backup methods. |
-| 2. Verify configuration locations | Not Started | Candidate paths and service definitions are checked on each live VM without publishing sensitive values. |
+| 1. Create backup inventory | Complete | Both systems have documented roles, critical state, recovery priority, and intended backup methods. |
+| 2. Verify configuration locations | In Progress | Candidate paths and service definitions are checked on each live VM without publishing sensitive values. |
 | 3. Export Grafana dashboards | Not Started | Node Exporter and Homelab Service Health dashboards are exported and inspected. |
 | 4. Export Pi-hole configuration | Not Started | Teleporter archive is created, stored outside Git, and inspected for sensitive content. |
 | 5. Draft recovery notes | Not Started | Each service has a documented manual rebuild path and validation procedure. |
@@ -174,6 +190,7 @@ The following locations are expected based on the current deployment and must be
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Raw exports expose internal hostnames, addresses, or credentials | High | Store exports outside Git until reviewed; commit only sanitized artifacts when useful. |
+| Raw copies of live Pi-hole state are inconsistent | High | Prefer Teleporter for portable configuration and use Proxmox VM backup for whole-system recovery; do not rely on copying active SQLite files. |
 | Backup target resides on the same physical disk as the source | High | Use the planned external drive and document same-disk copies as temporary only. |
 | Backup completes but restore fails | High | Require a representative restore test before calling the project complete. |
 | Recovery notes omit service dependencies | Medium | Record startup order, network assumptions, data sources, exporters, and validation checks. |
@@ -215,18 +232,22 @@ These steps are preliminary and are not operationally validated until a restore 
 
 ## Results
 
-- What worked: Pending.
-- What failed: Pending.
-- What changed from the original plan: Pending.
-- What remains unfinished: Configuration inventory, exports, backup implementation, and restore testing.
+- What worked: The first live `dns01` inventory verified the primary Pi-hole state directory, its approximate size, exact Pi-hole component versions, and enabled service state for Pi-hole FTL and Node Exporter.
+- What failed: Nothing during the initial read-only inventory.
+- What changed from the original plan: The raw `/etc/pihole/` directory was confirmed to contain sensitive and actively changing state, reinforcing Teleporter as the preferred application-level export rather than a raw directory copy.
+- What remains unfinished: `dns01` unit definitions and network path verification, Pi-hole Teleporter export, complete `mon01` inventory, dashboard exports, backup implementation, and restore testing.
 
 ## Lessons Learned
 
-- Pending implementation and recovery testing.
+- Application configuration directories can mix essential configuration, generated data, credentials, certificates, logs, and active databases; inventory must classify the contents rather than treating the directory as one safe artifact.
+- A small configuration footprint does not mean the directory is safe for public version control.
+- Service recovery planning should verify both current runtime state and boot-time enablement.
 
 ## Follow-Up Tasks
 
-- [ ] Verify all `dns01` configuration locations and service definitions.
+- [x] Create the initial backup inventory and recovery priorities.
+- [ ] Verify remaining `dns01` service definitions and live network configuration path.
+- [ ] Record the `dns01` Debian package inventory relevant to recovery.
 - [ ] Verify all `mon01` configuration locations and service definitions.
 - [ ] Export and inspect both Grafana dashboards.
 - [ ] Export and inspect Pi-hole Teleporter configuration.
@@ -237,7 +258,7 @@ These steps are preliminary and are not operationally validated until a restore 
 - [ ] Update `docs/architecture/storage.md` after the backup target is implemented.
 - [ ] Update affected service pages with backup and recovery details.
 - [ ] Run the Markdown link validator.
-- [ ] Record completed milestones in `CHANGELOG.md`.
+- [ ] Record completed implementation and recovery milestones in `CHANGELOG.md`.
 
 ## Related Documentation
 
