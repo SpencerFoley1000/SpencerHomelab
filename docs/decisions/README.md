@@ -11,13 +11,13 @@ Use ADRs to explain why an important decision was made.
 Examples:
 
 - Choosing Proxmox as the virtualization platform.
-- Choosing a business laptop as the first virtualization host.
-- Choosing a router/firewall platform.
+- Choosing the initial virtualization host.
+- Choosing a router or firewall platform.
 - Introducing VLAN segmentation.
 - Selecting a monitoring stack.
 - Selecting a backup strategy.
 - Changing DNS or DHCP architecture.
-- Introducing security lab isolation.
+- Introducing security-lab isolation.
 
 ## When to Create an ADR
 
@@ -28,7 +28,7 @@ Create an ADR when a decision:
 - Changes networking, storage, backup, monitoring, or security design.
 - Has meaningful tradeoffs.
 - Would be hard to understand six months later without context.
-- Might be interesting to a future employer reviewing the repository.
+- Demonstrates useful engineering reasoning to a portfolio reviewer.
 
 Do not create ADRs for minor edits, temporary experiments, typo fixes, or routine maintenance unless they reveal an important design lesson.
 
@@ -59,6 +59,7 @@ Keep filenames lowercase after the ADR number and use hyphens between words.
 | ADR | Status | Topic |
 | --- | --- | --- |
 | [ADR-0001](ADR-0001-proxmox-on-thinkpad-e16.md) | Accepted | Use Lenovo ThinkPad E16 Gen 1 as the initial Proxmox host |
+| [ADR-0002](ADR-0002-prometheus-grafana-monitoring-stack.md) | Accepted | Use Prometheus, Grafana, Node Exporter, and Blackbox Exporter for monitoring |
 
 ## Template
 
@@ -68,5 +69,6 @@ Use [ADR Template](ADR_TEMPLATE.md) when creating a new decision record.
 
 - [Architecture Overview](../architecture/overview.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
+- [Monitoring Architecture](../architecture/monitoring.md)
 - [Hardware Documentation](../hardware/)
 - [Services Documentation](../services/)
