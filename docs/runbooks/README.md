@@ -23,3 +23,4 @@ Each runbook should include:
 - [VM Provisioning](vm-provisioning.md)
 - [Adding a Service](adding-service.md)
 - [Maintenance](maintenance.md)
+- [Prometheus Scrape Target Troubleshooting](prometheus-scrape-target-troubleshooting.md)
