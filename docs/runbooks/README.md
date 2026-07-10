@@ -25,6 +25,7 @@ Use the [Runbook Template](TEMPLATE.md) when creating a new procedure.
 | --- | --- | --- |
 | [Prometheus Scrape Target Troubleshooting](prometheus-scrape-target-troubleshooting.md) | Operational / tested | Created from a real Prometheus configuration incident and validated during recovery. |
 | [QEMU Guest Agent Troubleshooting](qemu-guest-agent-troubleshooting.md) | Operational / tested | Created from a real missing virtio guest-agent device incident. |
+| [Service Configuration Export and Inspection](service-config-export.md) | Operational checklist | Pi-hole Teleporter and Grafana JSON export creation and private inspection were exercised on 2026-07-10; restore imports remain untested. |
 | [Adding a Service](adding-service.md) | Operational checklist | Repeatable deployment and documentation checklist for new services. |
 | [VM Provisioning](vm-provisioning.md) | Baseline checklist | General VM creation process; expand as provisioning standards mature. |
 | [Maintenance](maintenance.md) | Draft baseline | General maintenance sequence; not yet a tested environment-specific procedure. |
