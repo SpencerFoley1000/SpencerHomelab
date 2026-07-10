@@ -16,7 +16,7 @@ This is the first production-style infrastructure service deployed in the homela
 | Internal DNS name | `dns01.lab` |
 | Exposure | Internal homelab LAN only |
 | Public access | None |
-| Backup maturity | Live configuration inventoried; Teleporter export and validated VM backup pending |
+| Backup maturity | Live configuration inventoried and Teleporter export created; validated VM backup pending |
 | Monitoring | Node Exporter host metrics and Blackbox DNS availability probe |
 
 ## Technology Stack
@@ -187,7 +187,8 @@ The Blackbox probe currently queries a public name, so it validates the full rec
 - Local DNS records must avoid personally identifying names.
 - Management and exporter endpoints must remain on trusted networks.
 - Raw `/etc/pihole/` contents must not be committed.
-- Teleporter archives must remain outside Git until inspected and must be protected if they contain private operational details.
+- Teleporter archives must remain outside Git and must be protected if they contain private operational details.
+- Extracted inspection copies must receive the same protection as the original archive.
 
 ## Backup Strategy
 
@@ -201,12 +202,13 @@ The Blackbox probe currently queries a public name, so it validates the full rec
 | Pi-hole FTL | Active and enabled |
 | Node Exporter | Active and enabled; package version `1.9.0-1+b4` |
 | Network configuration | `/etc/network/interfaces` |
+| Teleporter export | ZIP created on 2026-07-09; 23,868 bytes; stored outside Git |
 
 `/etc/pihole/` contains a mixture of configuration, gravity data, generated backups, local DNS state, query-history databases, active SQLite write-ahead-log files, authentication material, and TLS-related files.
 
 A raw live directory copy is therefore not the preferred portable recovery method.
 
-### Planned Backup Layers
+### Backup Layers
 
 1. **Proxmox VM backup**
    - Fastest whole-system recovery path.
@@ -214,7 +216,8 @@ A raw live directory copy is therefore not the preferred portable recovery metho
 
 2. **Pi-hole Teleporter export**
    - Portable application-level configuration recovery.
-   - Stored privately and inspected before any sanitized artifact is committed.
+   - Original ZIP remains intact in protected storage outside Git.
+   - Private content inspection remains pending.
 
 3. **Sanitized recovery documentation**
    - Records versions, configuration locations, dependencies, network assumptions, and validation steps.
@@ -236,7 +239,7 @@ A raw live directory copy is therefore not the preferred portable recovery metho
 5. Test DNS directly from `mon01` or another client.
 6. Temporarily use a public resolver on affected clients if DNS is unavailable.
 7. Restore a validated VM backup when available.
-8. For a manual rebuild, recreate Debian networking, reinstall Pi-hole and Node Exporter, and restore the reviewed Teleporter export.
+8. For a manual rebuild, recreate Debian networking, reinstall Pi-hole and Node Exporter, and restore the protected Teleporter export.
 9. Confirm upstream settings and required local records.
 10. Revalidate public resolution, local records, Node Exporter, Blackbox DNS probing, and Grafana panels.
 
@@ -246,7 +249,8 @@ This remains a draft recovery baseline until exercised during a controlled resto
 
 - Apply Debian and Pi-hole updates during planned maintenance windows.
 - Record major version changes that could affect export compatibility.
-- Export Pi-hole configuration after meaningful DNS-record or blocklist changes.
+- Create a new Teleporter export after meaningful DNS-record, blocklist, or service configuration changes.
+- Retain the most recent known-good export in protected storage.
 - Document new local records when services are deployed.
 - Confirm monitoring after DNS, firewall, or network changes.
 - Avoid router-wide Pi-hole assignment until secondary DNS and recovery procedures exist.
@@ -257,12 +261,13 @@ This remains a draft recovery baseline until exercised during a controlled resto
 - `sudo` access required manual correction after Debian created a separate root account.
 - QEMU Guest Agent required Proxmox-side enablement and a full VM stop/start.
 - Static networking initially left resolver configuration incomplete.
+- The generated Teleporter artifact used ZIP format; backup procedures should inspect the actual artifact rather than assume a filename extension.
 
 These issues are retained because they demonstrate realistic systems-administration troubleshooting.
 
 ## Future Improvements
 
-- Create and protect a Pi-hole Teleporter export.
+- Inspect the Teleporter archive privately for sensitive and environment-specific content.
 - Decide whether the host-level public resolver bypass should remain the intentional long-term design.
 - Configure router DHCP to provide Pi-hole after resilience improves.
 - Deploy a secondary DNS server.
