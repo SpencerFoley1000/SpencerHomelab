@@ -2,6 +2,47 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-10 - Project 003A: Backup Readiness and Configuration Inventory
+
+### Changed
+
+- Completed live backup-readiness inventories for `dns01` and `mon01`.
+- Verified service runtime state, boot enablement, package versions, systemd unit paths, configuration locations, and storage footprints.
+- Created and privately inspected a Pi-hole Teleporter ZIP as a portable application-level recovery artifact.
+- Created and privately inspected Node Exporter and Homelab Service Health Grafana dashboard JSON exports.
+- Classified Grafana database, plugin, generated-export, and search state by recovery importance.
+- Classified Prometheus configuration separately from historical metrics data.
+- Documented the Grafana Prometheus data-source recovery mapping while retaining the environment-specific UID privately.
+- Added `docs/runbooks/service-config-export.md` for repeatable export creation, integrity checking, sensitivity inspection, and public-documentation handling.
+- Updated Project 003, Pi-hole, Grafana, and runbook documentation to reflect the verified recovery assets and remaining restore-validation requirements.
+- Validated 51 Markdown files with no broken relative links.
+
+### Why
+
+- Backup jobs should not be configured before the state, dependencies, and recovery priorities of each service are understood.
+- Application-level exports provide a portable recovery option when a full VM restore is unavailable or unnecessary.
+- Public portfolio documentation must explain recovery design without publishing authentication state, private addressing, lease data, hashes, or environment-specific identifiers.
+- Recovery procedures need honest maturity labels so an untested export or draft runbook is not mistaken for a proven backup.
+
+### Lessons Learned
+
+- Archive integrity and valid JSON syntax confirm readability, not successful restoration.
+- Configuration importance is not proportional to directory size; replaceable plugin files can outweigh unique operational state.
+- Pi-hole Teleporter exports contain sensitive databases, lease data, network identifiers, and authentication-related state and must remain outside Git.
+- Grafana dashboard exports may not preserve automatic Prometheus data-source binding.
+- Prometheus configuration and job validation are more important for manual recovery than short-term metrics history at the current lab scale.
+- Export filenames and formats should be verified from the generated artifact rather than assumed.
+- Inspection scripts can classify sensitive content without printing protected values.
+
+### Remaining Work
+
+- Mount and configure the external backup target in Proxmox.
+- Define VM backup scheduling and retention.
+- Run initial backups for `dns01` and `mon01`.
+- Perform and document a representative isolated restore test.
+- Expand the backup and disaster-recovery runbooks using implementation and restore-test findings.
+- Add a Proxmox VM restore runbook and synchronize the storage architecture after implementation.
+
 ## 2026-07-09 - Repository Documentation Audit and Consistency Cleanup
 
 ### Changed
@@ -262,7 +303,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 
 ### Lessons Learned
 
-- Hardware virtualization may need to be explicitly enabled in firmware before Proxmox can start KVM-backed VMs.
+- Hardware virtualization may need to be explicitly enabled in firmware before Proxmox can start VMs.
 - Debian installation behavior differs depending on whether a root password is configured; `sudo` access may need to be added manually.
 - Minimal Debian installs may not include convenience tools such as `curl` by default.
 - QEMU Guest Agent behavior depends on both the guest package and the Proxmox VM option being enabled.
