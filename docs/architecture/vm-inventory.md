@@ -36,7 +36,7 @@ Avoid publishing:
 | Hostname | Purpose | OS | vCPU | RAM | Disk | Network | IP Model | Status | Backup Status | Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `dns01` | Pi-hole DNS, local DNS records, and monitored Linux host metrics | Debian 13.5 (Trixie) | 2 | 2 GB | 20 GB | Homelab LAN | Static, sanitized as `<DNS01_IP>` | Active | Not yet backed up | [Pi-hole](../services/pihole.md), [Node Exporter](../services/node-exporter.md) |
-| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 2 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md) |
+| `mon01` | Monitoring and observability stack | Debian 13.5 (Trixie) | 2 | 3 GB | 32 GB | Homelab LAN | Static, sanitized as `<MON01_IP>` | Active / In Progress | Not yet backed up | [Project 002](../projects/project-002-monitoring-observability.md), [Node Exporter](../services/node-exporter.md), [Prometheus](../services/prometheus.md), [Grafana](../services/grafana.md) |
 
 ## Recovery Priority
 
@@ -66,6 +66,7 @@ This format is short, readable, and easy to expand as the lab grows.
 
 - `dns01` is the first production-style infrastructure VM and is now monitored through Node Exporter.
 - `mon01` is the dedicated monitoring VM for Project 002.
+- `mon01` memory was increased from 2 GB to 3 GB after Grafana showed sustained memory usage near the original allocation.
 - Monitoring is intentionally separated from DNS to avoid combining unrelated infrastructure roles on `dns01`.
 - Future infrastructure VMs should be added here before being considered complete.
 - Experimental VMs should be clearly labeled as experimental or temporary.
