@@ -14,6 +14,7 @@ Grafana helps answer operational questions such as:
 - How are CPU, memory, disk, and network usage trending?
 - Which host or service needs attention first?
 - Is the monitoring stack collecting usable data?
+- Are critical services, such as DNS, currently available?
 
 ## Technology Stack
 
@@ -26,8 +27,8 @@ Grafana helps answer operational questions such as:
 | Deployment Method | Grafana APT repository |
 | Default Port | `3000/tcp` |
 | Data Source | Prometheus on `localhost:9090` |
-| Current Dashboard | Imported Node Exporter dashboard |
-| Current Dashboard Targets | `mon01`, `dns01` |
+| Current Dashboards | Imported Node Exporter dashboard; Homelab Service Health dashboard |
+| Current Dashboard Targets | `mon01`, `dns01`, DNS service probe for `dns01` |
 
 ## Host
 
@@ -75,16 +76,32 @@ Grafana is configured with Prometheus as its first data source.
 
 ## Dashboards
 
-An imported Node Exporter dashboard is currently used to validate end-to-end monitoring visibility.
+### Imported Node Exporter Dashboard
 
-Current dashboard status:
+An imported Node Exporter dashboard is used for host-level monitoring visibility.
+
+Current status:
 
 - Node Exporter dashboard imported.
 - Prometheus selected as the dashboard data source.
 - Dashboard panels display metrics collected from `mon01`.
 - After `dns01` was added as a remote Prometheus scrape target, the imported dashboard was able to display both `mon01` and `dns01` when the `node_exporter` job was selected.
 
-A custom dashboard will be built later for learning value and portfolio polish. The imported dashboard proves that the pipeline works, while a custom dashboard will demonstrate understanding of PromQL, panel design, and operational priorities.
+### Homelab Service Health Dashboard
+
+A custom service health dashboard was created to visualize service-level checks separately from host-level metrics.
+
+Current panels:
+
+| Panel | Prometheus Metric | Purpose |
+| --- | --- | --- |
+| `dns01 DNS Availability` | `probe_success` for the `blackbox_dns` job | Shows whether the DNS probe is currently succeeding. |
+| `dns01 DNS Probe Duration` | `probe_duration_seconds` for the `blackbox_dns` job | Shows DNS probe response time over time. |
+| `dns01 DNS Probe Status` | `probe_success` for the `blackbox_dns` job | Shows DNS probe state over time. |
+
+This dashboard is intentionally separate from the imported Node Exporter dashboard. Host dashboards answer whether a server is healthy; service dashboards answer whether a service is usable.
+
+A more polished dashboarding strategy is planned later. The current dashboards prioritize practical validation and learning over visual polish.
 
 ## Networking
 
@@ -118,7 +135,11 @@ Validate from the Grafana web UI:
 3. Open the imported Node Exporter dashboard.
 4. Select the `node_exporter` job.
 5. Confirm both `mon01` and `dns01` are available as monitored hosts.
-6. Confirm panels show data from Prometheus.
+6. Confirm host panels show data from Prometheus.
+7. Open the `Homelab Service Health` dashboard.
+8. Confirm the DNS availability panel shows a successful value.
+9. Confirm the DNS duration panel shows timing data.
+10. Confirm the DNS status panel shows state over time.
 
 ## Security Considerations
 
@@ -127,6 +148,7 @@ Validate from the Grafana web UI:
 - Do not publish dashboard screenshots that expose sensitive hostnames, IP addresses, usernames, tokens, private URLs, or detailed internal topology.
 - Keep Grafana internal-only unless a future reverse proxy and authentication design is documented.
 - Treat dashboards as operationally sensitive because they can reveal infrastructure health, capacity, and service names.
+- Use sanitized placeholders such as `<MON01_IP>` and `<DNS01_IP>` in public documentation.
 
 ## Backup Strategy
 
@@ -170,19 +192,15 @@ If Grafana is not responding:
    journalctl -u grafana-server --no-pager -n 100
    ```
 
-5. Confirm Prometheus is healthy:
+5. Confirm Prometheus is healthy.
 
-   ```bash
-   curl localhost:9090/-/healthy
-   ```
+6. Confirm Prometheus has host metric data from the `node_exporter` job.
 
-6. Confirm Prometheus has scrape data for monitored hosts:
+7. Confirm Prometheus has DNS probe data from the `blackbox_dns` job.
 
-   ```promql
-   up{job="node_exporter"}
-   ```
+8. Confirm the service probe exporter is responding locally if DNS panels are empty.
 
-7. Restart Grafana if needed:
+9. Restart Grafana if needed:
 
    ```bash
    sudo systemctl restart grafana-server
@@ -239,18 +257,30 @@ Operational lesson:
 - Imported dashboards may assume different job names than the local Prometheus configuration.
 - Dashboard variables may need to be adjusted or refreshed after adding new scrape targets.
 
+### Service Health Dashboard Panels
+
+The service health dashboard was built manually using Prometheus metrics rather than an imported dashboard.
+
+Operational lesson:
+
+- Imported dashboards are useful for quick validation, but manually built panels demonstrate better understanding of the metrics being displayed.
+- `probe_success` is useful as a simple availability signal.
+- `probe_duration_seconds` adds latency context to the binary up/down status.
+
 ## Maintenance Notes
 
 - Keep Grafana updated through normal package management.
 - Export important dashboards after they are customized.
 - Review data source health after Prometheus changes.
 - Avoid storing secrets in dashboards, panel queries, or documentation.
+- Keep service health panels aligned with Prometheus job labels.
 - Build custom dashboards once monitoring coverage expands beyond imported dashboard validation.
 
 ## Future Improvements
 
 - Build a custom Linux host dashboard for `mon01` and `dns01`.
-- Add DNS availability and Pi-hole panels.
+- Add Pi-hole-specific panels after metrics are available.
+- Add Proxmox and backup health panels after those systems are monitored.
 - Export important dashboards as JSON.
 - Consider dashboard provisioning from version-controlled configuration.
 - Add authentication and reverse proxy design only if broader access is needed.
@@ -260,5 +290,6 @@ Operational lesson:
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [Prometheus Service](prometheus.md)
+- [Blackbox Exporter Service](blackbox-exporter.md)
 - [Node Exporter Service](node-exporter.md)
 - [VM Inventory](../architecture/vm-inventory.md)
