@@ -12,6 +12,7 @@ Prometheus helps answer operational questions such as:
 
 - Are monitored targets reachable?
 - Is Node Exporter being scraped successfully?
+- Is the DNS service answering queries?
 - How have CPU, memory, disk, and network metrics changed over time?
 - Which services or hosts should be investigated first during an outage?
 
@@ -78,6 +79,7 @@ The current scrape configuration includes:
 | `prometheus` | `localhost:9090` | Prometheus self-monitoring |
 | `node_exporter` | `localhost:9100` | Linux host metrics from `mon01` |
 | `node_exporter` | `<DNS01_IP>:9100` | Linux host metrics from `dns01` |
+| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | DNS availability probe for `dns01` |
 
 The Node Exporter scrape target includes labels for host and role identification:
 
@@ -95,6 +97,29 @@ The Node Exporter scrape target includes labels for host and role identification
         role: 'dns'
 ```
 
+The Blackbox DNS scrape job sends probe requests to Blackbox Exporter on `mon01`, then Blackbox Exporter probes the DNS service on `dns01`:
+
+```yaml
+- job_name: 'blackbox_dns'
+  metrics_path: /probe
+  params:
+    module: [dns_udp]
+  static_configs:
+    - targets:
+        - '<DNS01_IP>:53'
+      labels:
+        host: 'dns01'
+        service: 'dns'
+        protocol: 'udp'
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: localhost:9115
+```
+
 Exact IP addresses are intentionally omitted from public documentation. Use sanitized placeholders such as `<MON01_IP>` and `<DNS01_IP>` when documenting browser access or remote scrape targets.
 
 ## Networking
@@ -104,7 +129,7 @@ Exact IP addresses are intentionally omitted from public documentation. Use sani
 | Listen Port | `9090/tcp` |
 | Access Scope | Internal homelab only |
 | Public Exposure | None |
-| Current Scrape Targets | `localhost:9090`, `localhost:9100`, `<DNS01_IP>:9100` |
+| Current Scrape Targets | `localhost:9090`, `localhost:9100`, `<DNS01_IP>:9100`, `blackbox_dns` probe for `<DNS01_IP>:53` |
 | Current Visualization Consumer | Grafana on `localhost:3000` |
 
 Prometheus should not be exposed to the public internet. Metrics can reveal hostnames, paths, service names, kernel information, resource usage patterns, and other infrastructure details.
@@ -152,18 +177,29 @@ Expected current targets:
 | `prometheus` | `localhost:9090` | `UP` |
 | `node_exporter` | `localhost:9100` | `UP` |
 | `node_exporter` | `<DNS01_IP>:9100` | `UP` |
+| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | `UP` |
 
 A newly added target may briefly show `UNKNOWN` until Prometheus completes a scrape cycle.
 
 ### Remote Target Validation
 
-Before adding a remote target to Prometheus, validate the exporter from `mon01`:
+Before adding a remote Node Exporter target to Prometheus, validate the exporter from `mon01`:
 
 ```bash
 curl http://<DNS01_IP>:9100/metrics
 ```
 
-This confirms that the exporter is reachable from the Prometheus host before Prometheus configuration is changed.
+Before adding a Blackbox DNS probe to Prometheus, validate the probe manually from `mon01`:
+
+```bash
+curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
+```
+
+Expected probe result:
+
+```text
+probe_success 1
+```
 
 ### Grafana Data Source Validation
 
@@ -189,6 +225,12 @@ up{job="node_exporter"}
 ```
 
 Expected: both `mon01` and `dns01` return `1`.
+
+```promql
+probe_success{job="blackbox_dns"}
+```
+
+Expected: the DNS probe returns `1`.
 
 ```promql
 node_memory_MemAvailable_bytes
@@ -256,13 +298,19 @@ If Prometheus is not responding:
    curl http://<DNS01_IP>:9100/metrics
    ```
 
-7. Confirm Grafana can query Prometheus:
+7. Confirm the DNS probe works manually:
+
+   ```bash
+   curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
+   ```
+
+8. Confirm Grafana can query Prometheus:
 
    ```bash
    curl -I localhost:3000
    ```
 
-8. Restart Prometheus after fixing configuration or service issues:
+9. Restart Prometheus after fixing configuration or service issues:
 
    ```bash
    sudo systemctl restart prometheus
@@ -289,7 +337,7 @@ If Prometheus is not responding:
 
 ## Future Improvements
 
-- Add DNS availability checks.
+- Add Grafana panels for DNS availability and latency.
 - Add Pi-hole metrics or DNS-specific exporters.
 - Add Proxmox monitoring through an appropriate exporter or API-based method.
 - Add Alertmanager after dashboards and runbooks exist.
@@ -300,5 +348,6 @@ If Prometheus is not responding:
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
 - [Monitoring and Observability Architecture](../architecture/monitoring.md)
 - [Node Exporter Service](node-exporter.md)
+- [Blackbox Exporter Service](blackbox-exporter.md)
 - [Grafana Service](grafana.md)
 - [VM Inventory](../architecture/vm-inventory.md)
