@@ -8,63 +8,28 @@ Active
 
 Prometheus collects, stores, and queries metrics for the homelab monitoring stack. It scrapes Linux host metrics from Node Exporter, DNS probe metrics through Blackbox Exporter, and its own health metrics. Grafana uses Prometheus as its primary data source.
 
-Prometheus helps answer:
+The current configuration answers:
 
-- Are configured scrape targets reachable?
-- Are monitored Linux hosts reporting metrics?
-- Is recursive DNS resolution through `dns01` succeeding?
-- How have CPU, memory, filesystem, network, and service metrics changed over time?
-- Which monitoring layer failed when a dashboard stops updating?
+- Are `mon01`, `dns01`, and `pve01` reporting Linux host metrics?
+- Is recursive DNS resolution through `dns01` working?
+- Is the expected internal DNS record available independently of upstream recursion?
+- How are CPU, memory, filesystem, network, uptime, and DNS probe duration changing over time?
 
 ## Technology Stack
 
 | Component | Value |
 | --- | --- |
 | Service | Prometheus |
-| Package | `prometheus` |
 | Package version | `2.53.3+ds1-2` |
 | Host | `mon01` |
 | Operating system | Debian 13.5 |
-| Deployment method | Debian package repository |
-| Default port | `9090/tcp` |
-| Configuration file | `/etc/prometheus/prometheus.yml` |
-| Local data | `/var/lib/prometheus/metrics2/` |
+| Configuration | `/etc/prometheus/prometheus.yml` |
+| Metrics storage | `/var/lib/prometheus/metrics2/` |
+| Listen endpoint | `localhost:9090` for local consumers; internal UI access only |
 | Visualization consumer | Grafana on `mon01` |
-| Backup maturity | Configuration inventoried; validated VM backup pending |
+| Backup maturity | Configuration inventoried; protected VM backup and restore validation pending |
 
-## Deployment Notes
-
-Prometheus was installed from the Debian package repository:
-
-```bash
-sudo apt install -y prometheus
-```
-
-Local health checks:
-
-```bash
-systemctl is-active prometheus
-curl localhost:9090/-/ready
-curl localhost:9090/-/healthy
-```
-
-Grafana queries Prometheus at:
-
-```text
-http://localhost:9090
-```
-
-`localhost` is used because Grafana and Prometheus run on the same VM.
-
-## Current Scrape Configuration
-
-Prometheus is configured through:
-
-```text
-/etc/prometheus/prometheus.yml
-```
-
-Current jobs and targets:
+## Current Jobs
 
 | Job | Target | Labels or purpose | Expected state |
 | --- | --- | --- | --- |
@@ -72,9 +37,14 @@ Current jobs and targets:
 | `node_exporter` | `localhost:9100` | `host="mon01"`, `role="monitoring"` | `UP` |
 | `node_exporter` | `<DNS01_IP>:9100` | `host="dns01"`, `role="dns"` | `UP` |
 | `node_exporter` | `<PVE01_IP>:9100` | `host="pve01"`, `role="hypervisor"` | `UP` |
-| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | Recursive DNS probe | `UP` |
+| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | Recursive public-name DNS probe | `UP` |
+| `blackbox_dns_local` | `<DNS01_IP>:53` through `localhost:9115` | Internal-record DNS probe with `scope="local"` | `UP` |
 
-Sanitized Node Exporter configuration:
+Exact addresses remain private. Public documentation uses `<DNS01_IP>`, `<MON01_IP>`, and `<PVE01_IP>`.
+
+## Sanitized Scrape Configuration
+
+### Shared Node Exporter Job
 
 ```yaml
 - job_name: 'node_exporter'
@@ -95,7 +65,7 @@ Sanitized Node Exporter configuration:
         role: 'hypervisor'
 ```
 
-Sanitized Blackbox DNS configuration:
+### Recursive DNS Job
 
 ```yaml
 - job_name: 'blackbox_dns'
@@ -118,42 +88,35 @@ Sanitized Blackbox DNS configuration:
       replacement: localhost:9115
 ```
 
-Exact addresses are private. Public documentation uses `<DNS01_IP>`, `<MON01_IP>`, and `<PVE01_IP>`.
+### Local DNS Job
 
-## Proxmox Host Target Addition
+```yaml
+- job_name: 'blackbox_dns_local'
+  metrics_path: /probe
+  params:
+    module: [dns_udp_local]
+  static_configs:
+    - targets:
+        - '<DNS01_IP>:53'
+      labels:
+        host: 'dns01'
+        service: 'dns'
+        scope: 'local'
+        protocol: 'udp'
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: localhost:9115
+```
 
-The `pve01` Node Exporter target was added on 2026-07-10.
+Using separate jobs keeps the recursive and local DNS failure domains explicit in PromQL, Grafana, and future alert rules.
 
-Procedure and validation:
+## Safe Configuration Changes
 
-1. Verified the exporter locally on `pve01`.
-2. Confirmed `mon01` could reach `http://<PVE01_IP>:9100/metrics` while the Proxmox firewall was active.
-3. Created a local rollback copy of `prometheus.yml` before editing.
-4. Added the target to the existing `node_exporter` job instead of creating a duplicate job.
-5. Applied `host="pve01"` and `role="hypervisor"` labels.
-6. Ran `promtool check config /etc/prometheus/prometheus.yml` successfully.
-7. Reloaded Prometheus without interrupting the service.
-8. Confirmed both target-specific queries returned `1`.
-9. Confirmed Grafana panels displayed `pve01` metrics.
-
-The local `.bak-pve01` file is a short-term rollback copy, not a protected backup.
-
-## Networking
-
-| Item | Value |
-| --- | --- |
-| Listen port | `9090/tcp` |
-| Access scope | Trusted internal network only |
-| Public exposure | None |
-| Node Exporter endpoints | Three |
-| Blackbox probe targets | One DNS target |
-| Grafana consumer | Local Grafana service on `mon01` |
-
-Prometheus must not be exposed publicly. Metrics, labels, and target metadata can reveal hostnames, service names, versions, paths, and infrastructure relationships.
-
-## Safe Configuration Change Procedure
-
-Back up the current configuration before editing:
+Create a rollback copy:
 
 ```bash
 sudo cp /etc/prometheus/prometheus.yml \
@@ -166,22 +129,16 @@ Validate before applying:
 sudo promtool check config /etc/prometheus/prometheus.yml
 ```
 
-Prefer a reload for valid scrape-target changes:
+Prefer a reload for valid scrape changes:
 
 ```bash
 sudo systemctl reload prometheus
 systemctl is-active prometheus
 ```
 
-A restart may be used when required:
+`promtool` verifies syntax and structure. It does not prove that every intended job or target exists, so PromQL validation is mandatory after the reload.
 
-```bash
-sudo systemctl restart prometheus
-```
-
-`promtool` confirms syntax and structure. It does not prove that every intended job or target still exists, so post-change PromQL validation is mandatory.
-
-## Validation Procedure
+## Validation
 
 ### Service Health
 
@@ -191,40 +148,23 @@ curl localhost:9090/-/ready
 curl localhost:9090/-/healthy
 ```
 
-### Endpoint Reachability
-
-From `mon01`:
-
-```bash
-curl --connect-timeout 5 --fail --silent --show-error \
-  http://<TARGET_IP>:9100/metrics | head
-```
-
-Manual DNS probe:
-
-```bash
-curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
-```
-
-Expected DNS probe output includes:
-
-```text
-probe_success 1
-```
-
-### PromQL Smoke Tests
-
-Inventory all jobs and instances:
+### Target Inventory
 
 ```promql
 count by (job, instance) (up)
 ```
 
-All Linux hosts:
+### Linux Host Targets
 
 ```promql
 up{job="node_exporter"}
 ```
+
+Expected hosts:
+
+- `mon01`
+- `dns01`
+- `pve01`
 
 Proxmox host specifically:
 
@@ -234,60 +174,118 @@ up{job="node_exporter", host="pve01", role="hypervisor"}
 
 Expected result: `1`.
 
-DNS service probe:
+### DNS Probes
+
+Recursive DNS:
 
 ```promql
-probe_success{job="blackbox_dns"}
+probe_success{job="blackbox_dns", host="dns01"}
 ```
 
-Resource checks:
+Local DNS:
 
 ```promql
-node_memory_MemAvailable_bytes
+probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
 ```
+
+Verify both in one query:
 
 ```promql
-node_filesystem_avail_bytes{mountpoint="/"}
+probe_success{job=~"blackbox_dns.*", host="dns01"}
 ```
 
-A new target may briefly show `UNKNOWN` before the first scrape completes.
+Both series should return `1`.
 
-### Grafana
+A newly added job may briefly return an empty result until the first scrape completes. Re-query after the configured scrape interval before treating an empty initial result as a failure.
 
-- Confirm the Prometheus data source URL remains `http://localhost:9090`.
-- Run **Save & test** if the data source is changed.
-- Open the Node Exporter dashboard.
-- Select the `node_exporter` job and the intended host.
-- Confirm panels populate for `mon01`, `dns01`, and `pve01`.
+### Resource Queries Used by Grafana
+
+CPU utilization:
+
+```promql
+100 - (
+  avg by (host) (
+    rate(node_cpu_seconds_total{job="node_exporter", mode="idle"}[5m])
+  ) * 100
+)
+```
+
+Memory utilization:
+
+```promql
+100 * (
+  1 -
+  node_memory_MemAvailable_bytes{job="node_exporter"}
+  /
+  node_memory_MemTotal_bytes{job="node_exporter"}
+)
+```
+
+Root filesystem utilization:
+
+```promql
+100 * (
+  1 -
+  node_filesystem_avail_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
+  /
+  node_filesystem_size_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
+)
+```
+
+Host uptime:
+
+```promql
+time() - node_boot_time_seconds{job="node_exporter"}
+```
 
 ## Monitoring Boundaries
 
-The current `pve01` target provides Linux operating-system metrics only. It does not provide authoritative Proxmox information such as:
+Node Exporter on `pve01` provides Linux operating-system metrics. It does not provide authoritative Proxmox platform state such as:
 
-- VM or container state.
-- Cluster quorum or node status.
-- Proxmox task results.
-- Storage-pool health.
-- Backup-job status.
-- Replication state.
+- VM or container state
+- Cluster quorum
+- Task results
+- Storage-pool health
+- Backup-job status
+- Replication state
 
-Those capabilities require a future Proxmox-specific exporter or API integration with documented least-privilege credentials.
+Those capabilities require a future Proxmox-specific exporter or API integration using documented least-privilege credentials.
 
-## DNS Probe Interpretation
+The two DNS jobs also have distinct boundaries:
 
-The current Blackbox module queries a public DNS name through `dns01`.
+- `blackbox_dns` includes the upstream resolver and internet dependency.
+- `blackbox_dns_local` isolates Pi-hole local-record behavior from upstream recursion.
 
-A successful probe validates:
+## Troubleshooting Notes
 
-```text
-mon01 -> dns01/Pi-hole -> configured upstream resolver -> public DNS result
+### Valid Configuration but Missing Job
+
+A configuration can pass `promtool` while an intended job is absent or malformed. Always pair configuration validation with:
+
+```promql
+count by (job, instance) (up)
 ```
 
-A failure could indicate Pi-hole, host, routing, firewall, internet, upstream-resolver, or query failure. A future local-record probe should isolate internal DNS functionality from upstream recursion.
+### Initial Empty Query
 
-## Backup Strategy
+The first local-DNS query returned an empty vector immediately after reload, while a later combined query showed both jobs at `1`. New jobs may need one scrape interval before data appears.
 
-Important state includes:
+### Grafana Shows One DNS Series
+
+When Prometheus returns both series but Grafana shows only one, verify the panel has distinct query reference IDs such as `A` and `B`. Friendly labels belong in each query's legend, not in the query reference-ID field.
+
+## Security Considerations
+
+- Keep Prometheus internal-only.
+- Do not expose TCP `9090` publicly.
+- Do not publish raw metrics, exact targets, or screenshots containing private topology.
+- Do not commit credentials, API tokens, or secret-bearing discovery configuration.
+- Treat metrics and labels as operationally sensitive.
+- Introduce Proxmox API credentials only through a documented least-privilege design.
+
+## Backup and Recovery
+
+Important state:
 
 - `/etc/prometheus/prometheus.yml`
 - Future alerting and recording rules
@@ -295,53 +293,33 @@ Important state includes:
 - Local time-series data if retention becomes operationally important
 - Documentation in this repository
 
-Project 003 established that configuration is more important than short-term metrics history at the current lab scale. Protected VM backups and restore testing remain pending.
+At the current lab scale, validated configuration is more important than short-term historical metrics. Protected VM backups and restore testing remain pending under Project 003.
 
-## Recovery Procedure
+Recovery order:
 
-If Prometheus or dashboards stop updating:
-
-1. Check Prometheus service state.
-2. Validate the configuration with `promtool`.
-3. Check readiness and health endpoints.
-4. Review logs.
-5. Test Node Exporter endpoints directly.
-6. Test the Blackbox DNS probe manually.
-7. Run `count by (job, instance) (up)`.
-8. Confirm `mon01`, `dns01`, and `pve01` targets remain present.
-9. Restore the most recent known-good configuration if required.
-10. Reload or restart Prometheus.
-11. Confirm Grafana dashboards resume updating.
-
-Use the [Prometheus Scrape Target Troubleshooting Runbook](../runbooks/prometheus-scrape-target-troubleshooting.md) for the detailed incident workflow.
-
-## Security Considerations
-
-- Keep Prometheus internal-only.
-- Do not expose port `9090` publicly.
-- Do not publish raw metrics or screenshots containing private values.
-- Do not commit API tokens, credentials, exact addresses, or secret-bearing service-discovery files.
-- Treat metrics and labels as operationally sensitive.
-- Use sanitized placeholders in public documentation.
-- Introduce Proxmox API credentials only through a documented least-privilege design.
+1. Restore or recreate Prometheus configuration.
+2. Validate with `promtool`.
+3. Start or reload Prometheus.
+4. Verify all jobs with `count by (job, instance) (up)`.
+5. Verify both DNS `probe_success` series.
+6. Confirm Grafana dashboards display current data.
 
 ## Maintenance Notes
 
 - Back up configuration before editing.
 - Validate with `promtool` before reload or restart.
-- Validate expected jobs and targets with PromQL afterward.
+- Validate intended jobs and labels with PromQL afterward.
 - Review target health after every scrape change.
 - Re-test Grafana after Prometheus changes.
-- Remove stale rollback files after a protected known-good copy exists.
-- Avoid alerts until they are actionable and tied to runbooks.
+- Remove temporary rollback files after a protected known-good copy exists.
+- Add alerts only after thresholds and response runbooks exist.
 
 ## Future Improvements
 
 - Add Proxmox-specific VM, storage, task, and backup metrics through a least-privilege integration.
-- Add a local-record DNS probe.
-- Add Pi-hole-specific metrics.
-- Add Alertmanager only after thresholds and response runbooks are defined.
-- Add protected backup coverage and restore validation.
+- Add Pi-hole-specific application metrics.
+- Add Alertmanager only after actionable thresholds and response procedures are defined.
+- Protect Prometheus configuration and validate restoration under Project 003.
 - Consider version-controlled configuration deployment after the environment stabilizes.
 
 ## Related Documentation
