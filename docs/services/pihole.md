@@ -1,39 +1,40 @@
 # Pi-hole DNS Service
 
+## Status
+
+Active
+
 ## Purpose
 
-Pi-hole provides DNS resolution, DNS-based blocking, and local hostname resolution for the homelab LAN.
+Pi-hole provides DNS resolution, DNS-based blocking, and local hostname resolution for the homelab LAN. Its main architectural value is foundational DNS for current and future infrastructure rather than ad blocking alone.
 
-This is the first production-style infrastructure service deployed in the homelab. Its primary architectural value is foundational DNS for current and future systems rather than ad blocking alone.
-
-## Status
+## Service Summary
 
 | Field | Value |
 | --- | --- |
-| Lifecycle state | Active |
-| Service role | Internal DNS and DNS filtering |
 | Hostname | `dns01` |
 | Internal DNS name | `dns01.lab` |
 | Exposure | Internal homelab LAN only |
 | Public access | None |
-| Backup maturity | Live configuration inventoried; Teleporter export created, integrity-checked, and privately inspected; VM backup and restore validation pending |
-| Monitoring | Node Exporter host metrics and Blackbox DNS availability probe |
+| Backup maturity | Teleporter export created, integrity-checked, and privately inspected; VM backup and restore validation pending |
+| Host monitoring | Node Exporter |
+| Service monitoring | Recursive and local Blackbox DNS probes |
 
 ## Technology Stack
 
 | Component | Details |
 | --- | --- |
-| Application | Pi-hole Core v6.4.3 |
-| Web interface | Pi-hole Web v6.6 |
-| DNS engine | Pi-hole FTL v6.7 |
-| Host metrics | Node Exporter package version `1.9.0-1+b4` |
+| Pi-hole Core | v6.4.3 |
+| Pi-hole Web | v6.6 |
+| Pi-hole FTL | v6.7 |
+| Node Exporter | `1.9.0-1+b4` |
 | Operating system | Debian 13.5 (Trixie) |
 | Platform | Proxmox VE virtual machine |
 | Deployment method | Official Pi-hole installer |
 | Upstream DNS | Cloudflare DNS selected during initial deployment |
 | Local DNS zone | `lab` |
 
-Versions were verified during the Project 003 backup-readiness inventory.
+Versions were verified during Project 003 backup-readiness work.
 
 ## Architecture
 
@@ -42,19 +43,18 @@ Internet
   |
 Existing household network / upstream Wi-Fi
   |
-GL.iNet Opal travel router
+GL.iNet Opal router
   |
 Managed switch
   |
 Proxmox host
-  |
-  |-- dns01: Pi-hole DNS and Node Exporter
+  |-- dns01: Pi-hole and Node Exporter
   `-- mon01: Prometheus, Grafana, and Blackbox Exporter
 ```
 
-The household network is an upstream dependency, not managed homelab infrastructure. The GL.iNet Opal router creates the current homelab boundary.
+The household network is an upstream dependency, not managed homelab infrastructure. The Opal creates the current lab boundary.
 
-Pi-hole currently serves systems that are manually configured to use it. Router-provided DNS remains deferred until secondary DNS and tested recovery procedures exist.
+Pi-hole currently serves selected clients configured manually. Router-provided DNS remains deferred until secondary DNS and tested recovery procedures exist.
 
 ## VM Specifications
 
@@ -62,112 +62,61 @@ Pi-hole currently serves systems that are manually configured to use it. Router-
 | --- | --- |
 | VM name | `dns01` |
 | Role | DNS infrastructure |
-| OS | Debian 13.5 (Trixie) |
-| vCPU | 2 vCPU |
-| Memory | 2 GB RAM |
+| OS | Debian 13.5 |
+| vCPU | 2 |
+| Memory | 2 GB |
 | Disk | 20 GB |
 | Network | Homelab LAN bridge |
-| IP assignment | Static address using Debian `ifupdown` |
-| Network interface | `ens18` |
+| Addressing | Static through Debian `ifupdown` |
+| Interface | `ens18` |
 | Network configuration | `/etc/network/interfaces` |
-| Guest agent | QEMU Guest Agent installed and running |
+| Guest agent | QEMU Guest Agent active |
 
-Exact private addresses are intentionally omitted. Use `<DNS01_IP>` and `<LAB_GATEWAY>` in public documentation.
+Exact private addresses are omitted. Use `<DNS01_IP>` and `<LAB_GATEWAY>` publicly.
 
-## Verified Service and Network Baseline
+## Verified Baseline
 
-| Item | Verified state |
+| Item | State |
 | --- | --- |
 | Pi-hole systemd unit | `/etc/systemd/system/pihole-FTL.service` |
-| Pi-hole unit overrides | None detected |
-| Pi-hole service state | Active, running, and enabled |
-| Node Exporter systemd unit | `/usr/lib/systemd/system/prometheus-node-exporter.service` |
-| Node Exporter unit overrides | None detected |
-| Node Exporter service state | Active, running, and enabled |
+| Pi-hole service | Active and enabled |
+| Node Exporter unit | `/usr/lib/systemd/system/prometheus-node-exporter.service` |
+| Node Exporter service | Active and enabled |
 | Static network file | `/etc/network/interfaces` |
-| Addressing model | Static `/24` address with a homelab gateway |
-| Host DNS resolvers | Public resolvers configured in the interface definition |
+| Addressing model | Static `/24` address with homelab gateway |
+| Host resolver design | Public resolvers configured for the VM itself |
 
-The operating system resolver does not depend on Pi-hole itself. This reduces circular dependency during Pi-hole failure or troubleshooting. The tradeoff is that DNS queries originating from `dns01` bypass Pi-hole filtering.
+The operating-system resolver does not depend on Pi-hole. This reduces circular dependency during Pi-hole failure, but DNS queries originating from `dns01` bypass Pi-hole filtering.
 
-## DNS Role
+## DNS Responsibilities
 
-Pi-hole handles two DNS responsibilities:
+### External Resolution
 
-1. **External DNS forwarding**
-   - Clients send public-domain queries to Pi-hole.
-   - Pi-hole checks blocklists and local records.
-   - Allowed queries are forwarded to the configured upstream resolver.
+- Clients query Pi-hole.
+- Pi-hole checks blocklists and local records.
+- Allowed public queries are forwarded to the configured upstream resolver.
 
-2. **Internal DNS records**
-   - Infrastructure receives readable names such as `dns01.lab` and `pve01.lab`.
-   - Future services should receive a DNS record during deployment.
+### Internal Records
 
-## Local DNS Records
-
-Initial sanitized records include:
+Sanitized infrastructure records include:
 
 | Record | Purpose |
 | --- | --- |
-| `dns01.lab` | Pi-hole / DNS server |
+| `dns01.lab` | Pi-hole DNS server |
 | `pve01.lab` | Proxmox host |
 | `switch01.lab` | Managed switch |
 
-Avoid records that expose personal names, exact locations, ISP details, or other identifying information.
-
-## Deployment Notes
-
-1. Created a Debian 13.5 VM in Proxmox.
-2. Installed a minimal headless system with SSH.
-3. Configured a non-root administrative user with `sudo`.
-4. Installed and verified QEMU Guest Agent.
-5. Configured a static address using Debian `ifupdown`.
-6. Corrected resolver configuration after static networking initially left `/etc/resolv.conf` incomplete.
-7. Installed Pi-hole with the official installer.
-8. Selected Cloudflare as the upstream resolver.
-9. Added initial local DNS records.
-10. Verified local and public resolution from another client.
-11. Installed Node Exporter.
-12. Added a Blackbox Exporter DNS probe from `mon01`.
-
-## Validation
-
-Validated operating state:
-
-- VM reachable on the homelab LAN.
-- QEMU Guest Agent running.
-- Pi-hole dashboard reachable internally.
-- Pi-hole FTL active and enabled.
-- Local DNS records resolving from a separate client.
-- Public DNS resolution working through Pi-hole.
-- Node Exporter active and enabled.
-- Node Exporter scraped by Prometheus.
-- Blackbox DNS probe returning `probe_success 1`.
-- Grafana displaying DNS service-health data.
-
-Useful checks:
-
-```bash
-systemctl is-active pihole-FTL prometheus-node-exporter
-systemctl is-enabled pihole-FTL prometheus-node-exporter
-pihole status
-```
-
-From a client configured to use Pi-hole:
-
-```text
-nslookup dns01.lab <DNS01_IP>
-nslookup pve01.lab <DNS01_IP>
-```
+Avoid records that expose personal names, locations, ISP information, or other identifying context.
 
 ## Monitoring
 
-| Layer | Tool | What It Proves |
+| Layer | Tool | What it proves |
 | --- | --- | --- |
 | Host | Node Exporter | `dns01` is reachable and Linux host metrics are available |
-| Service | Blackbox Exporter | The DNS endpoint answers the configured query from `mon01` |
+| Recursive service | Blackbox Exporter `dns_udp` | Public resolution works through Pi-hole and its upstream resolver |
+| Local service | Blackbox Exporter `dns_udp_local` | The expected local A record is returned independently of upstream DNS |
 
-Current Prometheus queries:
+Prometheus queries:
 
 ```promql
 up{job="node_exporter", host="dns01"}
@@ -177,126 +126,143 @@ up{job="node_exporter", host="dns01"}
 probe_success{job="blackbox_dns", host="dns01"}
 ```
 
-The Blackbox probe currently queries a public name, so it validates the full recursive-resolution path through Pi-hole and the upstream resolver. A future local-record probe should isolate internal DNS health from upstream failures.
+```promql
+probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
+```
+
+Interpretation:
+
+- Recursive and local up: DNS paths healthy.
+- Recursive down, local up: investigate upstream resolver or internet connectivity.
+- Recursive up, local down: investigate local-record configuration or answer validation.
+- Both down: investigate `dns01`, Pi-hole, routing, firewall policy, or the monitoring path.
+
+The Homelab Infrastructure Overview displays Recursive DNS and Local DNS as separate status values.
+
+## Deployment Summary
+
+1. Created a Debian VM in Proxmox.
+2. Installed a minimal headless system with SSH.
+3. Configured non-root administration and QEMU Guest Agent.
+4. Configured a static address through `ifupdown`.
+5. Corrected resolver configuration after static networking initially left `/etc/resolv.conf` incomplete.
+6. Installed Pi-hole.
+7. Selected the upstream resolver.
+8. Added initial local records.
+9. Verified public and local resolution from another client.
+10. Installed Node Exporter.
+11. Added recursive and local Blackbox Exporter probes from `mon01`.
+
+## Validation
+
+Service checks:
+
+```bash
+systemctl is-active pihole-FTL prometheus-node-exporter
+systemctl is-enabled pihole-FTL prometheus-node-exporter
+pihole status
+```
+
+Direct client checks:
+
+```text
+nslookup dns01.lab <DNS01_IP>
+nslookup pve01.lab <DNS01_IP>
+```
+
+Verified state:
+
+- Pi-hole FTL active and enabled.
+- Local records resolve.
+- Public DNS resolves through Pi-hole.
+- Node Exporter is scraped by Prometheus.
+- Recursive Blackbox probe returns `1`.
+- Local Blackbox probe returns one answer record and `probe_success 1`.
+- Grafana displays host and both DNS service states.
 
 ## Security Considerations
 
-- Pi-hole remains internal-only.
-- Administrative credentials belong in a password manager, not Git.
-- Query logs are sensitive because they may reveal browsing behavior.
-- Local DNS records must avoid personally identifying names.
-- Management and exporter endpoints must remain on trusted networks.
-- Raw `/etc/pihole/` contents must not be committed.
-- Teleporter archives must remain outside Git.
-- Extracted inspection copies require the same protection as the original archive.
-- Authentication-related fields, including TOTP material, must never be printed or published.
+- Keep Pi-hole internal-only.
+- Store administrative credentials outside Git.
+- Treat query logs as sensitive browsing data.
+- Avoid personally identifying local records.
+- Keep management and exporter endpoints on trusted networks.
+- Do not commit raw `/etc/pihole/` contents.
+- Keep Teleporter archives and extracted inspection copies outside Git.
+- Never publish authentication-related fields, TOTP material, leases, exact addresses, or query-history databases.
 
 ## Backup Strategy
 
-### Verified Application State
+### Verified State
 
-| Item | Verified state |
+| Item | Verified value |
 | --- | --- |
-| Primary Pi-hole state directory | `/etc/pihole/` |
+| Primary state directory | `/etc/pihole/` |
 | Approximate state size | 16 MB during inventory |
-| Pi-hole versions | Core v6.4.3, Web v6.6, FTL v6.7 |
-| Pi-hole FTL | Active and enabled |
-| Node Exporter | Active and enabled; package version `1.9.0-1+b4` |
 | Network configuration | `/etc/network/interfaces` |
-| Teleporter export | `pi-hole_dns01_teleporter_2026-07-09_22-27-17_MST.zip`; 23,868 bytes; stored outside Git |
+| Teleporter export | Private ZIP outside Git |
 | Archive integrity | Pass |
-| Archive entries | 5; 123,439 bytes uncompressed |
 | SHA-256 | Recorded privately |
 
-`/etc/pihole/` contains a mixture of configuration, gravity data, local DNS state, query-history databases, active SQLite state, authentication material, and generated files. A raw live directory copy is therefore not the preferred portable recovery method.
+The Teleporter archive contains databases, leases, private addresses, network identifiers, URLs, and authentication-related state. It must remain private.
 
-### Teleporter Inspection Results
-
-The protected archive was inspected without printing matched values.
-
-| Category | Result |
-| --- | --- |
-| Database files | `etc/pihole/gravity.db` and `etc/pihole/pihole-FTL.db` |
-| Other file types | One `.leases`, one `.toml`, and one extensionless entry |
-| Private IPv4 references | 24 |
-| URL references | 7 |
-| MAC-address references | 2 |
-| Email-address references | 0 |
-| Sensitive property names | `totp_secret` |
-| Key or certificate entries | None detected by filename classification |
-| Integrity errors | None |
-
-The counts demonstrate why the archive must remain private. No private IP addresses, MAC addresses, URLs, lease values, database contents, or TOTP values were added to the repository.
-
-### Backup Layers
+### Recovery Layers
 
 1. **Proxmox VM backup**
-   - Fastest whole-system recovery path.
-   - Not considered reliable until a restore succeeds.
+   - Intended whole-system recovery path.
+   - Pending implementation and restore validation.
 
 2. **Pi-hole Teleporter export**
-   - Portable application-level configuration recovery.
-   - Original ZIP remains intact in protected storage outside Git.
-   - Archive integrity and private content classification are complete.
+   - Portable application-level recovery artifact.
+   - Integrity and private sensitivity inspection complete.
+   - Import validation pending.
 
-3. **Sanitized recovery documentation**
-   - Records versions, configuration locations, dependencies, network assumptions, and validation steps.
-   - Excludes credentials, exact private addresses, query history, and authentication values.
+3. **Sanitized documentation**
+   - Records versions, paths, dependencies, and validation procedures.
+   - Excludes credentials, exact addresses, query history, and authentication values.
 
 ## Recovery Procedure
 
-1. Confirm the VM is powered on in Proxmox.
-2. Confirm network connectivity to `dns01`.
-3. Check `/etc/network/interfaces` if static addressing or gateway configuration is missing.
-4. Check service state:
+1. Confirm the VM is powered on and reachable.
+2. Check `/etc/network/interfaces` if addressing or gateway configuration is missing.
+3. Check Pi-hole and Node Exporter service state.
+4. Test local and public DNS directly from `mon01` or another client.
+5. Temporarily configure affected clients with a public resolver if necessary.
+6. Restore a validated VM backup when available.
+7. For a manual rebuild, recreate Debian networking, reinstall Pi-hole and Node Exporter, and import the protected Teleporter archive.
+8. Confirm upstream resolver settings and required local records.
+9. Revalidate both Blackbox jobs, Node Exporter, and Grafana.
 
-   ```bash
-   sudo systemctl status pihole-FTL
-   sudo systemctl status prometheus-node-exporter
-   pihole status
-   ```
-
-5. Test DNS directly from `mon01` or another client.
-6. Temporarily use a public resolver on affected clients if DNS is unavailable.
-7. Restore a validated VM backup when available.
-8. For a manual rebuild, recreate Debian networking, reinstall Pi-hole and Node Exporter, and import the protected Teleporter export.
-9. Confirm upstream settings and required local records.
-10. Revalidate public resolution, local records, Node Exporter, Blackbox DNS probing, and Grafana panels.
-
-This remains a draft recovery baseline until exercised during a controlled restore test.
+This remains a draft recovery baseline until exercised during a controlled restore.
 
 ## Maintenance Notes
 
-- Apply Debian and Pi-hole updates during planned maintenance windows.
-- Record major version changes that could affect export compatibility.
-- Create a new Teleporter export after meaningful DNS-record, blocklist, authentication, or service-configuration changes.
-- Retain the most recent known-good export in protected storage.
-- Record a SHA-256 hash privately for each retained export.
+- Apply Debian and Pi-hole updates during planned maintenance.
+- Record major version changes that may affect export compatibility.
+- Create a new Teleporter export after meaningful DNS, blocklist, authentication, or configuration changes.
+- Retain the latest known-good export privately and record its hash.
 - Document new local records when services are deployed.
-- Confirm monitoring after DNS, firewall, or network changes.
+- Revalidate recursive and local probes after DNS, firewall, or network changes.
 - Avoid router-wide Pi-hole assignment until secondary DNS and recovery procedures exist.
 
-## Troubleshooting Notes
+## Troubleshooting Lessons
 
 - Hardware virtualization required firmware enablement before Proxmox could start VMs.
-- `sudo` access required manual correction after Debian created a separate root account.
+- Debian `sudo` access required manual correction after a separate root account was created.
 - QEMU Guest Agent required Proxmox-side enablement and a full VM stop/start.
 - Static networking initially left resolver configuration incomplete.
-- The generated Teleporter artifact used ZIP format; procedures must inspect the actual artifact rather than assume a format.
-- The initially recorded Teleporter timestamp was incorrect and was corrected by locating the actual file before inspection.
-
-These issues are retained because they demonstrate realistic systems-administration troubleshooting and the value of verifying artifacts directly.
+- The generated Teleporter artifact used ZIP format; inspect the actual artifact rather than assuming format or filename.
+- Recursive and local probes should remain separate because they represent different failure domains.
 
 ## Future Improvements
 
 - Validate Teleporter import during a controlled recovery test.
-- Decide whether the host-level public resolver bypass should remain the intentional long-term design.
+- Decide whether the VM-level public resolver bypass should remain long term.
 - Configure router DHCP to provide Pi-hole after resilience improves.
-- Deploy a secondary DNS server.
-- Add a local-record DNS probe.
+- Deploy secondary DNS.
 - Add Pi-hole-specific metrics and Grafana panels.
 - Validate VM backup and restore under Project 003.
-- Evaluate Unbound or encrypted DNS only after the current operating model is stable.
+- Evaluate Unbound or encrypted DNS after the current operating model is stable.
 
 ## Related Documentation
 
