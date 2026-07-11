@@ -6,16 +6,12 @@ Active
 
 ## Purpose
 
-Blackbox Exporter performs service-level probes for the homelab monitoring stack. Unlike Node Exporter, which reports host metrics from inside Linux, Blackbox Exporter checks whether a network service is reachable and responding from the monitoring system's point of view.
+Blackbox Exporter performs service-level probes from `mon01`. Node Exporter reports the condition of a Linux host; Blackbox Exporter verifies whether a network service behaves correctly from another system's point of view.
 
-The first deployed probe validates recursive DNS resolution through `dns01`.
+The deployed DNS probes answer two separate questions:
 
-Blackbox Exporter helps answer operational questions such as:
-
-- Is the DNS endpoint reachable from `mon01`?
-- Can `dns01` complete the configured DNS query?
-- Is a service failure visible even when the host remains online?
-- How long does the probe take?
+- Can `dns01` resolve a public name through its configured upstream resolver?
+- Can `dns01` return the expected internal A record without depending on upstream DNS or internet connectivity?
 
 ## Technology Stack
 
@@ -23,57 +19,24 @@ Blackbox Exporter helps answer operational questions such as:
 | --- | --- |
 | Service | Blackbox Exporter |
 | Package | `prometheus-blackbox-exporter` |
+| Verified version | `0.26.0-1` |
 | Host | `mon01` |
 | Operating system | Debian 13.5 |
-| Deployment method | Debian package repository |
-| Default port | `9115/tcp` |
-| Configuration file | `/etc/prometheus/blackbox.yml` |
-| Current consumer | Prometheus on `mon01` |
+| Configuration | `/etc/prometheus/blackbox.yml` |
+| Listen endpoint | `localhost:9115` |
+| Consumer | Prometheus on `mon01` |
+| Public exposure | None |
 
 ## Current Probes
 
-| Probe | Target | Query Scope | Purpose | Status |
+| Module | Prometheus job | Query scope | What success proves | Status |
 | --- | --- | --- | --- | --- |
-| `dns_udp` | `<DNS01_IP>:53` | Public A-record query through Pi-hole and its upstream resolver | Validate recursive DNS resolution from `mon01` | Active |
+| `dns_udp` | `blackbox_dns` | Public A-record query | `mon01` can reach `dns01`, Pi-hole can recurse through its upstream resolver, and the public query returns successfully | Active |
+| `dns_udp_local` | `blackbox_dns_local` | Internal A-record query | `mon01` can reach `dns01` and Pi-hole returns the expected local record independently of upstream recursion | Active |
 
-Exact IP addresses are omitted. Use placeholders such as `<DNS01_IP>` and `<MON01_IP>`.
+Both jobs target `<DNS01_IP>:53` through Blackbox Exporter on `localhost:9115`. Exact addresses and environment-specific DNS values remain private.
 
-## Deployment Notes
-
-Blackbox Exporter was installed from the Debian package repository:
-
-```bash
-sudo apt install -y prometheus-blackbox-exporter
-```
-
-The service was validated locally from `mon01`:
-
-```bash
-systemctl is-active prometheus-blackbox-exporter
-curl localhost:9115/metrics
-```
-
-The DNS probe was tested manually before Prometheus was configured:
-
-```bash
-curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
-```
-
-A successful probe returned:
-
-```text
-probe_success 1
-```
-
-## Configuration
-
-Blackbox Exporter modules are configured in:
-
-```text
-/etc/prometheus/blackbox.yml
-```
-
-The current DNS module is documented in sanitized form:
+## Sanitized Configuration
 
 ```yaml
 modules:
@@ -87,64 +50,115 @@ modules:
       query_type: A
       valid_rcodes:
         - NOERROR
+
+  dns_udp_local:
+    prober: dns
+    timeout: 5s
+    dns:
+      transport_protocol: udp
+      preferred_ip_protocol: ip4
+      query_name: <INTERNAL_RECORD>.
+      query_type: A
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_none_matches_regexp:
+          - '^<ESCAPED_INTERNAL_RECORD>\..*[[:space:]]IN[[:space:]]+A[[:space:]]+.*$'
 ```
 
-Prometheus scrapes the probe through the `blackbox_dns` job:
+The local probe validates the answer section instead of accepting any `NOERROR` response. This prevents a successful result when the expected local A record is absent.
+
+## Probe Paths
+
+Recursive DNS:
 
 ```text
-Prometheus -> localhost:9115 Blackbox Exporter -> <DNS01_IP>:53
+Prometheus on mon01
+        |
+        | scrape /probe?module=dns_udp
+        v
+Blackbox Exporter on localhost:9115
+        |
+        | UDP DNS query
+        v
+dns01 / Pi-hole
+        |
+        | upstream recursion
+        v
+Public DNS answer
 ```
 
-The exporter performs the probe, Prometheus stores the returned metrics, and Grafana visualizes the result.
-
-## Probe Interpretation
-
-The current module queries a public name, so a successful result validates the complete path:
+Local DNS:
 
 ```text
-mon01 -> dns01/Pi-hole -> configured upstream resolver -> public DNS result
+Prometheus on mon01
+        |
+        | scrape /probe?module=dns_udp_local
+        v
+Blackbox Exporter on localhost:9115
+        |
+        | UDP DNS query
+        v
+dns01 / Pi-hole local record
 ```
 
-A failed probe does not prove that Pi-hole alone failed. Possible causes include:
+Separating the probes narrows incidents:
 
-- `dns01` or Pi-hole being unavailable.
-- Internal routing or firewall failure.
-- Upstream internet failure.
-- Upstream resolver failure.
-- Failure of the configured public query.
+- Recursive probe down, local probe up: investigate upstream resolver or internet dependencies.
+- Both probes down: investigate `dns01`, Pi-hole, routing, firewall policy, or the monitoring path.
+- Local probe down, recursive probe up: investigate Pi-hole local-record configuration or the expected answer pattern.
 
-A second probe for a sanitized local record should be added later. That would validate internal DNS independently from upstream recursive resolution.
+## Safe Configuration Procedure
 
-## Networking
-
-| Item | Value |
-| --- | --- |
-| Listen port | `9115/tcp` |
-| Access scope | Local/internal monitoring only |
-| Public exposure | None |
-| Current probe target | `<DNS01_IP>:53` |
-| Intended consumer | Prometheus on `mon01` |
-
-Prometheus and Blackbox Exporter run on the same VM, so Prometheus uses `localhost:9115`. The exporter does not need to listen on or be exposed through the LAN interface.
-
-## Validation Procedure
-
-Run on `mon01`:
+Create a rollback copy before editing:
 
 ```bash
+sudo cp /etc/prometheus/blackbox.yml \
+  /etc/prometheus/blackbox.yml.bak-$(date +%Y%m%d-%H%M)
+```
+
+Preflight a changed configuration on an unused local port before restarting the systemd service:
+
+```bash
+sudo timeout 3s /usr/bin/prometheus-blackbox-exporter \
+  --config.file=/etc/prometheus/blackbox.yml \
+  --web.listen-address=127.0.0.1:19115
+```
+
+Expected output includes `Loaded config file` and `Listening on`. The timeout sends SIGTERM after the short validation window.
+
+Apply and verify:
+
+```bash
+sudo systemctl restart prometheus-blackbox-exporter
 systemctl is-active prometheus-blackbox-exporter
-curl localhost:9115/metrics
 ```
 
-Manual DNS probe:
+## Validation
+
+Manual recursive probe:
 
 ```bash
-curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
+curl -sG http://localhost:9115/probe \
+  --data-urlencode 'module=dns_udp' \
+  --data-urlencode 'target=<DNS01_IP>:53' |
+grep -E '^(probe_success|probe_dns_)'
 ```
 
-Expected output includes:
+Manual local-record probe:
+
+```bash
+curl -sG http://localhost:9115/probe \
+  --data-urlencode 'module=dns_udp_local' \
+  --data-urlencode 'target=<DNS01_IP>:53' |
+grep -E '^(probe_success|probe_dns_)'
+```
+
+Expected local results include:
 
 ```text
+probe_dns_answer_rrs 1
+probe_dns_query_succeeded 1
 probe_success 1
 ```
 
@@ -154,134 +168,88 @@ Prometheus validation:
 probe_success{job="blackbox_dns"}
 ```
 
-Expected result:
+```promql
+probe_success{job="blackbox_dns_local", scope="local"}
+```
+
+Both should return `1`.
+
+## Troubleshooting Lessons
+
+### Module Indentation Failure
+
+The first local-module edit placed `dns_udp_local` at the wrong YAML level. Blackbox Exporter failed with:
 
 ```text
-1
+field dns_udp_local not found in type config.plain
 ```
-
-Probe duration:
-
-```promql
-probe_duration_seconds{job="blackbox_dns"}
-```
-
-Grafana validation:
-
-- Open the `Homelab Service Health` dashboard.
-- Confirm DNS availability shows success.
-- Confirm probe duration is present.
-- Confirm the status timeline continues updating.
-
-## Troubleshooting Notes
-
-### Probe Endpoint Not Reachable on LAN IP
-
-During validation, Blackbox Exporter was active but a request to the `mon01` LAN address on port `9115` failed.
 
 Resolution:
 
-- Used `localhost:9115` from `mon01`.
-- Confirmed local access is sufficient because Prometheus and Blackbox Exporter run on the same VM.
+1. Restore the known-good rollback copy.
+2. Confirm the service returns to `active`.
+3. Add the new module as a direct child of `modules:`.
+4. Preflight the full file on an alternate port.
+5. Restart the live service only after the preflight succeeds.
 
-Operational lesson:
+This incident demonstrated that YAML can be syntactically readable while still mapping fields into the wrong application structure.
 
-- A service can be healthy while listening only locally.
-- Local-only access is preferable when no remote host needs the endpoint.
+### Local-Only Endpoint
 
-### Layered Probe Validation
+Prometheus and Blackbox Exporter run on the same VM. `localhost:9115` is sufficient and avoids unnecessary LAN exposure.
 
-The DNS probe was tested manually before being added to Prometheus.
+### Layered Validation
 
-Operational lesson:
+Validate in this order:
 
-1. Validate the exporter service.
-2. Validate the probe module directly.
-3. Add the Prometheus scrape job.
-4. Validate PromQL results.
-5. Add or update dashboard panels.
-
-This sequence narrows failures to a specific layer.
+1. Exporter service.
+2. Module directly through `/probe`.
+3. Prometheus configuration with `promtool`.
+4. Prometheus target and metric results.
+5. Grafana visualization.
 
 ## Security Considerations
 
 - Keep Blackbox Exporter internal-only.
-- Do not expose port `9115` to untrusted networks.
-- Do not publish exact probe targets or internal addresses when unnecessary.
-- Treat probe configuration as infrastructure-revealing information.
-- Avoid probing external systems aggressively or without a clear operational reason.
-- Keep intentional security-lab probes isolated from trusted infrastructure.
+- Do not expose TCP `9115` to untrusted networks.
+- Do not publish exact probe targets or internal record values when unnecessary.
+- Treat probe configuration and output as topology-revealing operational data.
+- Keep security-lab probes isolated from trusted infrastructure.
 
-## Backup Strategy
-
-Blackbox Exporter is mostly stateless.
+## Backup and Recovery
 
 Important state:
 
 - `/etc/prometheus/blackbox.yml`
-- Prometheus scrape configuration for blackbox jobs
-- Grafana panels based on probe metrics
-- Documentation in this repository
+- Blackbox-related jobs in `/etc/prometheus/prometheus.yml`
+- Grafana panels using probe metrics
+- Sanitized documentation in this repository
 
-Until Project 003 is implemented, the service is rebuildable but its configuration is not protected by a validated backup process.
+The service is rebuildable, but protected VM backups and restore validation remain pending under Project 003.
 
-## Recovery Procedure
+Recovery order:
 
-If DNS probing stops working:
-
-1. Check service status:
-
-   ```bash
-   systemctl status prometheus-blackbox-exporter
-   ```
-
-2. Confirm the exporter responds locally:
-
-   ```bash
-   curl localhost:9115/metrics
-   ```
-
-3. Run the probe manually:
-
-   ```bash
-   curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53'
-   ```
-
-4. Run with debug output if required:
-
-   ```bash
-   curl 'http://localhost:9115/probe?module=dns_udp&target=<DNS01_IP>:53&debug=true'
-   ```
-
-5. Confirm Prometheus has the `blackbox_dns` job and query result:
-
-   ```promql
-   probe_success{job="blackbox_dns"}
-   ```
-
-6. Validate Prometheus configuration before restarting it:
-
-   ```bash
-   promtool check config /etc/prometheus/prometheus.yml
-   ```
-
-7. Confirm Grafana resumes displaying current probe data.
+1. Restore or recreate `/etc/prometheus/blackbox.yml`.
+2. Preflight the file on an alternate port.
+3. Start and validate Blackbox Exporter.
+4. Restore or recreate both Prometheus jobs.
+5. Validate both `probe_success` series.
+6. Confirm Grafana displays recursive and local DNS state.
 
 ## Maintenance Notes
 
-- Keep the package updated through normal Debian patching.
-- Revalidate probes after DNS, routing, firewall, or upstream-resolver changes.
-- Add new probes intentionally and document exactly what each probe proves.
-- Avoid alerts until failure-response procedures are documented.
-- Keep dashboard labels aligned with the actual probe scope.
+- Revalidate both probes after DNS, routing, firewall, upstream-resolver, or local-record changes.
+- Keep dashboard labels aligned with actual probe scope.
+- Export affected dashboards after meaningful changes.
+- Remove temporary rollback files after a protected known-good copy exists.
+- Add alerts only after response procedures are documented.
 
 ## Future Improvements
 
-- Add a local-record DNS probe to isolate internal DNS health.
 - Add HTTP probes for future internal web services.
-- Add ICMP or TCP probes for critical infrastructure only where they answer a defined operational question.
-- Add alerting after failure thresholds and response runbooks are established.
-- Back up Blackbox and Prometheus configuration under Project 003.
+- Add narrowly scoped ICMP or TCP probes only when they answer a defined operational question.
+- Add actionable DNS alerts with runbooks.
+- Protect configuration through Project 003 backups and restore testing.
 
 ## Related Documentation
 
