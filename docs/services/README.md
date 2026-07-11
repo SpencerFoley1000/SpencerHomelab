@@ -2,39 +2,39 @@
 
 This directory documents homelab services and service-like infrastructure components.
 
-A service should receive documentation when it becomes part of the environment, supports another system, stores data, requires maintenance, exposes a network endpoint, or represents a meaningful experiment worth preserving.
+A service receives documentation when it becomes part of the environment, supports another system, stores important state, requires maintenance, exposes a network endpoint, or represents an experiment worth preserving.
 
 ## Purpose
 
-Service documentation exists to answer practical operational questions:
+Service documentation should answer:
 
 - What does the service do?
 - Where does it run?
 - How was it deployed?
 - What does it depend on?
 - How is it secured?
+- How is it monitored?
 - How is it backed up?
-- How would it be restored?
-- What should be checked when it breaks?
+- How would it be recovered?
+- What should be checked when it fails?
 
 ## Documentation Standard
 
-Use the [Service Template](TEMPLATE.md) when adding a new service.
+Use the [Service Template](TEMPLATE.md) for new services.
 
-Each service should document, when applicable:
+Each page should cover, when applicable:
 
 - Purpose
 - Technology stack
-- Host
-- Operating system
+- Host and operating system
 - Deployment method
 - Dependencies
 - Networking
-- Storage
-- Backup strategy
-- Recovery procedure
+- Storage and state
 - Monitoring
 - Security considerations
+- Backup strategy
+- Recovery procedure
 - Maintenance notes
 - Future improvements
 
@@ -42,53 +42,55 @@ Each service should document, when applicable:
 
 | State | Meaning |
 | --- | --- |
-| Planned | Service is being considered but is not deployed |
-| Experimental | Service is deployed for testing and may be rebuilt or removed |
-| Active | Service is intentionally part of the lab environment |
-| Deprecated | Service is still present but planned for replacement or removal |
-| Retired | Service has been removed and retained only for historical reference |
+| Planned | Under consideration but not deployed |
+| Experimental | Deployed for testing and may be rebuilt or removed |
+| Active | Intentionally part of the environment |
+| Deprecated | Present but planned for replacement or removal |
+| Retired | Removed and retained only for historical reference |
 
-Experimental services should be clearly labeled so future readers do not confuse temporary work with stable infrastructure.
+Experimental services must be labeled clearly so temporary work is not mistaken for stable infrastructure.
+
+## Current Services and Platforms
+
+| Service / Platform | State | Host or scope | Purpose | Documentation |
+| --- | --- | --- | --- | --- |
+| Proxmox VE | Active | `pve01` | Virtualization platform for homelab workloads | [proxmox.md](proxmox.md) |
+| Pi-hole | Active | `dns01` | Internal DNS, local records, and DNS filtering | [pihole.md](pihole.md) |
+| Node Exporter | Active | `mon01`, `dns01`, `pve01` | Linux host and hypervisor-OS metrics | [node-exporter.md](node-exporter.md) |
+| Prometheus | Active | `mon01` | Metrics scraping, storage, target health, and PromQL | [prometheus.md](prometheus.md) |
+| Grafana | Active | `mon01` | Detailed and summary dashboards for host and DNS metrics | [grafana.md](grafana.md) |
+| Blackbox Exporter | Active | `mon01` | Recursive and local DNS service probes | [blackbox-exporter.md](blackbox-exporter.md) |
+
+## Current Monitoring Coverage
+
+- Host metrics for `mon01`, `dns01`, and `pve01`.
+- Recursive public-name DNS probe through `dns01`.
+- Local-record DNS probe independent of upstream recursion.
+- Detailed imported Node Exporter dashboard.
+- Homelab Service Health dashboard.
+- Homelab Infrastructure Overview dashboard.
+
+## Planned Candidates
+
+- Pi-hole application metrics.
+- Proxmox platform-specific metrics.
+- Backup-health monitoring.
+- Alertmanager and notification routing.
+- Reverse proxy and internal TLS.
+- Identity services.
+- Container hosting.
+- Security monitoring and detection services.
+- Automation tooling.
 
 ## Naming Guidance
 
-Service pages should use clear, lowercase filenames:
+Use clear lowercase filenames:
 
 ```text
 <service-name>.md
 ```
 
-Examples:
-
-- `dns.md`
-- `monitoring.md`
-- `docker.md`
-- `backup.md`
-- `pihole.md`
-
-Avoid filenames that include secrets, internal-only names, personal identifiers, or exact hostnames that should not be public.
-
-## Current Services and Platforms
-
-| Service / Platform | State | Host | Purpose | Documentation |
-| --- | --- | --- | --- | --- |
-| Proxmox VE | Active | `pve01` | Virtualization platform for homelab VMs and infrastructure workloads | [proxmox.md](proxmox.md) |
-| Pi-hole | Active | `dns01` | Internal DNS, local DNS records, and DNS-based blocking for the homelab LAN | [pihole.md](pihole.md) |
-| Node Exporter | Active | `mon01`, `dns01` | Linux host metrics exporter for Prometheus | [node-exporter.md](node-exporter.md) |
-| Prometheus | Active | `mon01` | Metrics scraping, storage, and PromQL querying | [prometheus.md](prometheus.md) |
-| Grafana | Active | `mon01` | Dashboarding and visualization for Prometheus metrics | [grafana.md](grafana.md) |
-| Blackbox Exporter | Active | `mon01` | Service-level probes for DNS availability and future reachability checks | [blackbox-exporter.md](blackbox-exporter.md) |
-
-## Planned Candidates
-
-Future service candidates may include:
-
-- Pi-hole metrics integration
-- Backup tooling
-- Container hosting
-- Reverse proxy and internal TLS
-- Security lab services
-- Automation tooling
+Avoid filenames containing secrets, personal identifiers, exact addresses, or internal-only names that should not be public.
 
 ## Templates
 
