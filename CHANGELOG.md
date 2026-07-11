@@ -2,6 +2,77 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-11 - Infrastructure Overview and Local DNS Monitoring
+
+### Changed
+
+- Created the `Homelab Infrastructure Overview` Grafana dashboard manually.
+- Added host availability, CPU utilization, memory utilization, root-filesystem utilization, host uptime, DNS availability, and DNS probe-duration panels.
+- Configured the dashboard to display `mon01`, `dns01`, and `pve01` host metrics.
+- Added separate Recursive DNS and Local DNS status values to the DNS Availability panel.
+- Added the `dns_udp_local` Blackbox Exporter module for an internal A-record query.
+- Required the local probe to match an expected answer record instead of accepting `NOERROR` alone.
+- Added the `blackbox_dns_local` Prometheus job with `scope="local"`.
+- Confirmed both recursive and local DNS probes return `probe_success 1`.
+- Validated Prometheus configuration with `promtool` and reloaded the service successfully.
+- Updated Blackbox Exporter, Prometheus, Grafana, monitoring architecture, Project 002, roadmap, and changelog documentation.
+
+### Why
+
+- Recursive public-name resolution and local DNS records depend on different components and should be monitored independently.
+- A summary dashboard provides faster operational awareness than navigating a large imported dashboard for routine checks.
+- Manually built panels demonstrate PromQL understanding and intentional dashboard design.
+- Answer-record validation provides stronger evidence than a successful DNS response code alone.
+
+### Lessons Learned
+
+- A Blackbox Exporter module placed at the wrong YAML level can produce an application-schema error even when the file appears structurally readable.
+- Restoring a known-good file before troubleshooting reduced monitoring downtime.
+- Preflighting Blackbox Exporter on an alternate local port validated the corrected configuration before restarting the live service.
+- A new Prometheus job may return an empty vector until its first scrape completes.
+- Grafana query reference IDs and user-facing legends are separate; distinct IDs such as `A` and `B` were required to display both DNS series.
+- Grafana dashboard v2 threshold values must be numeric JSON values rather than quoted strings.
+- Full-width time-series panels improve readability and avoid unnecessary empty dashboard space.
+
+### Remaining Work
+
+- Export the Homelab Infrastructure Overview as Classic JSON.
+- Validate and privately inspect the export before treating it as a recovery artifact.
+- Add actionable DNS alerts only after response runbooks and notification routing exist.
+- Evaluate Pi-hole-specific application metrics.
+
+## 2026-07-10 - Proxmox Host Monitoring Baseline
+
+### Changed
+
+- Installed Node Exporter `1.9.0-1+b4` on `pve01`.
+- Confirmed the exporter was active, enabled, serving `/metrics`, and listening on TCP `9100`.
+- Verified reachability from `mon01` while the Proxmox firewall was active.
+- Determined that no broad firewall rule was required because the trusted monitoring path already worked.
+- Added `<PVE01_IP>:9100` to the existing Prometheus `node_exporter` job.
+- Applied `host="pve01"` and `role="hypervisor"` labels.
+- Validated the Prometheus configuration, reloaded the service, and confirmed the target returned `1`.
+- Confirmed Grafana displayed CPU, memory, filesystem, network, and uptime metrics for `pve01`.
+- Updated Node Exporter, Prometheus, Proxmox, monitoring architecture, and Project 002 documentation.
+
+### Why
+
+- Hypervisor resource pressure affects every VM in the lab and needs direct visibility.
+- Reusing the existing Node Exporter design provided useful Linux host metrics without introducing Proxmox API credentials.
+- Testing the actual path before changing firewall policy avoided unnecessary exposure.
+
+### Lessons Learned
+
+- An active firewall does not automatically mean a required connection is blocked; test from the intended source first.
+- Piping metric output to `head` may produce `curl: (23)` after the requested lines are successfully displayed.
+- Node Exporter provides a safe baseline but cannot report authoritative VM state, storage-pool health, task results, or backup-job status.
+
+### Remaining Work
+
+- Add Proxmox platform metrics through a documented least-privilege exporter or API integration.
+- Add backup-job monitoring after Project 003 backup jobs exist.
+- Include `pve01` in future capacity-planning and alerting work.
+
 ## 2026-07-10 - Project 003A: Backup Readiness and Configuration Inventory
 
 ### Changed
