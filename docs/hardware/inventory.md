@@ -2,18 +2,41 @@
 
 ## Purpose
 
-This document provides a sanitized inventory of the physical devices used in the homelab. It is intended to help with planning, troubleshooting, documentation, and future expansion.
+This document provides a sanitized inventory of the physical devices used, acquired, or intentionally planned for the homelab. It supports planning, troubleshooting, capacity review, recovery design, and future expansion.
 
 The inventory focuses on device roles and architecture impact rather than publishing sensitive identifying information.
 
 ## Current Inventory
 
-| Device | Role | Current Status | Notes |
+| Device | Role | Current status | Notes |
 | --- | --- | --- | --- |
-| Lenovo ThinkPad E16 Gen 1 | Primary Proxmox virtualization host | Active / baseline configuration | 13th Gen Intel Core i5-1335U, 16 GB RAM, 1 TB PCIe SSD |
+| Lenovo ThinkPad E16 Gen 1 | Active Proxmox virtualization host, `pve01` | Active | 13th Gen Intel Core i5-1335U, 16 GB RAM, 1 TB PCIe SSD; hosts `dns01` and `mon01` |
 | TP-Link TL-SG108E Easy Smart Switch | Managed wired switching and future VLAN support | Active / stock firmware | Current Layer 2 switching foundation for lab connectivity |
-| GL.iNet GL-SFT1200 Opal | Lab router | Active / stock firmware | Serves as the current regular router for the lab; may be repurposed or replaced later |
-| Secondary / security lab system | Potential attacker or isolated test system | Planned / optional | May be used for cyber security lab work if performance is acceptable |
+| GL.iNet GL-SFT1200 Opal | Homelab router and upstream boundary | Active / stock firmware | Routes the homelab through upstream household Wi-Fi |
+| X299 virtualization server build | Future dedicated virtualization server | Hardware acquired; assembly and validation pending | ASRock X299M Extreme4, Intel Core i7-7800X, 32 GB Crucial DDR4-2133, Noctua NH-U12S, existing 500 W PSU and NZXT H510 chassis |
+| Two 1 TB NVMe devices | Planned local storage for the future server | Available; final layout pending | Storage topology must be selected after health and platform validation |
+| 5 TB external hard drive | Project 003 Proxmox backup target | Ordered / integration pending | Intended for protected VM backups, retention, and restore testing; model and serial omitted |
+| UPS | Power resilience, monitoring, and graceful shutdown | Planned under Project 005 | Selection will follow power measurement and new-server validation |
+| Secondary / security-lab system | Potential attacker or isolated test system | Planned / optional | May be used for cybersecurity lab work if performance is acceptable |
+
+## Future Server Known Limitation
+
+The acquired ASRock X299M Extreme4 has one known nonfunctional inner DIMM slot.
+
+Current evidence:
+
+- The seller provided BIOS validation showing the Intel Core i7-7800X and 32 GB memory detected.
+- Dual-channel memory operation was shown during that validation.
+- The board has four total DIMM slots, leaving three physically usable slots if the reported defect is accurate.
+
+Operational implications:
+
+- The system is suitable for the initial 32 GB configuration if local testing confirms stability.
+- Future memory expansion must account for the failed slot and supported memory topology.
+- The defect must be revalidated locally before the system receives a production role.
+- Memory errors, thermal behavior, and stability must be tested before migrating workloads.
+
+See [Future Virtualization Server Build](server-build.md) for the validation plan.
 
 ## Sanitized Device Naming
 
@@ -21,74 +44,88 @@ Public documentation should refer to systems by role or safe model name instead 
 
 Suggested labels:
 
-- `pve01` - Lenovo ThinkPad E16 Gen 1 Proxmox host.
+- `pve01` - Current Lenovo ThinkPad E16 Gen 1 Proxmox host.
+- `<FUTURE_PVE_HOST>` - Future X299 virtualization server until its final hostname and role are approved.
 - `switch01` - TP-Link TL-SG108E managed switch.
 - `router01` - GL.iNet GL-SFT1200 Opal router.
 - `admin-workstation` - Personal workstation used for administration and documentation.
 - `sec-lab-client` - Optional security testing endpoint.
+- `<BACKUP_TARGET>` - Sanitized label for the external Proxmox backup storage.
 
 ## Information to Track Privately
 
-The following should be tracked outside the public repository, such as in a password manager or private inventory:
+Track the following outside the public repository:
 
 - Serial numbers.
 - Warranty information.
 - Purchase receipts.
-- Exact management IP addresses if not safe to publish.
+- Exact management IP addresses.
 - MAC addresses.
-- Credentials.
-- Recovery codes.
+- Credentials and recovery material.
 - License keys.
 - Asset tags.
+- Drive UUIDs and private mount identifiers.
+- Private hashes for backup and export artifacts.
 
 ## Information Safe to Track Publicly
 
 The following can usually be documented safely when sanitized:
 
 - Device model.
+- General specifications relevant to architecture.
 - Device role.
-- General hardware class.
+- Lifecycle state.
+- Known hardware limitations.
 - Operating system or firmware family.
-- Network role.
+- Network and storage role.
 - Dependencies.
 - Backup and recovery expectations.
+- Validation results.
 - Maintenance responsibilities.
 - Lessons learned.
 
 ## Current Assumptions
 
-- The Lenovo ThinkPad E16 Gen 1 is the primary compute platform and runs Proxmox VE.
-- The TP-Link TL-SG108E is the current managed switch for wired lab connectivity.
-- The GL.iNet GL-SFT1200 Opal is currently serving as the lab router using stock firmware.
-- The administrative workstation is a personal endpoint, not core lab infrastructure, so detailed hardware specifications are intentionally omitted.
-- Exact internal addressing is not required to explain the architecture publicly.
-- Hardware documentation will be refined as devices are configured, replaced, or repurposed.
+- The ThinkPad remains the active Proxmox host until a documented transition occurs.
+- The TP-Link switch remains the current managed switching platform.
+- The Opal remains the current homelab routing boundary.
+- The future X299 server is not production infrastructure until assembly, hardware testing, thermals, storage, networking, monitoring, and backup integration are complete.
+- The 5 TB external drive is the planned first dedicated backup target, not primary workload storage.
+- The administrative workstation is a personal endpoint, not core lab infrastructure, so detailed specifications remain omitted.
+- Exact internal addressing and private device identifiers are not required to explain the architecture publicly.
 
 ## Maintenance Notes
 
-When hardware changes, update this inventory and the relevant device page.
+When hardware changes, update this inventory, the relevant device page, architecture documentation, roadmap, and changelog.
 
-Examples of changes that should be documented:
+Changes that require documentation include:
 
-- New hardware added.
-- Device retired or repurposed.
+- New hardware acquired or placed into service.
+- Device retired, replaced, or repurposed.
 - Firmware or operating system changed.
-- Management address changed.
-- Network role changed.
-- Storage added or replaced.
-- Device becomes part of backup, monitoring, or security infrastructure.
+- Management address or network role changed.
+- Storage added, reformatted, or replaced.
+- Known hardware fault discovered or resolved.
+- Device becomes part of backup, monitoring, authentication, or security infrastructure.
+- Power requirements or UPS behavior changes.
 
 ## Future Improvements
 
-- Add firmware version notes if needed without exposing sensitive details.
-- Add power and physical placement notes if useful.
-- Add lifecycle status for each major device.
-- Add maintenance history once hardware updates begin.
-- Add a private inventory process for sensitive identifiers.
+- Record future-server assembly and validation results.
+- Record the selected storage layout for the two 1 TB NVMe devices.
+- Record the external backup drive filesystem and Proxmox role after integration.
+- Add measured idle, startup, and load power consumption.
+- Select and document the UPS after load measurement.
+- Add lifecycle and maintenance history for major devices.
+- Create an ADR for the future server's production role.
 
 ## Related Documentation
 
+- [Current Proxmox Host](server.md)
+- [Future Virtualization Server Build](server-build.md)
 - [Switch](switch.md)
 - [Router](router.md)
-- [Server](server.md)
+- [Virtualization Architecture](../architecture/virtualization.md)
+- [Storage Architecture](../architecture/storage.md)
 - [Architecture Overview](../architecture/overview.md)
+- [Roadmap](../../ROADMAP.md)
