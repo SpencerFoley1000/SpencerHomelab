@@ -6,13 +6,16 @@ This document describes the security model for the homelab at an architecture le
 
 ## Current Status
 
-Security architecture is in the baseline planning phase. The immediate priority is to avoid unsafe defaults while the lab is still being built.
+Security architecture is in the baseline implementation phase. The immediate priority is to replace unsafe management defaults with recoverable controls while the lab remains simple enough to troubleshoot.
 
 Current security posture:
 
 - Public documentation is sanitized.
-- Secrets are not stored in the repository.
-- Management interfaces should remain internal-only.
+- Secrets and recovery material are not stored in the repository.
+- Management interfaces remain internal-only.
+- Proxmox routine administration uses a named account protected by TOTP.
+- The Proxmox root identity is retained as a TOTP-protected break-glass account.
+- Both Proxmox administrative identities have separate recovery keys stored outside Git.
 - Security lab isolation is planned before attacker-style or intentionally vulnerable systems are used.
 
 ## Security Goals
@@ -22,12 +25,14 @@ Current security posture:
 - Document security decisions without exposing sensitive implementation details.
 - Build habits that translate to professional infrastructure and security roles.
 - Treat backups, monitoring, and management interfaces as high-value systems.
+- Maintain recoverable administrative access without relying on a single password or mobile device.
 
 ## Public Documentation Boundaries
 
 Do not publish:
 
 - Passwords, tokens, API keys, SSH keys, or recovery codes.
+- TOTP seeds, provisioning QR codes, or authenticator exports.
 - Private keys or certificates containing private material.
 - Public IP addresses.
 - Exact firewall exports if they expose sensitive topology.
@@ -57,7 +62,17 @@ Management interfaces include:
 - Monitoring and backup administration panels.
 - Any future password manager, secrets manager, or identity tooling.
 
-Future management network design should restrict access to these systems instead of allowing broad access from every lab segment.
+Current Proxmox access model:
+
+| Identity class | Purpose | Controls |
+| --- | --- | --- |
+| Named administrator | Routine management and attributable administrative activity | Unique password, TOTP, propagated administrative role, and dedicated recovery keys |
+| Root break-glass identity | Emergency recovery and root-only operations | Unique password, TOTP, separate recovery keys, and restricted routine use |
+| Physical console | Final recovery path when normal management access fails | Physical access to the host |
+
+The named Proxmox identity is an application-level account and does not automatically create a Debian user or grant Linux console or SSH access.
+
+Future management network design should restrict access to these systems instead of allowing broad access from every lab segment. Router and switch administration should receive comparable authentication and exposure reviews where platform capabilities permit.
 
 ## Network Segmentation Strategy
 
@@ -76,11 +91,45 @@ Security lab isolation should be implemented before running offensive tooling ag
 
 ## Authentication and Secrets
 
+General requirements:
+
 - Use strong unique passwords for infrastructure accounts.
-- Store secrets in a password manager, not in GitHub.
+- Prefer named routine-administration identities over shared or root accounts.
+- Require multifactor authentication for high-value management interfaces where supported.
+- Retain a controlled break-glass path for tasks that require elevated or root identity.
+- Store secrets and recovery material outside Git.
+- Keep recovery material independent from the primary authenticator device.
 - Use SSH keys where appropriate, but never commit private keys.
 - Document where secrets are stored using placeholders only.
-- Rotate credentials after accidental exposure or major trust changes.
+- Rotate credentials after accidental exposure, authenticator loss, or major trust changes.
+
+### Proxmox Authentication Baseline
+
+The implemented Proxmox baseline includes:
+
+- A named `adminops@pve` account for routine administration.
+- An Administrator role applied at `/` with propagation for the named account.
+- TOTP enabled for both the named account and `root@pam`.
+- Separate recovery-key sets for each account.
+- Clean password-and-TOTP login validation for both identities.
+- System clock synchronization and active NTP validation before TOTP enrollment.
+- `root@pam` retained for break-glass use rather than routine administration.
+
+Authentication seeds, QR codes, passwords, and recovery keys are intentionally excluded from the repository.
+
+A permission boundary was observed during implementation: the named administrator received a `403` when attempting to configure TOTP for `root@pam`. Root's authentication factor had to be configured from a root-authenticated session. This behavior reinforces that a broad administrative role does not make every root identity operation delegable.
+
+### Administrative-Access Recovery
+
+If the primary authenticator device is lost or replaced:
+
+1. Use an unused recovery key or the protected break-glass path.
+2. Remove the enrollment associated with the lost device.
+3. Enroll the replacement authenticator.
+4. Replace or regenerate recovery material where required.
+5. Validate both routine and break-glass login paths.
+
+Recovery keys should not be consumed merely to demonstrate that they exist. Their presence and storage should be verified without publishing or unnecessarily using them.
 
 ## Patch Management
 
@@ -99,7 +148,9 @@ Security updates should be prioritized for internet-facing systems, management i
 Security-relevant monitoring should eventually include:
 
 - Authentication failures.
+- Repeated password attempts.
 - Unexpected administrative logins.
+- Changes to administrative identities or MFA enrollment.
 - Service exposure changes.
 - Backup failures.
 - Host resource anomalies.
@@ -118,6 +169,7 @@ Guidelines:
 - Store recovery material outside the repository.
 - Test restores periodically.
 - Keep security lab systems from modifying trusted backups.
+- Do not assume VM backups replace independent administrative-access recovery.
 
 ## Security Lab Boundary
 
@@ -133,8 +185,13 @@ Before running attacker-style workloads, document:
 
 ## Future Improvements
 
+- Review router and managed-switch authentication, management exposure, and recovery options.
+- Restrict management interfaces through a dedicated management network after segmentation is implemented.
 - Document management VLAN design after implementation.
 - Add firewall rule philosophy using sanitized examples.
+- Review Proxmox SSH authentication and root-login policy after console recovery is documented.
+- Evaluate authentication-failure monitoring and rate-limiting options without introducing unnecessary hypervisor complexity.
+- Add a management-access recovery runbook.
 - Add patch management runbook.
 - Add backup recovery validation runbook.
 - Add security lab isolation documentation before offensive tooling is used.
@@ -146,4 +203,5 @@ Before running attacker-style workloads, document:
 - [Network Architecture](network.md)
 - [Monitoring Architecture](monitoring.md)
 - [Storage Architecture](storage.md)
+- [Proxmox VE Platform](../services/proxmox.md)
 - [Disaster Recovery Runbook](../runbooks/disaster-recovery.md)
