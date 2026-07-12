@@ -19,10 +19,11 @@ This page documents Proxmox as an operational platform. Hardware-specific detail
 | Running kernel | `7.0.2-6-pve` |
 | Management exposure | Internal homelab only |
 | Public access | None |
+| Administrative authentication | Named routine administrator and protected root break-glass account; TOTP and recovery keys enabled |
 | Host monitoring | Active through Node Exporter and Prometheus |
 | Backup maturity | Readiness inventory complete; VM backup and restore testing pending |
 
-The exact management endpoint, internal address, VM IDs, MAC addresses, storage identifiers, and sensitive configuration values are intentionally omitted.
+The exact management endpoint, internal address, VM IDs, MAC addresses, storage identifiers, authentication seeds, recovery keys, and sensitive configuration values are intentionally omitted.
 
 ## Current Workloads
 
@@ -53,7 +54,8 @@ Proxmox operations depend on:
 - The GL.iNet Opal routing boundary.
 - Existing upstream household connectivity for internet access and package updates.
 - Local storage on the Proxmox host.
-- Private credential storage outside the repository.
+- Private credential and recovery-material storage outside the repository.
+- Accurate system time for TOTP validation.
 
 The VMs can continue running during an upstream internet outage, but package updates and public DNS resolution may be affected.
 
@@ -87,6 +89,34 @@ Firewall changes should follow this sequence:
 2. Confirm whether an existing rule already permits it.
 3. Add the narrowest source-, destination-, protocol-, and port-specific rule only when required.
 4. Revalidate management access and monitoring afterward.
+
+## Administrative Authentication
+
+Proxmox administrative access uses separate routine and emergency identities:
+
+| Identity | Intended use | Authentication controls |
+| --- | --- | --- |
+| `adminops@pve` | Routine web-interface administration | Unique password, TOTP, and dedicated recovery keys |
+| `root@pam` | Break-glass access and root-only administrative actions | Unique password, TOTP, and separate recovery keys |
+
+Operational rules:
+
+- Use `adminops@pve` for normal administration.
+- Reserve `root@pam` for emergencies and tasks that explicitly require the root identity.
+- Keep passwords, TOTP seeds, QR codes, and recovery keys outside Git.
+- Keep recovery material separate from the enrolled mobile authenticator so loss of the device does not cause permanent lockout.
+- Do not consume recovery keys during routine testing; preserve them for actual recovery.
+- Re-enroll TOTP and rotate affected recovery material after loss or replacement of an authenticator device.
+
+Validation completed during implementation:
+
+- The host reported `System clock synchronized: yes` and `NTP service: active`.
+- Both accounts completed clean password-and-TOTP login tests from a fresh browser session.
+- Each account has its own recovery-key set.
+- The named administrator can manage the host and active VMs through its propagated Administrator role.
+- Root authentication changes require a `root@pam` session; the named administrator received a `403` when attempting to modify root's TOTP configuration.
+
+The Proxmox identity `adminops@pve` is an application-level Proxmox account. It does not automatically create a matching Debian user or grant Linux console or SSH access.
 
 ## Storage
 
@@ -154,7 +184,9 @@ A future Proxmox-specific exporter or API integration should use a dedicated lea
 ## Security Considerations
 
 - Do not expose the Proxmox management interface directly to the internet.
-- Use strong, unique administrative credentials stored outside the repository.
+- Use the named TOTP-protected account for routine administration and reserve `root@pam` for break-glass use.
+- Maintain separate recovery keys for the routine and root identities.
+- Keep passwords, TOTP seeds, QR codes, and recovery keys outside the repository.
 - Limit management access to trusted devices and future management networks.
 - Keep experimental and attacker-style workloads isolated from trusted infrastructure.
 - Do not publish exact management addresses, VM IDs, MAC addresses, storage identifiers, or sensitive exports.
@@ -183,6 +215,13 @@ Current recovery order:
 3. Restore `mon01` to regain monitoring visibility.
 4. Restore lower-priority or experimental workloads.
 
+Administrative-access recovery should preserve:
+
+- Access to the protected break-glass identity.
+- Recovery keys stored independently from the authenticator device.
+- Accurate system time for TOTP validation.
+- Physical-console access as the final recovery path.
+
 ## Validation
 
 Useful platform checks:
@@ -195,6 +234,14 @@ systemctl is-active prometheus-node-exporter
 systemctl is-enabled prometheus-node-exporter
 curl -s http://localhost:9100/metrics | head
 ss -ltnp | grep 9100
+timedatectl status
+```
+
+Expected time state for TOTP:
+
+```text
+System clock synchronized: yes
+NTP service: active
 ```
 
 From `mon01`:
@@ -233,13 +280,26 @@ After Proxmox upgrades:
 - Confirm Node Exporter remains active.
 - Confirm Prometheus still reports `pve01` as `UP`.
 - Confirm Grafana panels resume after the host returns.
+- Confirm system time remains synchronized.
+- Complete a fresh TOTP login with the routine administrator.
+
+After authenticator-device loss or replacement:
+
+- Use a recovery key or the protected break-glass path.
+- Remove the old TOTP enrollment.
+- Enroll the replacement authenticator.
+- Generate and securely store replacement recovery material when required.
+- Verify both routine and break-glass login paths.
 
 ## Future Improvements
 
 - Document the sanitized bridge and storage layout.
 - Add Proxmox-specific VM, storage, task, and backup metrics.
 - Implement and test VM backups under Project 003.
-- Create a Proxmox maintenance runbook.
+- Create a Proxmox maintenance and management-access recovery runbook.
+- Review SSH authentication and root-login policy after console recovery is documented.
+- Evaluate authentication-failure monitoring and rate-limiting options without adding unnecessary hypervisor complexity.
+- Restrict management access through a dedicated management network when segmentation is implemented.
 - Document VLAN-aware networking after segmentation is implemented.
 - Build a custom hypervisor dashboard and actionable capacity alerts.
 
@@ -247,6 +307,7 @@ After Proxmox upgrades:
 
 - [Virtualization Architecture](../architecture/virtualization.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
+- [Security Architecture](../architecture/security.md)
 - [Node Exporter](node-exporter.md)
 - [Prometheus](prometheus.md)
 - [VM Inventory](../architecture/vm-inventory.md)
