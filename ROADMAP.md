@@ -11,6 +11,10 @@ This roadmap tracks planned homelab work at a high level. Detailed implementatio
 - Perform and document a representative isolated restore test.
 - Export and privately validate the Homelab Infrastructure Overview dashboard.
 - Add alerting only after each condition has a clear response and supporting runbook.
+- Complete Project 004 reverse proxy and internal HTTPS implementation.
+- Build and validate the new virtualization server after Projects 003 and 004 are complete.
+- Complete Project 005 power resilience, UPS monitoring, and graceful shutdown automation before deploying centralized identity services.
+- Begin Project 006 Active Directory only after the new server and power-protection controls are operational.
 - Continue maintaining public, sanitized, portfolio-quality documentation after meaningful changes.
 
 ## Recently Completed Monitoring Work
@@ -63,12 +67,29 @@ Remaining monitoring work should improve operational coverage and recovery value
    - Internal HTTPS
    - Friendly hostnames
 
-4. Project 005: Identity and Authentication
-   - LDAP or Active Directory
-   - Centralized identity management
-   - Administrative access patterns
+4. Infrastructure Milestone: New Virtualization Server
+   - Assemble and validate the new server hardware
+   - Install and configure the virtualization platform
+   - Verify storage, memory, networking, and thermal stability
+   - Integrate the server into monitoring and backup workflows
+   - Document hardware limitations, design decisions, validation results, and operational role
 
-5. Project 006+: Security Engineering Projects
+5. Project 005: Power Resilience and Graceful Shutdown
+   - Measure idle, normal, startup, and higher-load power consumption
+   - Select and install a correctly sized UPS
+   - Monitor utility power, battery charge, runtime, load, input voltage, and battery health where supported
+   - Integrate UPS metrics and alerts with Prometheus and Grafana
+   - Configure orderly guest and Proxmox host shutdown behavior
+   - Document power-loss, shutdown, recovery, and battery-maintenance procedures
+   - Test and document a controlled utility-power failure and recovery scenario
+
+6. Project 006: Active Directory and Centralized Identity
+   - Deploy Active Directory Domain Services
+   - Centralize identity and authentication
+   - Establish administrative access patterns
+   - Document dependencies, recovery requirements, security decisions, and maintenance procedures
+
+7. Project 007+: Security Engineering Projects
    - Wazuh
    - Suricata
    - Zeek
