@@ -16,6 +16,7 @@ This repository is maintained as both operational documentation and a public por
 The homelab currently includes:
 
 - A documented Proxmox VE virtualization host, `pve01`.
+- A named Proxmox administrator and protected root break-glass identity, both using TOTP and separate recovery keys.
 - A dedicated DNS VM, `dns01`, running Pi-hole for internal DNS, local records, and DNS filtering.
 - A dedicated monitoring VM, `mon01`, running Prometheus, Grafana, Node Exporter, and Blackbox Exporter.
 - Node Exporter host metrics for `mon01`, `dns01`, and `pve01`.
@@ -35,6 +36,7 @@ The current primary focus is Project 003 backup implementation and restore testi
 - [`docs/runbooks/`](docs/runbooks/) - Repeatable operational and troubleshooting procedures.
 - [`docs/projects/`](docs/projects/) - Planned, active, and completed project records.
 - [`docs/decisions/`](docs/decisions/) - Architecture Decision Records explaining major technical choices.
+- [`docs/changes/`](docs/changes/) - Dated implementation records for meaningful infrastructure changes.
 - [`CHANGELOG.md`](CHANGELOG.md) - Chronological record of meaningful infrastructure and documentation changes.
 - [`ROADMAP.md`](ROADMAP.md) - Current priorities and future direction.
 - [`SECURITY.md`](SECURITY.md) - Public documentation and sanitization policy.
