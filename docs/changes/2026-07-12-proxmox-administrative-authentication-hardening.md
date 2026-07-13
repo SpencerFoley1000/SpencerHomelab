@@ -21,30 +21,31 @@ Affected areas:
 
 ## Changed
 
-- Created the named `adminops@pve` account for routine Proxmox administration.
+- Created a named Proxmox application account, documented publicly as `<PROXMOX_ADMIN_ACCOUNT>`, for routine administration.
 - Granted the named account the Administrator role at `/` with propagation.
-- Enabled TOTP for both `adminops@pve` and the `root@pam` break-glass account.
+- Enabled TOTP for both the named account and the `root@pam` break-glass account.
 - Generated separate recovery-key sets for both administrative identities.
-- Verified that `pve01` reported synchronized system time and an active NTP service before relying on TOTP.
+- Verified synchronized system time and active NTP before relying on TOTP.
 - Completed clean password-and-TOTP login tests for both accounts from fresh browser sessions.
-- Designated `adminops@pve` for routine administration and retained `root@pam` for break-glass and root-only operations.
-- Updated the Proxmox service and security architecture documentation.
+- Designated the named account for routine administration and retained `root@pam` for break-glass and root-only operations.
+- Updated Proxmox service, security architecture, and repository overview documentation.
 
-Passwords, TOTP seeds, provisioning QR codes, recovery keys, and exact management endpoints remain outside the repository.
+The actual routine account name, passwords, TOTP seeds, provisioning QR codes, recovery keys, and exact management endpoints remain outside the repository.
 
 ## Why
 
 - The hypervisor management plane is a high-value target because compromise would affect every hosted workload.
 - A named routine account improves administrative accountability and reduces unnecessary use of the root identity.
 - TOTP reduces the risk posed by password guessing, credential reuse, or disclosure of a password alone.
-- Independent recovery keys prevent loss of the authenticator device from becoming a permanent administrative lockout.
+- Independent recovery keys prevent loss of the authenticator device from becoming permanent administrative lockout.
+- Sanitizing the exact routine account name removes unnecessary public attack-surface information without weakening the portfolio value of the design.
 - The current flat homelab network makes authentication hardening a safer immediate control than introducing untested segmentation or restrictive firewall policy.
 
 ## Validation
 
 - `timedatectl status` reported `System clock synchronized: yes`.
 - `timedatectl status` reported `NTP service: active`.
-- `adminops@pve` completed a clean password-and-TOTP login.
+- `<PROXMOX_ADMIN_ACCOUNT>` completed a clean password-and-TOTP login.
 - `root@pam` completed a clean password-and-TOTP login.
 - The named administrator could access the host and active virtual machines through its assigned role.
 - Both identities have separate recovery-key sets.
@@ -57,14 +58,15 @@ Recovery keys were not consumed during routine validation.
 - TOTP depends on accurate system time, so NTP synchronization should be verified before enrollment.
 - The named Administrator account received a `403` when attempting to modify `root@pam` TOTP; root authentication changes required a root-authenticated session.
 - A broad application role does not necessarily delegate protected identity-management actions for the root account.
-- Multifactor authentication is incomplete without a recovery design that does not depend on the enrolled phone.
+- Multifactor authentication is incomplete without a recovery design independent of the enrolled phone.
 - Keeping an existing authenticated root session open during enrollment reduced lockout risk.
+- Public documentation can explain the identity model without exposing the exact routine login name.
 
 ## Operational Model
 
 | Identity | Use | Controls |
 | --- | --- | --- |
-| `adminops@pve` | Routine Proxmox administration | Unique password, TOTP, Administrator role, dedicated recovery keys |
+| `<PROXMOX_ADMIN_ACCOUNT>` | Routine Proxmox administration | Unique password, TOTP, Administrator role, dedicated recovery keys |
 | `root@pam` | Break-glass access and root-only actions | Unique password, TOTP, separate recovery keys, restricted routine use |
 | Physical console | Final recovery path | Physical access to `pve01` |
 
@@ -82,3 +84,4 @@ Recovery keys were not consumed during routine validation.
 - [Proxmox VE Platform](../services/proxmox.md)
 - [Security Architecture](../architecture/security.md)
 - [Network Architecture](../architecture/network.md)
+- [Repository README](../../README.md)
