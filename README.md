@@ -8,7 +8,7 @@ This repository is maintained as both operational documentation and a public por
 
 - Build a realistic small-scale infrastructure environment.
 - Practice enterprise-style documentation and change management.
-- Demonstrate troubleshooting, architecture, monitoring, and security decision-making.
+- Demonstrate troubleshooting, architecture, monitoring, recovery, and security decision-making.
 - Develop skills relevant to help desk, systems administration, network administration, cloud, and security engineering roles.
 
 ## Current Status
@@ -16,7 +16,7 @@ This repository is maintained as both operational documentation and a public por
 The homelab currently includes:
 
 - A documented Proxmox VE virtualization host, `pve01`.
-- A named Proxmox administrator and protected root break-glass identity, both using TOTP and separate recovery keys.
+- Proxmox management authentication using a named routine administrator and protected root break-glass identity, both with TOTP and independent recovery keys.
 - A dedicated DNS VM, `dns01`, running Pi-hole for internal DNS, local records, and DNS filtering.
 - A dedicated monitoring VM, `mon01`, running Prometheus, Grafana, Node Exporter, and Blackbox Exporter.
 - Node Exporter host metrics for `mon01`, `dns01`, and `pve01`.
@@ -24,9 +24,11 @@ The homelab currently includes:
 - Local-record DNS monitoring independent of upstream recursion.
 - Grafana dashboards for detailed host metrics, DNS service health, and an at-a-glance infrastructure overview.
 - Operational troubleshooting documentation based on real configuration incidents.
-- Project 003 backup-readiness inventories and private application-level recovery exports.
+- Project 003A backup-readiness inventories and protected application-level recovery exports.
+- A 5 TB external backup drive acquired for Project 003 and pending Proxmox integration.
+- Hardware acquired for a future dedicated virtualization server, pending assembly and validation.
 
-The current primary focus is Project 003 backup implementation and restore testing. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform metrics, and actionable alerting.
+The current primary focus is Project 003 backup implementation and restore testing. Project 004 reverse proxy and internal HTTPS work follows, then the new virtualization server build and Project 005 power-resilience work. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform metrics, backup-health monitoring, and actionable alerting.
 
 ## Documentation Structure
 
@@ -46,4 +48,4 @@ The current primary focus is Project 003 backup implementation and restore testi
 
 This repository is public by design. It avoids publishing secrets, personally identifying information, exact private network details, SSIDs, public IP addresses, serial numbers, recovery artifacts, and other sensitive operational data.
 
-Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
+Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<PROXMOX_ADMIN_ACCOUNT>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.

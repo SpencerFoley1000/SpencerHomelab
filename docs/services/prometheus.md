@@ -25,9 +25,12 @@ The current configuration answers:
 | Operating system | Debian 13.5 |
 | Configuration | `/etc/prometheus/prometheus.yml` |
 | Metrics storage | `/var/lib/prometheus/metrics2/` |
-| Listen endpoint | `localhost:9090` for local consumers; internal UI access only |
-| Visualization consumer | Grafana on `mon01` |
+| Grafana access | `http://localhost:9090` from `mon01` |
+| Trusted browser access | `<MON01_IP>:9090` on the internal homelab network |
+| Public exposure | None |
 | Backup maturity | Configuration inventoried; protected VM backup and restore validation pending |
+
+Prometheus is not bound exclusively for local-only use: Grafana consumes it through `localhost`, while trusted internal administrators may use the UI through the sanitized `mon01` address. TCP `9090` must not be publicly exposed.
 
 ## Current Jobs
 
@@ -112,7 +115,7 @@ Exact addresses remain private. Public documentation uses `<DNS01_IP>`, `<MON01_
       replacement: localhost:9115
 ```
 
-Using separate jobs keeps the recursive and local DNS failure domains explicit in PromQL, Grafana, and future alert rules.
+Separate jobs keep recursive and local DNS failure domains explicit in PromQL, Grafana, recovery validation, and future alert rules.
 
 ## Safe Configuration Changes
 
@@ -136,7 +139,7 @@ sudo systemctl reload prometheus
 systemctl is-active prometheus
 ```
 
-`promtool` verifies syntax and structure. It does not prove that every intended job or target exists, so PromQL validation is mandatory after the reload.
+`promtool` verifies syntax and structure. It does not prove every intended job or target exists, so PromQL validation is mandatory after reload.
 
 ## Validation
 
@@ -144,6 +147,7 @@ systemctl is-active prometheus
 
 ```bash
 systemctl is-active prometheus
+systemctl is-enabled prometheus
 curl localhost:9090/-/ready
 curl localhost:9090/-/healthy
 ```
@@ -153,6 +157,13 @@ curl localhost:9090/-/healthy
 ```promql
 count by (job, instance) (up)
 ```
+
+Expected jobs:
+
+- `prometheus`
+- `node_exporter`
+- `blackbox_dns`
+- `blackbox_dns_local`
 
 ### Linux Host Targets
 
@@ -188,7 +199,7 @@ Local DNS:
 probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
 ```
 
-Verify both in one query:
+Both probes:
 
 ```promql
 probe_success{job=~"blackbox_dns.*", host="dns01"}
@@ -196,9 +207,9 @@ probe_success{job=~"blackbox_dns.*", host="dns01"}
 
 Both series should return `1`.
 
-A newly added job may briefly return an empty result until the first scrape completes. Re-query after the configured scrape interval before treating an empty initial result as a failure.
+A newly added job may briefly return an empty result until its first scrape completes. Re-query after the configured interval before treating an initial empty result as a failure.
 
-### Resource Queries Used by Grafana
+## Resource Queries Used by Grafana
 
 CPU utilization:
 
@@ -242,18 +253,18 @@ time() - node_boot_time_seconds{job="node_exporter"}
 
 Node Exporter on `pve01` provides Linux operating-system metrics. It does not provide authoritative Proxmox platform state such as:
 
-- VM or container state
-- Cluster quorum
-- Task results
-- Storage-pool health
-- Backup-job status
-- Replication state
+- VM or container state.
+- Cluster quorum.
+- Task results.
+- Storage-pool health.
+- Backup-job status.
+- Replication state.
 
 Those capabilities require a future Proxmox-specific exporter or API integration using documented least-privilege credentials.
 
-The two DNS jobs also have distinct boundaries:
+The DNS jobs also have distinct boundaries:
 
-- `blackbox_dns` includes the upstream resolver and internet dependency.
+- `blackbox_dns` includes Pi-hole, the upstream resolver, and internet dependency.
 - `blackbox_dns_local` isolates Pi-hole local-record behavior from upstream recursion.
 
 ## Troubleshooting Notes
@@ -268,16 +279,17 @@ count by (job, instance) (up)
 
 ### Initial Empty Query
 
-The first local-DNS query returned an empty vector immediately after reload, while a later combined query showed both jobs at `1`. New jobs may need one scrape interval before data appears.
+The first local-DNS query returned an empty vector immediately after reload, while a later query showed both jobs at `1`. New jobs may need one scrape interval before data appears.
 
 ### Grafana Shows One DNS Series
 
-When Prometheus returns both series but Grafana shows only one, verify the panel has distinct query reference IDs such as `A` and `B`. Friendly labels belong in each query's legend, not in the query reference-ID field.
+When Prometheus returns both series but Grafana shows only one, verify the panel has distinct query reference IDs such as `A` and `B`. Friendly labels belong in legends, not the reference-ID field.
 
 ## Security Considerations
 
 - Keep Prometheus internal-only.
 - Do not expose TCP `9090` publicly.
+- Restrict UI access to trusted internal administrators.
 - Do not publish raw metrics, exact targets, or screenshots containing private topology.
 - Do not commit credentials, API tokens, or secret-bearing discovery configuration.
 - Treat metrics and labels as operationally sensitive.
@@ -288,21 +300,22 @@ When Prometheus returns both series but Grafana shows only one, verify the panel
 Important state:
 
 - `/etc/prometheus/prometheus.yml`
-- Future alerting and recording rules
-- Any future service-discovery configuration
-- Local time-series data if retention becomes operationally important
-- Documentation in this repository
+- Future alerting and recording rules.
+- Future service-discovery configuration.
+- Local time-series data if retention becomes operationally important.
+- Documentation in this repository.
 
-At the current lab scale, validated configuration is more important than short-term historical metrics. Protected VM backups and restore testing remain pending under Project 003.
+At current scale, validated configuration is more important than short-term metrics history. Project 003 inventories the configuration but protected VM backups and restore testing remain pending.
 
 Recovery order:
 
 1. Restore or recreate Prometheus configuration.
 2. Validate with `promtool`.
 3. Start or reload Prometheus.
-4. Verify all jobs with `count by (job, instance) (up)`.
-5. Verify both DNS `probe_success` series.
-6. Confirm Grafana dashboards display current data.
+4. Verify `prometheus`, `node_exporter`, `blackbox_dns`, and `blackbox_dns_local`.
+5. Verify all three Node Exporter hosts.
+6. Verify both DNS `probe_success` series.
+7. Confirm Grafana dashboards display current data.
 
 ## Maintenance Notes
 
@@ -313,6 +326,7 @@ Recovery order:
 - Re-test Grafana after Prometheus changes.
 - Remove temporary rollback files after a protected known-good copy exists.
 - Add alerts only after thresholds and response runbooks exist.
+- Add the future server only after its hardware and production role are validated.
 
 ## Future Improvements
 
@@ -320,11 +334,13 @@ Recovery order:
 - Add Pi-hole-specific application metrics.
 - Add Alertmanager only after actionable thresholds and response procedures are defined.
 - Protect Prometheus configuration and validate restoration under Project 003.
+- Add backup-job and backup-age metrics after Project 003 implementation.
 - Consider version-controlled configuration deployment after the environment stabilizes.
 
 ## Related Documentation
 
 - [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
+- [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Node Exporter Service](node-exporter.md)
 - [Blackbox Exporter Service](blackbox-exporter.md)

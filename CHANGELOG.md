@@ -2,6 +2,57 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-12 - Proxmox Security Hardening, Hardware Acquisition, and Documentation Synchronization
+
+### Changed
+
+- Hardened the Proxmox management plane with a named routine administrator, a protected `root@pam` break-glass identity, TOTP for both identities, independent recovery keys, NTP validation, and clean-login testing.
+- Sanitized the exact routine Proxmox administrator name as `<PROXMOX_ADMIN_ACCOUNT>` in public documentation.
+- Added a dated infrastructure change record for the Proxmox authentication milestone.
+- Acquired an ASRock X299M Extreme4, Intel Core i7-7800X, 32 GB Crucial DDR4-2133, Noctua NH-U12S, and related components for a future dedicated virtualization server.
+- Documented the reported nonfunctional inner DIMM slot and the required local memory, thermal, storage, network, and stability validation gates.
+- Documented two existing 1 TB NVMe devices, an existing 500 W power supply, and an NZXT H510 chassis as planned reused components.
+- Ordered a 5 TB external hard drive as the first dedicated Project 003 Proxmox backup target.
+- Added the future server, backup drive, and planned UPS to the sanitized hardware inventory.
+- Added a dedicated future-server build page and required a future ADR before assigning it a production role.
+- Updated the roadmap to sequence Project 003 backup implementation, Project 004 reverse proxy and internal HTTPS, new-server validation, Project 005 UPS and graceful shutdown, and Project 006 Active Directory.
+- Synchronized repository entry points, architecture pages, virtualization, storage, hardware, VM inventory, Project 003, ADR-0001, service pages, and runbooks with the deployed monitoring and recovery state.
+- Updated Project 003 recovery requirements to include `blackbox_dns_local` and `dns_udp_local` so local-record monitoring cannot be silently omitted during rebuild.
+- Expanded backup, disaster-recovery, maintenance, and VM-provisioning runbooks while preserving honest planned or unvalidated maturity labels.
+- Added dedicated `.gitignore` rules for private exports, recovery artifacts, and backup artifacts.
+- Added a GitHub Actions workflow that compiles and runs `scripts/check-markdown-links.py` on documentation pull requests and pushes to `main`.
+
+### Why
+
+- The Proxmox management plane controls every hosted workload and required stronger, recoverable authentication before the lab became more dependent on it.
+- The future server introduces meaningful capacity, hardware-fault, migration, storage, and power-design decisions that should be documented before assembly.
+- The 5 TB drive changes Project 003 from abstract planning to a concrete pending implementation.
+- High-level architecture and recovery pages had drifted behind the detailed monitoring and service documentation.
+- Recovery documentation must include every active Prometheus job, Blackbox module, and Grafana dependency.
+- Automated link validation reduces the chance that future file moves or new documentation break repository navigation.
+
+### Lessons Learned
+
+- Strong MFA design includes independent recovery and physical-console paths, not only an authenticator application.
+- A broad Proxmox Administrator role does not necessarily permit protected root identity operations.
+- Exact administrative usernames are unnecessary in a public portfolio when a placeholder communicates the architecture.
+- Hardware with a known limitation can still be useful if the defect, validation requirements, and expansion constraints are documented honestly.
+- UPS sizing should follow measured combined load rather than assumptions.
+- Recovery inventories must be refreshed whenever monitoring jobs, dashboard dependencies, or service configuration change.
+- Documentation drift continues to appear first in summaries, ADR checklists, hardware pages, and recovery runbooks.
+
+### Remaining Work
+
+- Receive, inspect, prepare, mount, and register the 5 TB backup target.
+- Define backup scheduling, retention, pruning, and capacity thresholds.
+- Run initial VM backups for `dns01` and `mon01`.
+- Perform and document a representative isolated restore test.
+- Export and privately validate the Homelab Infrastructure Overview.
+- Assemble and validate the X299 server.
+- Create an ADR defining the future relationship between the ThinkPad and X299 server.
+- Measure power consumption and implement Project 005 UPS monitoring and graceful shutdown.
+- Add Proxmox platform metrics and actionable alerts only after least-privilege and response designs exist.
+
 ## 2026-07-11 - Infrastructure Overview and Local DNS Monitoring
 
 ### Changed
