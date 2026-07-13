@@ -1,31 +1,34 @@
 # Roadmap
 
-This roadmap tracks planned homelab work at a high level. Detailed implementation notes belong in project pages, service pages, runbooks, and ADRs.
+This roadmap tracks planned homelab work at a high level. Detailed implementation notes belong in project pages, service pages, runbooks, change records, and ADRs.
 
 ## Current Focus
 
-- Complete Project 003 backup implementation when the external HDD is available.
-- Mount and register the backup target in Proxmox.
-- Define VM backup scheduling, retention, and recovery priorities.
+- Complete Project 003 backup implementation when the ordered 5 TB external drive is physically available.
+- Inspect, prepare, mount, and register the backup target in Proxmox.
+- Define VM backup scheduling, retention, pruning, and capacity expectations.
 - Back up `dns01` and `mon01`.
 - Perform and document a representative isolated restore test.
 - Export and privately validate the Homelab Infrastructure Overview dashboard.
 - Add alerting only after each condition has a clear response and supporting runbook.
 - Complete Project 004 reverse proxy and internal HTTPS implementation.
-- Build and validate the new virtualization server after Projects 003 and 004 are complete.
-- Complete Project 005 power resilience, UPS monitoring, and graceful shutdown automation before deploying centralized identity services.
+- Assemble and validate the acquired X299 virtualization server after Projects 003 and 004 are complete.
+- Decide the long-term relationship between the ThinkPad host and new server through an ADR.
+- Complete Project 005 power resilience, UPS monitoring, and graceful shutdown automation before centralized identity services.
 - Begin Project 006 Active Directory only after the new server and power-protection controls are operational.
 - Continue maintaining public, sanitized, portfolio-quality documentation after meaningful changes.
 
-## Recently Completed Monitoring Work
+## Recently Completed Work
 
-Project 002 has delivered a functional host- and service-monitoring foundation:
+### Monitoring Foundation
+
+Project 002 has delivered:
 
 - Dedicated monitoring VM: `mon01`.
 - Prometheus metrics collection and PromQL validation.
 - Grafana dashboarding.
 - Node Exporter host metrics for `mon01`, `dns01`, and `pve01`.
-- Linux operating-system monitoring for the Proxmox host without introducing API credentials.
+- Linux operating-system monitoring for the Proxmox host without API credentials.
 - Recursive DNS monitoring through `dns01` and its upstream resolver.
 - Local-record DNS monitoring independent of upstream recursion.
 - Homelab Service Health dashboard.
@@ -35,66 +38,116 @@ Project 002 has delivered a functional host- and service-monitoring foundation:
 
 Remaining monitoring work should improve operational coverage and recovery value rather than add tools without a defined purpose.
 
-## Planned Projects
+### Backup Readiness
 
-1. Project 002: Monitoring and Observability Stack
-   - Operational foundation:
-     - `mon01`
-     - Prometheus
-     - Grafana
-     - Node Exporter
-     - Blackbox Exporter
-     - Host metrics for `mon01`, `dns01`, and `pve01`
-     - Recursive and local DNS probes
-     - Service-health and infrastructure-overview dashboards
-   - Remaining improvements:
-     - Export the new infrastructure dashboard as a private recovery artifact
-     - Pi-hole-specific application metrics
-     - Proxmox VM, storage, task, and backup metrics through least-privilege integration
-     - Alerting after runbooks exist
-     - Monitoring configuration backup and restore validation
+Project 003A completed:
 
-2. Project 003: Backup and Recovery
-   - External Proxmox backup target
-   - Backup scheduling and retention
-   - Initial backups for core VMs
-   - Restore testing
-   - Recovery priorities and operational runbooks
-   - Backup-health monitoring after jobs exist
+- `dns01` and `mon01` configuration inventories.
+- Pi-hole Teleporter export and private inspection.
+- Existing Grafana dashboard exports and private inspection.
+- Prometheus, Blackbox Exporter, Grafana, and Node Exporter state classification.
+- Grafana data-source recovery mapping.
+- Preliminary service recovery notes.
+- Service configuration export and inspection runbook.
 
-3. Project 004: Reverse Proxy and Internal HTTPS
-   - NGINX Proxy Manager or equivalent
-   - Internal HTTPS
-   - Friendly hostnames
+### Management-Plane Security
 
-4. Infrastructure Milestone: New Virtualization Server
-   - Assemble and validate the new server hardware
-   - Install and configure the virtualization platform
-   - Verify storage, memory, networking, and thermal stability
-   - Integrate the server into monitoring and backup workflows
-   - Document hardware limitations, design decisions, validation results, and operational role
+- Added a named routine Proxmox administrator.
+- Protected routine and root break-glass management identities with TOTP.
+- Created independent recovery-key sets.
+- Validated system time and clean login paths.
+- Preserved physical console as the final recovery path.
 
-5. Project 005: Power Resilience and Graceful Shutdown
-   - Measure idle, normal, startup, and higher-load power consumption
-   - Select and install a correctly sized UPS
-   - Monitor utility power, battery charge, runtime, load, input voltage, and battery health where supported
-   - Integrate UPS metrics and alerts with Prometheus and Grafana
-   - Configure orderly guest and Proxmox host shutdown behavior
-   - Document power-loss, shutdown, recovery, and battery-maintenance procedures
-   - Test and document a controlled utility-power failure and recovery scenario
+## Planned Projects and Milestones
 
-6. Project 006: Active Directory and Centralized Identity
-   - Deploy Active Directory Domain Services
-   - Centralize identity and authentication
-   - Establish administrative access patterns
-   - Document dependencies, recovery requirements, security decisions, and maintenance procedures
+### 1. Project 002: Monitoring and Observability Stack
 
-7. Project 007+: Security Engineering Projects
-   - Wazuh
-   - Suricata
-   - Zeek
-   - Vulnerability management
-   - Azure integration
+Operational foundation:
+
+- `mon01`
+- Prometheus
+- Grafana
+- Node Exporter
+- Blackbox Exporter
+- Host metrics for `mon01`, `dns01`, and `pve01`
+- Recursive and local DNS probes
+- Service-health and infrastructure-overview dashboards
+
+Remaining improvements:
+
+- Export the infrastructure overview as a private recovery artifact.
+- Add Pi-hole-specific application metrics.
+- Add Proxmox VM, storage, task, and backup metrics through least-privilege integration.
+- Add alerting after runbooks exist.
+- Complete monitoring configuration backup and restore validation.
+
+### 2. Project 003: Backup and Recovery
+
+- Integrate the ordered 5 TB external backup target.
+- Configure backup scheduling, retention, and pruning.
+- Run initial backups for core VMs.
+- Complete restore testing.
+- Finalize recovery priorities and operational runbooks.
+- Add backup-health monitoring after jobs exist.
+- Evaluate a second or offline copy after the initial backup system is proven.
+
+### 3. Project 004: Reverse Proxy and Internal HTTPS
+
+- Select NGINX Proxy Manager or an equivalent reverse proxy.
+- Provide friendly internal hostnames.
+- Implement internal HTTPS.
+- Document certificate lifecycle and recovery requirements.
+- Monitor the proxy and certificate state.
+
+### 4. Infrastructure Milestone: New Virtualization Server
+
+Acquired baseline:
+
+- ASRock X299M Extreme4.
+- Intel Core i7-7800X.
+- 32 GB Crucial DDR4-2133.
+- Noctua NH-U12S.
+- Existing 500 W power supply and NZXT H510 chassis.
+- Two existing 1 TB NVMe devices.
+- One reported nonfunctional inner DIMM slot.
+
+Required work:
+
+- Assemble and inspect the hardware.
+- Verify CPU and memory detection.
+- Confirm the failed DIMM-slot behavior.
+- Test memory stability and temperatures.
+- Validate storage health and select a storage layout.
+- Install and secure the virtualization platform.
+- Integrate monitoring and backup.
+- Create an ADR for the production role and migration plan.
+
+### 5. Project 005: Power Resilience and Graceful Shutdown
+
+- Measure idle, normal, startup, and higher-load power consumption.
+- Include both virtualization hosts if both remain active.
+- Select and install a correctly sized UPS.
+- Monitor utility power, battery charge, runtime, load, input voltage, and battery health where supported.
+- Integrate UPS metrics and alerts with Prometheus and Grafana.
+- Configure orderly guest and Proxmox host shutdown behavior.
+- Document power-loss, shutdown, recovery, and battery-maintenance procedures.
+- Test and document a controlled utility-power failure and recovery scenario.
+
+### 6. Project 006: Active Directory and Centralized Identity
+
+- Deploy Active Directory Domain Services.
+- Centralize identity and authentication.
+- Establish administrative access patterns.
+- Document dependencies, recovery requirements, security decisions, and maintenance procedures.
+- Protect identity services with tested backup and UPS-backed shutdown first.
+
+### 7. Project 007+: Security Engineering Projects
+
+- Wazuh.
+- Suricata.
+- Zeek.
+- Vulnerability management.
+- Azure integration.
 
 ## Future Ideas
 
@@ -103,6 +156,7 @@ Remaining monitoring work should improve operational coverage and recovery value
 - Intrusion detection and prevention project.
 - Public documentation site generated from this repository.
 - Azure-focused cloud security lab after the local foundation matures.
+- Proxmox Backup Server or dedicated storage only when justified by recovery requirements.
 
 ## Completed
 
@@ -112,3 +166,5 @@ Remaining monitoring work should improve operational coverage and recovery value
 - Virtualization host setup and documentation.
 - Project 001: Pi-hole DNS service on `dns01`.
 - Project 002 monitoring foundation: Prometheus, Grafana, Node Exporter, Blackbox Exporter, three-host metrics, recursive and local DNS probing, service-health visualization, and a custom infrastructure overview dashboard.
+- Project 003A backup-readiness and service-state inventory.
+- Proxmox administrative authentication hardening with named routine administration, TOTP, recovery keys, and break-glass access.
