@@ -19,6 +19,9 @@ venv/
 !.env.example
 secrets/
 private/
+private-exports/
+recovery-artifacts/
+backup-artifacts/
 *.key
 *.p12
 *.pfx
