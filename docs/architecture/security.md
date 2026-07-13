@@ -2,44 +2,50 @@
 
 ## Purpose
 
-This document describes the security model for the homelab at an architecture level. It focuses on practical controls, safe public documentation, and a clear boundary between trusted infrastructure and experimental security work.
+This document describes the homelab security model at an architecture level. It focuses on practical controls, recoverable administration, safe public documentation, and a clear boundary between trusted infrastructure and experimental security work.
 
 ## Current Status
 
-Security architecture is in the baseline implementation phase. The immediate priority is to replace unsafe management defaults with recoverable controls while the lab remains simple enough to troubleshoot.
+Security architecture is in the baseline implementation phase.
 
-Current security posture:
+Current posture:
 
 - Public documentation is sanitized.
-- Secrets and recovery material are not stored in the repository.
+- Secrets, raw exports, exact private addressing, and recovery material remain outside Git.
 - Management interfaces remain internal-only.
-- Proxmox routine administration uses a named account protected by TOTP.
+- Proxmox routine administration uses a named application account documented publicly as `<PROXMOX_ADMIN_ACCOUNT>`.
 - The Proxmox root identity is retained as a TOTP-protected break-glass account.
-- Both Proxmox administrative identities have separate recovery keys stored outside Git.
-- Security lab isolation is planned before attacker-style or intentionally vulnerable systems are used.
+- Both Proxmox administrative identities have independent recovery keys.
+- System time and NTP were validated before TOTP enrollment.
+- Physical console access remains the final hypervisor recovery path.
+- Linux host metrics are collected for `pve01`, `dns01`, and `mon01`.
+- Project 003A documented sensitive recovery assets without committing them.
+- Security-lab isolation is required before attacker-style or intentionally vulnerable systems are used.
 
 ## Security Goals
 
-- Apply security best practices appropriate for a learning homelab.
+- Apply controls appropriate for a production-style learning homelab.
+- Reduce unnecessary root and shared-account use.
+- Maintain recoverable administrative access without relying on one password or phone.
 - Segment experimental and attacker-style workloads from trusted infrastructure.
+- Protect monitoring and backup systems as high-value infrastructure.
 - Document security decisions without exposing sensitive implementation details.
 - Build habits that translate to professional infrastructure and security roles.
-- Treat backups, monitoring, and management interfaces as high-value systems.
-- Maintain recoverable administrative access without relying on a single password or mobile device.
 
 ## Public Documentation Boundaries
 
 Do not publish:
 
-- Passwords, tokens, API keys, SSH keys, or recovery codes.
+- Passwords, tokens, API keys, private keys, SSH keys, or recovery codes.
 - TOTP seeds, provisioning QR codes, or authenticator exports.
+- Exact routine administrative usernames when a placeholder communicates the design.
 - Private keys or certificates containing private material.
 - Public IP addresses.
-- Exact firewall exports if they expose sensitive topology.
-- Personally identifying SSIDs.
+- Personally identifying SSIDs or network names.
 - Home address, ISP account information, or personal account identifiers.
-- Device serial numbers or asset tags.
-- Sensitive internal topology details that are not needed to explain the design.
+- Device serial numbers, asset tags, MAC addresses, or private drive identifiers.
+- Raw backup archives, Pi-hole Teleporter files, Grafana exports, or private hashes.
+- Exact firewall exports or topology details when sanitized architecture is sufficient.
 
 Use placeholders such as:
 
@@ -47,161 +53,178 @@ Use placeholders such as:
 - `<MGMT_NETWORK>`
 - `<HOST_IP>`
 - `<PRIVATE_DNS>`
+- `<PROXMOX_ADMIN_ACCOUNT>`
+- `<PROMETHEUS_DATASOURCE_UID>`
+- `<BACKUP_TARGET>`
 - `<REDACTED_SSID>`
 - `<SECRET_STORED_IN_PASSWORD_MANAGER>`
 
 ## Management Access Model
 
-Management access should be limited to trusted administrators and trusted devices.
+Management access is limited to trusted administrators and trusted devices.
 
 Management interfaces include:
 
 - Proxmox web interface and SSH.
-- Switch management interface.
-- Router/firewall management interface.
-- Monitoring and backup administration panels.
-- Any future password manager, secrets manager, or identity tooling.
+- Router and switch management interfaces.
+- Grafana and Prometheus administration.
+- Pi-hole administration.
+- Backup storage and future UPS administration.
+- Future identity, secrets, or automation systems.
 
-Current Proxmox access model:
+### Proxmox Administrative Identities
 
 | Identity class | Purpose | Controls |
 | --- | --- | --- |
-| Named administrator | Routine management and attributable administrative activity | Unique password, TOTP, propagated administrative role, and dedicated recovery keys |
-| Root break-glass identity | Emergency recovery and root-only operations | Unique password, TOTP, separate recovery keys, and restricted routine use |
-| Physical console | Final recovery path when normal management access fails | Physical access to the host |
+| `<PROXMOX_ADMIN_ACCOUNT>` | Routine Proxmox application administration | Unique password, TOTP, propagated Administrator role, dedicated recovery keys |
+| `root@pam` | Break-glass access and root-only Proxmox operations | Unique password, TOTP, separate recovery keys, restricted routine use |
+| Physical console | Final recovery path when network management fails | Physical access to `pve01` |
 
-The named Proxmox identity is an application-level account and does not automatically create a Debian user or grant Linux console or SSH access.
+The routine Proxmox identity is an application-level account. It does not automatically create a Debian user or grant Linux console or SSH access.
 
-Future management network design should restrict access to these systems instead of allowing broad access from every lab segment. Router and switch administration should receive comparable authentication and exposure reviews where platform capabilities permit.
+Implementation validation included:
+
+- Synchronized system clock.
+- Active NTP service.
+- Fresh-session password-and-TOTP login for both identities.
+- Successful routine host and VM administration through the named account.
+- Independent recovery-key sets.
+
+A permission boundary was observed: the named Administrator account received a `403` when attempting to change `root@pam` TOTP. Root authentication-factor changes required a root-authenticated session.
+
+## Administrative-Access Recovery
+
+If the primary authenticator device is lost or replaced:
+
+1. Use an unused recovery key or the protected break-glass path.
+2. Confirm accurate system time.
+3. Remove the enrollment associated with the lost device.
+4. Enroll the replacement authenticator.
+5. Replace or regenerate recovery material where required.
+6. Validate both routine and break-glass login paths.
+7. Record the recovery event without publishing protected values.
+
+Recovery keys should not be consumed merely to prove they exist. Their presence and protected storage should be verified without unnecessary use.
 
 ## Network Segmentation Strategy
 
-Segmentation should be used to reduce blast radius and support security learning.
+The current network is intentionally simple and remains largely flat behind the GL.iNet Opal routing boundary.
 
 Planned security boundaries:
 
 | Boundary | Purpose |
 | --- | --- |
-| Management network | Protect infrastructure administration interfaces |
-| Lab services network | Host internal services without exposing management interfaces |
-| Security lab network | Isolate attacker tools and vulnerable systems |
-| Household / upstream network | Keep family or general-use devices separate from lab experiments |
+| Management network | Protect hypervisor, router, switch, monitoring, backup, and UPS administration |
+| Lab services network | Host internal DNS, monitoring, proxy, identity, and application services |
+| Security lab network | Isolate attacker tools, detection systems, and intentionally vulnerable targets |
+| Guest / untrusted network | Restrict lower-trust or temporary devices |
+| Household / upstream network | Keep family and general-use devices separate from lab experiments |
 
-Security lab isolation should be implemented before running offensive tooling against intentionally vulnerable systems.
+Segmentation must be documented, tested, and recoverable before being treated as stable architecture.
+
+Security-lab isolation must exist before offensive tooling or intentionally vulnerable workloads are used.
 
 ## Authentication and Secrets
 
-General requirements:
+Requirements:
 
 - Use strong unique passwords for infrastructure accounts.
-- Prefer named routine-administration identities over shared or root accounts.
+- Prefer named routine-administration identities over root or shared accounts.
 - Require multifactor authentication for high-value management interfaces where supported.
-- Retain a controlled break-glass path for tasks that require elevated or root identity.
+- Retain a controlled break-glass path.
 - Store secrets and recovery material outside Git.
 - Keep recovery material independent from the primary authenticator device.
 - Use SSH keys where appropriate, but never commit private keys.
-- Document where secrets are stored using placeholders only.
-- Rotate credentials after accidental exposure, authenticator loss, or major trust changes.
+- Record secret locations using placeholders only.
+- Rotate credentials after exposure, authenticator loss, compromise, or major trust changes.
+- Use least-privilege identities for future Proxmox API monitoring.
 
-### Proxmox Authentication Baseline
+## Monitoring and Detection
 
-The implemented Proxmox baseline includes:
+Current monitoring provides:
 
-- A named `adminops@pve` account for routine administration.
-- An Administrator role applied at `/` with propagation for the named account.
-- TOTP enabled for both the named account and `root@pam`.
-- Separate recovery-key sets for each account.
-- Clean password-and-TOTP login validation for both identities.
-- System clock synchronization and active NTP validation before TOTP enrollment.
-- `root@pam` retained for break-glass use rather than routine administration.
+- Linux host metrics for `pve01`, `dns01`, and `mon01`.
+- Recursive and local DNS service checks.
+- Grafana infrastructure and service-health dashboards.
 
-Authentication seeds, QR codes, passwords, and recovery keys are intentionally excluded from the repository.
+Future security-relevant monitoring should include:
 
-A permission boundary was observed during implementation: the named administrator received a `403` when attempting to configure TOTP for `root@pam`. Root's authentication factor had to be configured from a root-authenticated session. This behavior reinforces that a broad administrative role does not make every root identity operation delegable.
-
-### Administrative-Access Recovery
-
-If the primary authenticator device is lost or replaced:
-
-1. Use an unused recovery key or the protected break-glass path.
-2. Remove the enrollment associated with the lost device.
-3. Enroll the replacement authenticator.
-4. Replace or regenerate recovery material where required.
-5. Validate both routine and break-glass login paths.
-
-Recovery keys should not be consumed merely to demonstrate that they exist. Their presence and storage should be verified without publishing or unnecessarily using them.
-
-## Patch Management
-
-A patch process should eventually document:
-
-- Which systems require manual updates.
-- Which systems can update automatically.
-- How often updates are reviewed.
-- Whether snapshots or backups are taken before major updates.
-- How failed updates are rolled back.
-
-Security updates should be prioritized for internet-facing systems, management interfaces, and core infrastructure.
-
-## Logging and Monitoring
-
-Security-relevant monitoring should eventually include:
-
-- Authentication failures.
-- Repeated password attempts.
+- Repeated authentication failures.
 - Unexpected administrative logins.
 - Changes to administrative identities or MFA enrollment.
-- Service exposure changes.
-- Backup failures.
+- Management-service exposure changes.
+- Backup-job failures and backup age.
+- UPS and uncontrolled shutdown events.
 - Host resource anomalies.
-- Security lab traffic where appropriate.
+- Security-lab traffic where appropriate.
 
-Logs may contain sensitive details and should not be committed to the repository.
+Monitoring should be added only when the failure condition, response, notification route, and runbook are defined.
+
+Logs may contain sensitive usernames, addresses, query data, and authentication events and must not be committed.
 
 ## Backup Protection
 
-Backups are security-sensitive because they may contain credentials, configuration, or service data.
+Backups are security-sensitive because they may contain credentials, configuration, authentication state, and service data.
 
-Guidelines:
+Requirements:
 
 - Restrict write access to backup targets.
+- Keep backup storage separate from source storage.
 - Encrypt sensitive backups where practical.
-- Store recovery material outside the repository.
+- Store recovery keys and credentials outside Git.
 - Test restores periodically.
-- Keep security lab systems from modifying trusted backups.
-- Do not assume VM backups replace independent administrative-access recovery.
+- Keep security-lab systems from modifying trusted backups.
+- Do not assume VM backups replace administrative-access recovery.
+- Do not assume application-export integrity proves successful restoration.
+- Treat the 5 TB external drive as unproven until Project 003 integration and restore testing complete.
+
+## Patch and Maintenance Security
+
+Maintenance should eventually include:
+
+- Patch-review frequency.
+- Proxmox and Debian update procedures.
+- Pre-change backup checks.
+- Rollback or recovery planning.
+- Post-update monitoring and authentication validation.
+- Firmware review for infrastructure hardware.
+- Documentation and changelog updates.
+
+Management interfaces, core infrastructure, and internet-reachable dependencies receive priority.
 
 ## Security Lab Boundary
 
-The long-term goal includes security engineering projects. Those projects should be isolated from stable infrastructure.
-
 Before running attacker-style workloads, document:
 
-- Network segment used.
+- Network segment.
 - Allowed targets.
 - Firewall boundaries.
-- Reset/recovery process.
-- Rules for preventing accidental impact to household or trusted devices.
+- Monitoring coverage.
+- Reset and recovery process.
+- Rules preventing impact to household or trusted infrastructure.
+- Whether the workload can reach monitoring, backup, management, or identity systems.
 
 ## Future Improvements
 
 - Review router and managed-switch authentication, management exposure, and recovery options.
-- Restrict management interfaces through a dedicated management network after segmentation is implemented.
-- Document management VLAN design after implementation.
-- Add firewall rule philosophy using sanitized examples.
+- Document a management-access recovery runbook.
 - Review Proxmox SSH authentication and root-login policy after console recovery is documented.
-- Evaluate authentication-failure monitoring and rate-limiting options without introducing unnecessary hypervisor complexity.
-- Add a management-access recovery runbook.
-- Add patch management runbook.
-- Add backup recovery validation runbook.
-- Add security lab isolation documentation before offensive tooling is used.
-- Add architecture decision records for major security decisions.
+- Evaluate authentication-failure monitoring and rate-limiting without unnecessary hypervisor complexity.
+- Restrict management interfaces through a dedicated management network.
+- Document management VLAN and firewall philosophy after implementation.
+- Add a tested patch-management procedure.
+- Complete Project 003 backup and restore validation.
+- Add security-lab isolation documentation before offensive tooling is used.
+- Create ADRs for the new server role, backup design, UPS design, and future segmentation.
 
 ## Related Documentation
 
 - [Security Policy](../../SECURITY.md)
 - [Network Architecture](network.md)
+- [Virtualization Architecture](virtualization.md)
 - [Monitoring Architecture](monitoring.md)
 - [Storage Architecture](storage.md)
 - [Proxmox VE Platform](../services/proxmox.md)
+- [Proxmox Authentication Hardening Change Record](../changes/2026-07-12-proxmox-administrative-authentication-hardening.md)
 - [Disaster Recovery Runbook](../runbooks/disaster-recovery.md)
+- [Maintenance Runbook](../runbooks/maintenance.md)
