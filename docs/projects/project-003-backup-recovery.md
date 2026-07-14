@@ -4,358 +4,275 @@
 
 | Area | Details |
 | --- | --- |
-| Status | Active — Phase 003A complete; backup implementation pending 5 TB target availability and integration |
+| Status | Completed |
 | Start date | 2026-07-09 |
-| Completion date | Pending |
+| Completion date | 2026-07-14 |
 | Owner | Homelab administrator |
 | Related services | Proxmox VE, Pi-hole, Prometheus, Grafana, Node Exporter, Blackbox Exporter |
 
-## Current Phase
-
-**Phase 003A: Backup Readiness and Configuration Inventory is complete.**
-
-The recoverable state, dependencies, configuration locations, portable exports, sensitive-data boundaries, and preliminary recovery procedures for `dns01` and `mon01` are documented.
-
-A 5 TB external hard drive has been ordered for the first dedicated Proxmox backup target. Project 003 moves into implementation when the drive is physically available and passes basic inspection.
-
-Remaining implementation work:
-
-- Prepare and mount the external backup target.
-- Register it in Proxmox.
-- Define protected VMs, scheduling, retention, and pruning.
-- Run initial backups for `dns01` and `mon01`.
-- Validate backup results and capacity usage.
-- Perform and document a representative isolated restore test.
+Project 003 established the homelab's first operational VM backup system and proved a representative whole-VM restore path.
 
 ## Purpose
 
-Establish a documented and testable backup and recovery process for the homelab.
+Establish a documented, scheduled, and testable backup and recovery process for the stable infrastructure VMs.
 
-The guiding question for each system is:
+The project combined:
 
-> If this VM failed tonight, what information and service state would be required to rebuild it?
+- Whole-VM Proxmox backups for rapid recovery.
+- Application-level exports for portability.
+- Configuration and dependency inventories for manual reconstruction.
+- A representative isolated restore test.
+- Public, sanitized recovery documentation.
 
-Full-VM backups are valuable, but they are not a substitute for understanding service configuration, dependencies, portable exports, and validation requirements.
+The guiding question was:
+
+> If this VM failed tonight, what information and service state would be required to recover it safely?
 
 ## Objectives
 
-- Identify critical configuration and service state on `dns01` and `mon01`.
-- Assign recovery priority based on dependencies and operational impact.
-- Record verified configuration paths, package versions, storage footprints, and service dependencies.
-- Create protected Pi-hole and Grafana application exports.
-- Inspect exports without publishing private values.
-- Maintain recovery notes that reflect the full deployed monitoring configuration.
-- Configure and validate VM backups after the external target is available.
-- Perform at least one representative restore test and document the result.
+- Identify critical service state and dependencies on `dns01` and `mon01`.
+- Assign recovery priority based on operational impact.
+- Create protected Pi-hole and Grafana recovery exports.
+- Deploy backup storage separate from the Proxmox VM datastore.
+- Configure automatic VM backup scheduling and retention.
+- Complete initial backups for both stable VMs.
+- Restore at least one representative VM without overwriting production.
+- Document the proven recovery process and its remaining boundaries.
 
-## Scope
+## Scope Completed
 
-### Phase 003A — Complete
+### Backup Readiness
 
-- `dns01` configuration and recovery inventory.
-- `mon01` configuration and recovery inventory.
-- Pi-hole Teleporter export and private inspection.
-- Grafana dashboard JSON exports and private inspection.
-- Prometheus and Blackbox Exporter configuration inventory.
-- Grafana data-source and local-state inventory.
-- Node Exporter package and service-state inventory.
-- Sanitized rebuild and recovery notes.
-- Reusable service export and inspection runbook.
+- Inventoried `dns01` and `mon01` services, packages, configuration locations, state, and dependencies.
+- Created and privately inspected a Pi-hole Teleporter export.
+- Created and privately inspected the existing Grafana dashboard exports.
+- Documented Prometheus and Blackbox Exporter configuration requirements.
+- Documented the Grafana Prometheus data-source recovery mapping.
+- Classified replaceable content separately from essential configuration and service state.
+- Added the service configuration export and inspection runbook.
 
-### Backup Implementation Phase — Pending
+### Backup Storage
 
-- Inspect and prepare the 5 TB external hard drive.
-- Select and document the filesystem and mount strategy.
-- Add the drive as Proxmox backup storage using a sanitized public label.
-- Configure backup jobs, retention, and pruning.
-- Run initial VM backups.
-- Validate completion, artifact size, and capacity usage.
-- Perform and document a representative restore test.
+- Acquired and identified a dedicated 5 TB external hard drive.
+- Confirmed expected capacity before destructive operations.
+- Confirmed SMART overall health passed.
+- Completed an extended SMART self-test without error.
+- Replaced the factory NTFS filesystem with ext4.
+- Configured persistent mounting by private filesystem UUID.
+- Registered the target as Proxmox directory storage.
+- Restricted the target to backup content.
+- Enabled mount-point enforcement to prevent backups from falling through to the host root filesystem when the external disk is absent.
 
-### Out of Scope
+### Backup Jobs
 
-- Treating same-disk backups as the final backup design.
-- Building a dedicated NAS or Proxmox Backup Server before justified.
-- Adding monitoring alerts before response runbooks exist.
-- Publishing raw exports containing internal addresses, credentials, tokens, query history, or sensitive topology details.
-- Claiming recovery readiness before an actual restore succeeds.
+- Completed initial manual backups of `dns01` and `mon01`.
+- Configured daily snapshot-mode backups.
+- Configured Zstandard compression.
+- Configured retention for:
+  - 7 daily backups.
+  - 4 weekly backups.
+  - 3 monthly backups.
+- Kept exact storage identifiers, volume names, drive UUIDs, and artifact filenames outside the public repository.
+
+### Restore Validation
+
+- Restored the `dns01` backup to a temporary VM on normal VM storage.
+- Used a different VM ID so the active production guest was not overwritten.
+- Renamed the restored copy clearly as a restore-test guest.
+- Removed the restored VM's network adapter before boot.
+- Confirmed the restored Debian operating system reached a normal login prompt.
+- Confirmed the expected root filesystem and disk were present.
+- Confirmed `pihole-FTL` was active.
+- Confirmed `prometheus-node-exporter` was active.
+- Reviewed failed units and identified `openipmi.service` as nonblocking in the QEMU VM environment.
+- Shut down and deleted the temporary restored VM after validation.
 
 ## Architecture Impact
 
 | Area | Impact |
 | --- | --- |
-| Network | No topology change during Phase 003A. Backup implementation adds only the required host-to-target storage path. |
-| Virtualization | Proxmox backup jobs will protect the current infrastructure VMs. Restore testing may create a temporary isolated VM. |
-| Storage | Introduces a dedicated 5 TB external backup destination separate from the Proxmox system SSD. |
-| Monitoring | Monitoring configuration, both DNS probe jobs, Grafana state, and dashboard exports are defined recovery assets. |
-| Security | Raw exports remain outside Git. Backup storage must be access-controlled and isolated from experimental workloads. |
-| Documentation | Project, runbook, service, architecture, hardware, and changelog pages are updated as milestones complete. |
+| Network | No permanent topology change. Restore testing used a network-isolated temporary VM. |
+| Virtualization | `dns01` and `mon01` now receive automatic full-VM backups through Proxmox. |
+| Storage | Added a dedicated 5 TB external ext4 backup destination separate from the active VM datastore. |
+| Monitoring | Monitoring configuration, Grafana state, dashboard exports, and both DNS probe definitions are recovery assets. |
+| Security | Backup artifacts and raw exports remain private; mount-point enforcement reduces accidental host-root writes. |
+| Operations | Daily backups, tiered retention, tested restore steps, and recovery order are now documented. |
 
 ## Design Decisions
 
 | Decision | Reason | Tradeoff |
 | --- | --- | --- |
-| Inventory service state before configuring backup jobs | A successful VM backup is not a substitute for understanding what must be recovered. | Backup implementation waits for the target, but recovery knowledge improves first. |
-| Use VM backups and application-level exports | Provides fast whole-system recovery plus portable service-level recovery. | Multiple recovery layers must be maintained. |
-| Restore `dns01` before `mon01` | DNS affects access to and troubleshooting of other services. | Monitoring visibility returns after DNS. |
-| Keep raw exports outside Git | Pi-hole and Grafana exports contain environment-specific operational data. | Artifacts require protected private storage. |
-| Mark recovery procedures as draft until tested | Prevents overstating recovery maturity. | Final validation waits for a controlled restore. |
-| Prefer Pi-hole Teleporter over a raw live directory copy | `/etc/pihole/` mixes active databases, configuration, leases, history, and authentication state. | The Teleporter archive remains sensitive. |
-| Preserve Prometheus configuration separately from metrics history | Configuration is small and essential; short-term history is lower priority at current scale. | Manual recovery may lose historical metrics. |
-| Export Grafana dashboards even when `grafana.db` is protected | Portable JSON reduces dependence on one SQLite database. | Data-source mappings must be verified during import. |
-| Treat plugin directories as replaceable | Grafana plugin files account for most local state and can be reinstalled. | Custom plugin requirements must still be recorded. |
-| Store environment-specific identifiers privately | Exact UIDs, hashes, addresses, and drive identifiers are unnecessary in public documentation. | Private recovery records must remain available. |
-| Require both DNS probe jobs after recovery | Recursive and local DNS checks validate different failure domains. | Recovery validation includes more than a single generic DNS check. |
+| Inventory service state before backup implementation | A backup file does not explain service dependencies or validation requirements. | Implementation took longer but produced a more complete recovery design. |
+| Use a dedicated direct-attached external disk | Separates backups from the VM datastore without adding another server. | The copy remains in the same physical location and is not immutable or off-site. |
+| Use ext4 | Native Linux filesystem behavior is appropriate for a dedicated Proxmox target. | The drive is less convenient for direct Windows use. |
+| Mount by UUID | Avoids unstable `/dev/sdX` device naming. | The exact UUID must be retained privately. |
+| Enforce the mount point in Proxmox | Prevents a missing external disk from causing backups to consume the host root filesystem. | Backup jobs fail visibly when the target is unavailable. |
+| Use snapshot mode and Zstandard | Minimizes service interruption and provides practical compression. | Full backups still consume more capacity than a deduplicating platform. |
+| Retain daily, weekly, and monthly generations | Balances recent recovery points with limited historical depth. | Capacity and pruning must be reviewed over time. |
+| Use VM backups plus application exports | Supports both fast whole-system recovery and portable service recovery. | Multiple recovery layers require maintenance. |
+| Restore `dns01` before `mon01` | DNS is foundational to normal service access and troubleshooting. | Monitoring visibility returns after DNS. |
+| Test the restore without networking | Eliminates duplicate IP and service-conflict risk while production remains online. | End-to-end DNS and monitoring behavior were outside the isolated test boundary. |
+
+The long-term design decision is recorded in [ADR-0003](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md).
 
 ## Backup Inventory
 
-| System | Role | Planned backup method | Restore priority | Current status |
+| System | Role | Protection | Restore priority | Current maturity |
 | --- | --- | --- | --- | --- |
-| `dns01` | DNS and Pi-hole | Proxmox VM backup, Pi-hole Teleporter export, and sanitized rebuild notes | High | Live inventory, Teleporter export, integrity validation, and private inspection complete. VM backup and restore validation pending. |
-| `mon01` | Monitoring and observability | Proxmox VM backup, reviewed configuration copies, dashboard JSON exports, and sanitized rebuild notes | Medium | Live inventory, state classification, dashboard exports, and data-source recovery mapping complete. Infrastructure-overview export, VM backup, and restore validation pending. |
+| `dns01` | Pi-hole DNS and local records | Daily Proxmox VM backup, protected Teleporter export, and rebuild documentation | High | Backup successful; isolated whole-VM restore, boot, filesystem, Pi-hole, and Node Exporter validation complete |
+| `mon01` | Monitoring and observability | Daily Proxmox VM backup, reviewed configuration inventory, protected dashboard exports, and rebuild documentation | Medium | Backup successful; independent whole-VM restore not yet performed |
 
-## Configuration Inventory
+## Backup Job Baseline
 
-### `dns01` — Verified
-
-| Item | Verified location or state |
+| Setting | Implemented value |
 | --- | --- |
-| Pi-hole state directory | `/etc/pihole/`, approximately 16 MB during inventory |
-| Pi-hole versions | Core v6.4.3, Web v6.6, FTL v6.7 |
-| Pi-hole systemd unit | `/etc/systemd/system/pihole-FTL.service` |
-| Pi-hole unit overrides | None detected |
-| Pi-hole service state | Active, running, and enabled |
-| Node Exporter systemd unit | `/usr/lib/systemd/system/prometheus-node-exporter.service` |
-| Node Exporter service state | Active, running, and enabled |
-| Node Exporter package | `prometheus-node-exporter` version `1.9.0-1+b4` |
-| Static network configuration | `/etc/network/interfaces` using `ifupdown` |
-| Interface model | `ens18` with static addressing and sanitized gateway `<LAB_GATEWAY>` |
-| Host resolver configuration | Public resolvers defined in `/etc/network/interfaces` |
+| Protected guests | `dns01`, `mon01` |
+| Frequency | Daily |
+| Local schedule | 10:00 |
+| Mode | Snapshot |
+| Compression | Zstandard |
+| Daily retention | 7 |
+| Weekly retention | 4 |
+| Monthly retention | 3 |
+| Missed-run repetition | Disabled in the initial configuration |
+| Target type | Proxmox directory storage on a dedicated external ext4 filesystem |
+| Content restriction | Backup artifacts only |
+| Missing-mount protection | Enabled |
 
-The host resolver does not depend on Pi-hole itself. This reduces circular dependency during recovery, but DNS queries originating from `dns01` bypass local Pi-hole filtering.
-
-### Pi-hole Teleporter Artifact
-
-| Item | Verified result |
-| --- | --- |
-| Filename | Recorded privately; generated ZIP format verified |
-| Logical size | 23,868 bytes during inspection |
-| Archive integrity | Pass |
-| Archive entries | 5 |
-| Uncompressed size | 123,439 bytes |
-| SHA-256 | Recorded privately |
-| Database files | `gravity.db` and `pihole-FTL.db` |
-| Other content | Lease data, TOML configuration, and environment-specific state |
-| Key or certificate entries | None detected by filename classification |
-
-Private inspection detected private addressing, URLs, MAC-address references, lease data, and a `totp_secret` property name. No protected values were published. The archive must remain outside Git.
-
-### `mon01` — Verified
-
-#### Service and Package Baseline
-
-| Service | Package version | Unit path | Runtime and boot state |
-| --- | --- | --- | --- |
-| Prometheus | `2.53.3+ds1-2` | `/usr/lib/systemd/system/prometheus.service` | Active, running, and enabled |
-| Grafana | `13.1.0` | `/usr/lib/systemd/system/grafana-server.service` | Active, running, and enabled |
-| Node Exporter | `1.9.0-1+b4` | `/usr/lib/systemd/system/prometheus-node-exporter.service` | Active, running, and enabled |
-| Blackbox Exporter | `0.26.0-1` | `/usr/lib/systemd/system/prometheus-blackbox-exporter.service` | Active, running, and enabled |
-
-No unit overrides were detected during inventory.
-
-#### Configuration and State Locations
-
-| Item | Verified location or state |
-| --- | --- |
-| Prometheus configuration | `/etc/prometheus/prometheus.yml` |
-| Blackbox Exporter configuration | `/etc/prometheus/blackbox.yml` |
-| Prometheus configuration footprint | Approximately 44 KB under `/etc/prometheus/` |
-| Prometheus local data | Approximately 59 MB under `/var/lib/prometheus/metrics2/` during inventory |
-| Node Exporter collector state | Approximately 16 KB under `/var/lib/prometheus/node-exporter/` |
-| Grafana main configuration | `/etc/grafana/grafana.ini` |
-| Grafana provisioning root | `/etc/grafana/provisioning/`; package-provided samples only |
-| Grafana SQLite database | `/var/lib/grafana/grafana.db`, approximately 2.2 MB during inventory |
-| Grafana installed plugins | Replaceable package/plugin content; record custom requirements separately |
-| Node Exporter dashboard export | Protected JSON outside Git; syntax validated |
-| Homelab Service Health export | Protected JSON outside Git; syntax validated |
-| Homelab Infrastructure Overview export | Pending private Classic JSON export and validation |
-| Grafana Prometheus data source | Name `prometheus`; URL `http://localhost:9090`; UID retained privately as `<PROMETHEUS_DATASOURCE_UID>` |
-
-Dashboard exports may not preserve automatic data-source binding. Recovery must validate the Prometheus data source and all panel and variable mappings after import.
-
-#### Prometheus and Blackbox Inventory
-
-`promtool check config /etc/prometheus/prometheus.yml` completed successfully during Phase 003A.
-
-Current required Prometheus jobs:
-
-- `prometheus`
-- `node_exporter`
-- `blackbox_dns`
-- `blackbox_dns_local`
-
-Current required Blackbox modules:
-
-- `dns_udp`
-- `dns_udp_local`
-
-The local DNS job and module were added after the original Phase 003A inventory and are now part of the required recovery baseline.
-
-Local `.bak-*` files are useful short-term rollback artifacts but are not a protected backup system.
-
-## Milestones
-
-| Milestone | Status | Completion criteria |
-| --- | --- | --- |
-| 1. Create backup inventory | Complete | Systems have documented roles, recovery priorities, and intended backup methods. |
-| 2. Verify configuration locations | Complete | Live configuration, service state, package versions, storage footprints, and state classifications are documented. |
-| 3. Export existing Grafana dashboards | Complete | Node Exporter and Service Health JSON files exist outside Git and passed syntax/private inspection. |
-| 4. Export Pi-hole configuration | Complete | Teleporter ZIP exists outside Git and passed integrity/private inspection. |
-| 5. Draft recovery notes | Complete | Application-level dependencies and service-export procedure are documented but untested. |
-| 6. Export Infrastructure Overview | Pending | Classic JSON exists outside Git and passes syntax and private inspection. |
-| 7. Configure backup storage | Pending target availability | 5 TB drive is mounted and registered in Proxmox. |
-| 8. Run initial VM backups | Pending | Backups complete successfully and retention is documented. |
-| 9. Perform restore test | Pending | A representative VM restore succeeds and service validation is documented. |
-| 10. Final documentation review | Pending | Runbooks, architecture, service pages, changelog, and link validation reflect tested results. |
-
-## Validation Plan
-
-Completed during Phase 003A:
-
-- Confirmed inventoried services are active and enabled.
-- Validated Prometheus configuration with `promtool`.
-- Confirmed then-current Prometheus jobs.
-- Validated application-export syntax or archive integrity.
-- Inspected exports without publishing private values.
-- Ran the repository Markdown link validator at that milestone.
-
-Required during backup implementation and restore testing:
-
-- Inspect the external drive and confirm expected capacity.
-- Confirm the backup target is mounted consistently.
-- Confirm Proxmox backup jobs report success and produce reasonable artifacts.
-- Confirm retention and pruning behave as documented.
-- Restore at least one representative VM in an isolated or controlled state.
-- Confirm Pi-hole answers public and local DNS queries after recovery.
-- Confirm Node Exporter metrics recover for all intended targets.
-- Confirm both `blackbox_dns` and `blackbox_dns_local` return success.
-- Confirm Grafana reconnects to Prometheus and imports all protected dashboard exports.
-- Verify imported panels and variables against the recreated data source.
-- Confirm the Homelab Infrastructure Overview shows all three hosts and both DNS states.
-
-## Risks
-
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Raw exports expose private values | High | Store exports outside Git and commit only sanitized documentation. |
-| Teleporter archive contains authentication and network state | High | Preserve it only in protected storage and avoid printing values during inspection. |
-| Raw copies of live Pi-hole state are inconsistent | High | Use Teleporter for portable recovery and Proxmox backup for whole-system recovery. |
-| Grafana dashboards depend on local database state | High | Preserve `grafana.db` consistently and maintain portable dashboard JSON. |
-| Dashboard import does not bind to the intended data source | High | Create and validate the Prometheus data source before importing dashboards. |
-| Backup target is accidentally treated as primary storage | High | Keep the external drive dedicated to backup and document content types. |
-| Backup completes but restore fails | High | Require a representative restore test before completion. |
-| Local DNS monitoring is omitted during rebuild | Medium | Require `blackbox_dns_local` and `dns_udp_local` in the recovery checklist. |
-| Draft runbooks are mistaken for tested procedures | Medium | Retain explicit planned or unvalidated labels until exercised. |
-| Historical Prometheus metrics are lost | Low / Medium | Prioritize configuration and dashboard recovery; document retention separately. |
-| Local rollback files are mistaken for backups | Medium | Treat `.bak-*` files only as temporary change rollback copies. |
-
-## Recovery Order
-
-1. Restore physical network connectivity and Proxmox management access.
-2. Restore `dns01` and validate public and local DNS behavior.
-3. Restore `mon01` and validate Prometheus, Node Exporter, Blackbox Exporter, and Grafana.
-4. Confirm monitoring observes `pve01`, `dns01`, and `mon01`.
-5. Review logs and update documentation with any recovery differences.
-
-## Preliminary Manual Recovery Notes
+## Recovery Assets
 
 ### `dns01`
 
-1. Restore the VM backup when available.
-2. For a manual rebuild, deploy a supported Debian VM with `ifupdown` networking.
-3. Recreate static networking using protected operational values.
-4. Reinstall Pi-hole and Node Exporter.
-5. Import the protected Teleporter archive.
-6. Confirm upstream DNS settings and required local records.
-7. Confirm `pihole-FTL` and `prometheus-node-exporter` are active and enabled.
-8. Validate public resolution, local records, Node Exporter metrics, and both Blackbox DNS jobs.
+- Proxmox VM backup.
+- Protected Pi-hole Teleporter archive.
+- Pi-hole service, package, and configuration inventory.
+- Static networking notes using private operational values.
+- Node Exporter service-state inventory.
+- Recursive and local DNS post-recovery validation requirements.
 
 ### `mon01`
 
-1. Restore the VM backup when available.
-2. For a manual rebuild, deploy a supported Debian VM.
-3. Reinstall supported versions of Prometheus, Grafana, Node Exporter, and Blackbox Exporter.
-4. Restore or recreate `/etc/prometheus/prometheus.yml` and `/etc/prometheus/blackbox.yml`.
-5. Validate Prometheus and confirm `prometheus`, `node_exporter`, `blackbox_dns`, and `blackbox_dns_local` exist.
-6. Confirm Blackbox modules `dns_udp` and `dns_udp_local` exist and preflight successfully.
-7. Restore Grafana through a consistency-preserving SQLite backup, or recreate the Prometheus data source.
-8. Import all protected dashboard JSON files available at recovery time.
-9. Verify Prometheus data-source mapping for all panels and variables.
-10. Reinstall required non-bundled plugins.
-11. Confirm all four services are active and enabled.
-12. Validate all host targets, both DNS probes, and Grafana panels.
+- Proxmox VM backup.
+- Prometheus and Blackbox Exporter configuration inventory.
+- Grafana SQLite and data-source recovery mapping.
+- Protected dashboard exports available at project completion.
+- Required Prometheus jobs:
+  - `prometheus`
+  - `node_exporter`
+  - `blackbox_dns`
+  - `blackbox_dns_local`
+- Required Blackbox modules:
+  - `dns_udp`
+  - `dns_udp_local`
 
-These procedures remain unvalidated until a controlled restore or rebuild test succeeds.
+The Homelab Infrastructure Overview remains operational but still requires a separate protected Classic JSON export. That export is useful follow-up work but is not a blocker for the proven full-VM backup and restore scope completed here.
 
-## Results to Date
+## Validation Results
 
-- Completed live backup-readiness inventories for `dns01` and `mon01`.
-- Created and privately inspected the Pi-hole Teleporter ZIP.
-- Created and privately inspected the existing Grafana dashboard exports.
-- Classified Grafana plugin content and Prometheus metrics history.
-- Verified the Grafana Prometheus data-source recovery mapping.
-- Added a reusable service configuration export and inspection runbook.
-- Updated the monitoring recovery baseline for the local DNS job and infrastructure overview.
-- Confirmed raw exports must remain outside Git.
+### Backup Target
+
+- Expected 5 TB device identified before destructive operations.
+- SMART overall-health result passed.
+- Extended SMART self-test completed without error.
+- No reallocated, pending, or uncorrectable sectors were reported during initial inspection.
+- ext4 filesystem mounted with expected multi-terabyte usable capacity.
+- Proxmox reported the backup storage active.
+- Backup content restriction and mount-point enforcement were present in the storage configuration.
+
+### Initial Backups
+
+- `dns01` backup completed successfully and produced a plausible compressed artifact.
+- `mon01` backup completed successfully.
+- The scheduled job includes both stable infrastructure VMs.
+- Retention settings were visible through the Proxmox cluster backup configuration.
+
+### `dns01` Isolated Restore
+
+Proven:
+
+- Backup artifact readability.
+- Proxmox VM reconstruction.
+- Restoration to separate VM storage and ID.
+- Safe network isolation before boot.
+- Debian boot to a login prompt.
+- Root filesystem availability.
+- `pihole-FTL` active.
+- Node Exporter active.
+- Safe cleanup of the temporary restored VM.
+
+Not proven by the isolated test:
+
+- Client DNS queries.
+- Local-record responses over the network.
+- Remote Node Exporter reachability.
+- Prometheus target state.
+- Recursive and local Blackbox probe success.
+
+Those checks require a controlled network-connected restore or an actual replacement recovery after the original guest is confirmed offline.
+
+## Recovery Order
+
+1. Restore physical power and network connectivity.
+2. Restore Proxmox management access and confirm storage state.
+3. Restore `dns01` and validate public and local DNS.
+4. Restore `mon01` and validate Prometheus, exporters, Grafana, and all intended targets.
+5. Confirm monitoring observes `pve01`, `dns01`, and `mon01`.
+6. Restore lower-priority or experimental workloads.
+7. Review logs and update documentation with any deviations.
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+| --- | --- | --- |
+| External target is absent | Backup job cannot write to intended storage | UUID mount plus Proxmox mount-point enforcement causes visible failure instead of root-filesystem fallback |
+| Backup artifact contains secrets and private state | Sensitive data exposure | Keep artifacts, raw exports, hashes, identifiers, and logs outside Git |
+| Backup completes but restore fails | False confidence in recovery | Require representative restore testing and document its exact boundary |
+| Duplicate restored VM reaches the LAN | Address, hostname, or service conflict | Restore under a temporary ID and remove the network adapter before boot |
+| Single connected disk is damaged with the host | Loss of first recovery copy | Evaluate offline, rotated, off-site, NAS, or Proxmox Backup Server copies later |
+| Scheduled run is missed | Recovery point becomes older than expected | Review job history and reconsider missed-run behavior if host uptime changes |
+| `mon01` backup is untested | Monitoring recovery remains less proven | Perform an independent restore after major changes or before migration |
+| Application exports become stale | Manual or selective recovery loses recent state | Refresh private exports after meaningful service changes |
 
 ## Lessons Learned
 
-- Configuration directories can mix essential state, generated data, credentials, logs, and active databases.
-- Directory size does not indicate recovery importance.
-- Export formats and filenames should be verified from the generated artifact rather than assumed.
-- Valid Prometheus syntax does not prove all intended jobs remain present.
-- Package-provided provisioning samples do not protect Grafana state created through the web interface.
-- Dashboard exports do not necessarily preserve automatic data-source binding.
-- Archive integrity validation does not make an export safe to publish.
-- A portable export is not a validated backup until an import or restore succeeds.
-- Recovery inventories must be updated whenever monitoring jobs, dashboards, or service dependencies change.
+- Destructive disk work must begin with positive identification by capacity and hardware identity.
+- Manufacturer decimal terabytes and Linux binary capacity reporting produce different but expected values.
+- SMART health plus an extended self-test provides stronger evidence than a quick filesystem check.
+- UUID-based mounting is safer than relying on device names.
+- Removable Proxmox storage needs explicit mount-point enforcement.
+- A backup system is not complete until a restore has succeeded.
+- Temporary restore VMs should be isolated before their first boot.
+- Local service state and end-to-end network service behavior are different validation layers.
+- A failed virtual-hardware service does not automatically indicate a failed restore; the service's relevance must be assessed.
+- Backup maturity should be documented per VM rather than generalized across every protected workload.
+- Whole-VM backups, portable exports, and rebuild documentation solve different recovery problems and work best together.
 
-## Follow-Up Tasks
+## Follow-Up Work
 
-- [x] Create the initial backup inventory and recovery priorities.
-- [x] Verify `dns01` configuration, service, package, and network state.
-- [x] Create and protect the Pi-hole Teleporter archive.
-- [x] Inspect the Teleporter archive privately.
-- [x] Verify `mon01` configuration, package, service, and storage state.
-- [x] Classify Grafana and Prometheus local state.
-- [x] Export and inspect the Node Exporter and Service Health dashboards.
-- [x] Document the Grafana data-source recovery mapping.
-- [x] Add `docs/runbooks/service-config-export.md`.
-- [x] Update recovery requirements for `blackbox_dns_local` and `dns_udp_local`.
+Project 003 is complete. The following are operational improvements rather than completion blockers:
+
+- [ ] Observe scheduled executions and pruning over time.
+- [ ] Add backup job, backup age, storage capacity, and failure monitoring through a least-privilege Proxmox integration.
+- [ ] Define an actionable failure-notification path.
+- [ ] Perform an independent `mon01` restore test.
+- [ ] Perform a controlled network-connected `dns01` validation when duplicate identity risk can be eliminated.
 - [ ] Export and privately validate the Homelab Infrastructure Overview.
-- [ ] Inspect, prepare, mount, and register the 5 TB backup target.
-- [ ] Expand `docs/runbooks/backup.md` with the selected schedule and retention.
-- [ ] Run initial VM backups for `dns01` and `mon01`.
-- [ ] Perform and document a representative isolated restore.
-- [ ] Expand `docs/runbooks/disaster-recovery.md` from restore-test findings.
-- [ ] Add `docs/runbooks/proxmox-vm-restore.md`.
-- [ ] Update storage architecture after implementation details are validated.
-- [ ] Run the Markdown link validator and review GitHub Actions before project completion.
+- [ ] Remove obsolete installer ISO attachments from stable VMs after confirming they are unnecessary.
+- [ ] Evaluate a second copy in a separate failure domain.
+- [ ] Re-test restoration after major Proxmox upgrades, storage changes, or service migrations.
 
 ## Related Documentation
 
 - [Projects README](README.md)
-- [Service Configuration Export and Inspection Runbook](../runbooks/service-config-export.md)
+- [ADR-0003: Direct-Attached Proxmox Backup Storage](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
+- [Project Completion Change Record](../changes/2026-07-14-project-003-backup-recovery-completion.md)
 - [Backup Runbook](../runbooks/backup.md)
+- [Proxmox VM Restore Runbook](../runbooks/proxmox-vm-restore.md)
 - [Disaster Recovery Runbook](../runbooks/disaster-recovery.md)
+- [Service Configuration Export and Inspection](../runbooks/service-config-export.md)
 - [Storage Architecture](../architecture/storage.md)
 - [VM Inventory](../architecture/vm-inventory.md)
-- [Monitoring Architecture](../architecture/monitoring.md)
 - [Hardware Inventory](../hardware/inventory.md)
-- [Pi-hole Service](../services/pihole.md)
-- [Prometheus Service](../services/prometheus.md)
-- [Grafana Service](../services/grafana.md)
-- [Node Exporter Service](../services/node-exporter.md)
-- [Blackbox Exporter Service](../services/blackbox-exporter.md)
+- [Proxmox VE Platform](../services/proxmox.md)
 - [Roadmap](../../ROADMAP.md)
 - [Changelog](../../CHANGELOG.md)
