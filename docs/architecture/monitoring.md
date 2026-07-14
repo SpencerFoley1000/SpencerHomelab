@@ -2,105 +2,100 @@
 
 ## Purpose
 
-This document describes the deployed monitoring architecture, what each layer proves, and the boundaries that remain for future platform, application, alerting, and recovery work.
+Describe the deployed monitoring architecture, what each layer proves, and the remaining boundaries for application, platform, alerting, and recovery work.
 
-The design prioritizes operational clarity:
+The design separates:
 
-- Host metrics answer whether a Linux system is running and under resource pressure.
-- Service probes answer whether a network service behaves correctly from another host.
-- Application and platform metrics answer what is happening inside Pi-hole or Proxmox.
-- Dashboards summarize data but do not replace source-level validation.
+- Host metrics: Linux availability and resource pressure.
+- Service probes: behavior from another system's perspective.
+- Application metrics: service-specific internal behavior.
+- Platform metrics: authoritative Proxmox state.
+- Dashboards: visualization, not a substitute for source-level validation.
 
 ## Current Status
 
 | Component | Host or scope | Status | Purpose |
 | --- | --- | --- | --- |
-| `mon01` | Proxmox VM | Active | Dedicated monitoring and observability system |
+| `mon01` | Proxmox VM | Active and backed up | Dedicated monitoring system |
 | Node Exporter | `mon01`, `dns01`, `pve01` | Active | Linux host and hypervisor-OS metrics |
-| Prometheus | `mon01` | Active | Metrics scraping, storage, and PromQL |
+| Prometheus | `mon01` | Active | Scraping, storage, and PromQL |
 | Grafana | `mon01` | Active | Summary and detailed dashboards |
 | Blackbox Exporter | `mon01` | Active | Recursive and local DNS probes |
 
-## Current Prometheus Inventory
+`mon01` receives daily Project 003 VM backups. Its backup has not yet been independently restored.
 
-| Job | Target | Expected state | Purpose |
+## Prometheus Inventory
+
+| Job | Target role | Expected state | Purpose |
 | --- | --- | --- | --- |
-| `prometheus` | `localhost:9090` | `UP` | Prometheus self-monitoring |
-| `node_exporter` | `localhost:9100` | `UP` | `mon01` host metrics |
-| `node_exporter` | `<DNS01_IP>:9100` | `UP` | `dns01` host metrics |
-| `node_exporter` | `<PVE01_IP>:9100` | `UP` | `pve01` Linux operating-system metrics |
-| `blackbox_dns` | `<DNS01_IP>:53` through `localhost:9115` | `UP` | Recursive public-name DNS probe |
-| `blackbox_dns_local` | `<DNS01_IP>:53` through `localhost:9115` | `UP` | Internal-record DNS probe |
+| `prometheus` | `localhost:9090` | Up | Prometheus self-monitoring |
+| `node_exporter` | `mon01` | Up | Monitoring-host metrics |
+| `node_exporter` | `dns01` | Up | DNS-host metrics |
+| `node_exporter` | `pve01` | Up | Proxmox Linux metrics |
+| `blackbox_dns` | `dns01` recursive path | Up | Public-name DNS validation |
+| `blackbox_dns_local` | `dns01` local record | Up | Expected internal answer validation |
 
-Exact addresses and environment-specific record values remain private.
+Exact addresses and private record values remain outside Git.
 
-## Current Grafana Dashboards
+## Grafana Dashboards
 
 | Dashboard | Status | Purpose |
 | --- | --- | --- |
-| Imported Node Exporter dashboard | Active | Detailed host troubleshooting for `mon01`, `dns01`, and `pve01` |
+| Imported Node Exporter dashboard | Active | Detailed Linux host troubleshooting |
 | Homelab Service Health | Active | DNS availability, duration, and state history |
-| Homelab Infrastructure Overview | Active | At-a-glance host health, resource utilization, uptime, and recursive/local DNS state |
+| Homelab Infrastructure Overview | Active | At-a-glance host health, capacity, uptime, and DNS status |
 
-The Homelab Infrastructure Overview is operational, but its private Classic JSON export is still pending.
+The Infrastructure Overview is operational but still requires a protected Classic JSON export.
 
 ## Architecture
 
-### Host Metrics Path
+### Host Metrics
 
 ```text
-mon01, dns01, and pve01
-          |
-          | /metrics on TCP 9100
-          v
-     Node Exporter
-          |
-          | Prometheus scrape
-          v
- Prometheus on mon01
-          |
-          | PromQL
-          v
-   Grafana on mon01
+mon01, dns01, pve01
+        |
+        | TCP 9100
+        v
+   Node Exporter
+        |
+        v
+Prometheus on mon01
+        |
+        v
+ Grafana on mon01
 ```
 
 ### Recursive DNS Probe
 
 ```text
-Prometheus on mon01
-          |
-          | /probe?module=dns_udp
-          v
-Blackbox Exporter on localhost:9115
-          |
-          | UDP DNS query
-          v
-      dns01 / Pi-hole
-          |
-          | upstream recursion
-          v
-     Public DNS answer
+Prometheus
+    |
+    v
+Blackbox Exporter: dns_udp
+    |
+    v
+dns01 / Pi-hole
+    |
+    v
+Upstream resolver and public DNS
 ```
 
 ### Local DNS Probe
 
 ```text
-Prometheus on mon01
-          |
-          | /probe?module=dns_udp_local
-          v
-Blackbox Exporter on localhost:9115
-          |
-          | UDP DNS query
-          v
-      dns01 / Pi-hole
-          |
-          | local record lookup
-          v
-    Expected internal answer
+Prometheus
+    |
+    v
+Blackbox Exporter: dns_udp_local
+    |
+    v
+dns01 / Pi-hole local record
+    |
+    v
+Expected internal answer
 ```
 
-The two DNS probes intentionally share the same DNS endpoint but use different query modules and Prometheus jobs. This separates local Pi-hole behavior from upstream resolver and internet dependencies.
+The DNS probes share an endpoint but test different failure domains.
 
 ## Monitoring Layers
 
@@ -108,60 +103,46 @@ The two DNS probes intentionally share the same DNS endpoint but use different q
 
 Node Exporter reports:
 
-- CPU time and load
-- Available and total memory
-- Filesystem capacity
-- Disk activity
-- Network counters
-- Boot time and uptime
-- Exporter reachability
+- CPU and load.
+- Available and total memory.
+- Filesystem capacity.
+- Disk and network counters.
+- Boot time and uptime.
+- Exporter reachability.
 
-A healthy Node Exporter target does not prove hosted applications, VMs, or containers are functioning.
+A healthy Node Exporter target does not prove hosted applications or Proxmox guests are functioning.
 
 ### Service Monitoring
-
-Blackbox Exporter validates DNS from `mon01`:
-
-- `blackbox_dns` proves the recursive path through Pi-hole and its upstream resolver.
-- `blackbox_dns_local` proves the expected local A record is returned without relying on upstream recursion.
-
-Interpretation:
 
 | Recursive | Local | Likely investigation area |
 | --- | --- | --- |
 | Up | Up | DNS paths healthy |
 | Down | Up | Upstream resolver, internet path, or public query |
-| Up | Down | Pi-hole local-record configuration or expected answer validation |
-| Down | Down | `dns01`, Pi-hole, network path, firewall, or monitoring path |
+| Up | Down | Pi-hole local-record configuration or answer validation |
+| Down | Down | `dns01`, Pi-hole, network, firewall, or monitoring path |
 
 ### Application Monitoring
 
-Pi-hole-specific application metrics are not yet collected. Future application visibility may include:
+Pi-hole-specific metrics are not yet collected. Future visibility may include query volume, blocking rate, cache behavior, upstream performance, and process health.
 
-- Query volume
-- Blocked-query rate
-- Cache behavior
-- Upstream response behavior
-- Pi-hole process health
+### Proxmox Platform Monitoring
 
-### Hypervisor Platform Monitoring
+Node Exporter on `pve01` does not report authoritative:
 
-`pve01` currently exposes Linux host metrics through Node Exporter. This baseline does not expose authoritative Proxmox state such as:
+- VM or container state.
+- Cluster or quorum state.
+- Task results.
+- Storage-pool health.
+- Backup-job success or age.
+- Replication or migration state.
 
-- VM or container state
-- Cluster or quorum state
-- Task results
-- Storage-pool status
-- Backup-job status
-- Replication or migration state
-
-A future Proxmox exporter or API integration should use a dedicated least-privilege identity and be documented before credentials are created.
+A future Proxmox exporter or API integration must use a dedicated least-privilege identity.
 
 ## Design Decisions
 
 ### Shared Node Exporter Job
 
-All Linux systems use one `node_exporter` job with host and role labels:
+All Linux systems use one job with host and role labels:
 
 ```text
 host="mon01", role="monitoring"
@@ -169,47 +150,27 @@ host="dns01", role="dns"
 host="pve01", role="hypervisor"
 ```
 
-This keeps PromQL and dashboard logic consistent as new Linux hosts are added.
-
 ### Static Remote Targets
 
-Remote infrastructure targets use static addresses so monitoring remains available during DNS failure. Public documentation uses placeholders instead of exact values.
+Infrastructure targets use static addresses so monitoring does not depend on the DNS service being monitored. Public documentation uses placeholders.
 
-### Linux Baseline Before Proxmox API Credentials
+### Linux Baseline Before API Credentials
 
-Node Exporter provided immediate hypervisor-OS visibility without introducing privileged API access. Platform-specific Proxmox metrics remain a separate future phase.
+Node Exporter delivered useful host visibility without introducing privileged Proxmox credentials. Platform monitoring remains a separate security-reviewed phase.
 
-### Separate Recursive and Local DNS Jobs
+### Separate DNS Jobs
 
-Different Prometheus jobs make query scope explicit and simplify dashboards, troubleshooting, and future alerting.
+Different Prometheus jobs make recursive and local behavior explicit in PromQL, Grafana, troubleshooting, and future alerts.
 
 ### Summary and Detail Dashboards
 
-- Homelab Infrastructure Overview: rapid health and capacity view.
+- Infrastructure Overview: rapid status and capacity review.
 - Imported Node Exporter dashboard: detailed host troubleshooting.
-- Homelab Service Health: service-level DNS history.
+- Service Health: DNS behavior over time.
 
-This avoids overloading one dashboard with every available metric.
+## Validation
 
-## Homelab Infrastructure Overview
-
-The custom dashboard was built manually on 2026-07-11.
-
-| Panel | Purpose |
-| --- | --- |
-| Host Availability | Current state of all three Node Exporter targets |
-| CPU Utilization by Host | Compare CPU demand across infrastructure systems |
-| Memory Utilization by Host | Compare memory pressure across hosts |
-| Root Filesystem Utilization | Show capacity risk with warning and critical thresholds |
-| Host Uptime | Show time since each system booted |
-| DNS Availability | Show Recursive DNS and Local DNS independently |
-| DNS Probe Duration | Show recursive DNS latency and spikes over time |
-
-The dashboard is intended for quick operational review rather than exhaustive troubleshooting.
-
-## PromQL Validation
-
-Inventory jobs and targets:
+Inventory:
 
 ```promql
 count by (job, instance) (up)
@@ -239,86 +200,96 @@ Local DNS:
 probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
 ```
 
-Both DNS probes:
+Both DNS probes should return `1`.
 
-```promql
-probe_success{job=~"blackbox_dns.*", host="dns01"}
-```
-
-Configuration validation and PromQL validation are both required after Prometheus changes. A file can be syntactically valid while an intended job or target is missing.
-
-## Security Considerations
-
-- Keep Prometheus, Grafana, Node Exporter, and Blackbox Exporter internal-only.
-- Do not expose TCP `3000`, `9090`, `9100`, or `9115` publicly.
-- Treat metrics, labels, raw JSON, and dashboard screenshots as operationally sensitive.
-- Do not publish exact addresses, usernames, tokens, private record values, or unnecessary topology details.
-- Avoid broad firewall rules when the existing trusted monitoring path is sufficient.
-- Introduce Proxmox API credentials only through a documented least-privilege design.
-- Keep future attacker and intentionally vulnerable workloads isolated from monitoring infrastructure.
+Prometheus configuration validation and PromQL inventory validation are both required. Valid syntax does not prove every intended job remains present.
 
 ## Backup and Recovery
 
-Important monitoring state includes:
+Important monitoring state:
 
-- Prometheus configuration
-- Blackbox Exporter configuration
-- Grafana database and data-source mapping
-- Dashboard JSON exports
-- Future alerting and recording rules
-- Historical metrics if retention becomes operationally important
+- `/etc/prometheus/prometheus.yml`.
+- `/etc/prometheus/blackbox.yml`.
+- Grafana configuration and SQLite database.
+- Prometheus data-source mapping.
+- Dashboard JSON exports.
+- Future alerting and recording rules.
+- Historical metrics when retention becomes operationally important.
 
-Project 003 Phase 003A inventoried this state and validated existing private dashboard exports. The Homelab Infrastructure Overview export, protected VM backups, and restore testing remain pending.
+Project 003 completed:
+
+- Daily VM backup coverage for `mon01`.
+- Snapshot mode with Zstandard compression.
+- Retention of 7 daily, 4 weekly, and 3 monthly backups.
+- Dedicated external storage with mount-point enforcement.
+- Configuration and state inventory.
+- Protected existing dashboard exports.
+- Recovery runbooks based on the tested Proxmox restore workflow.
+
+Current limitations:
+
+- `mon01` has not been independently restored.
+- The Infrastructure Overview export is still pending.
+- The `dns01` restore test proved the Proxmox VM workflow, not Grafana and Prometheus application recovery.
 
 ## Troubleshooting Lessons
 
-### Blackbox Module at the Wrong YAML Level
+### Blackbox YAML Nesting
 
-The initial local DNS module was nested incorrectly. Blackbox Exporter rejected the configuration with `field dns_udp_local not found in type config.plain`.
-
-The safe recovery pattern was:
+The initial local-DNS module was nested incorrectly. The safe pattern was:
 
 1. Restore the known-good file.
-2. Confirm the live service is active.
-3. correct the module indentation.
-4. Preflight the configuration on an alternate local port.
-5. Restart the live service only after the preflight succeeds.
+2. Confirm live service recovery.
+3. Correct indentation.
+4. Preflight on an alternate local port.
+5. Restart production only after validation.
 
-### New Prometheus Job Initially Returned No Data
+### New Target Delay
 
-The first query immediately after reload returned an empty vector. After the next scrape, both DNS jobs returned `1`. Allow one scrape interval before diagnosing a newly created target as missing.
+A new job may return an empty vector until its first scrape completes.
 
-### Grafana Query Reference IDs
+### Grafana Query IDs
 
-Prometheus contained both DNS series, but Grafana displayed only one until the two panel queries used distinct reference IDs (`A` and `B`). Friendly text belongs in the legend, not in the reference-ID field.
+Distinct query reference IDs are required when a panel contains multiple queries. Friendly names belong in legends.
 
-### Dashboard v2 Threshold Types
+### Dashboard Threshold Types
 
-Dashboard v2 parsing rejected quoted numeric threshold values. Threshold numbers must be represented as JSON numbers, while display labels remain strings.
+Grafana dashboard threshold values must be JSON numbers, not quoted strings.
 
-### Active Firewall Does Not Automatically Mean Blocked
+### Firewall Validation
 
-`pve01` had an active Proxmox firewall, but validation from `mon01` showed the existing policy already allowed the required Node Exporter connection. No unnecessary broad rule was added.
+An active firewall does not prove a path is blocked. Testing from `mon01` showed no broad `pve01` rule was required.
 
 ## Alerting Philosophy
 
-Alerting is not yet enabled. An alert must have:
+Alerting is not yet enabled. Every alert must have:
 
-- A meaningful failure condition
-- An actionable threshold
-- A documented first response
-- A runbook
-- A defined notification route
+- A meaningful condition.
+- An actionable threshold.
+- A documented first response.
+- A runbook.
+- A notification route.
 
-A small set of useful alerts is preferable to a noisy ruleset.
+A small useful rule set is preferable to noise.
+
+## Security Considerations
+
+- Keep monitoring services internal-only.
+- Do not expose TCP `3000`, `9090`, `9100`, or `9115` publicly.
+- Treat metrics, labels, JSON, and screenshots as operationally sensitive.
+- Do not publish exact targets, private record values, credentials, or tokens.
+- Introduce Proxmox credentials only through least privilege.
+- Keep attacker and vulnerable workloads isolated from monitoring and backup systems.
 
 ## Next Improvements
 
-- Export and privately validate the Homelab Infrastructure Overview as Classic JSON.
-- Add Proxmox-specific VM, storage, task, and backup metrics through least-privilege integration.
-- Evaluate Pi-hole-specific application metrics.
-- Add actionable alerts only after runbooks and notification routing exist.
-- Complete backup implementation and restore testing under Project 003.
+- Export and privately validate the Infrastructure Overview.
+- Add Proxmox VM, storage, task, and backup metrics.
+- Add backup-age, capacity, and failure monitoring.
+- Add Pi-hole-specific application metrics.
+- Perform an independent `mon01` restore test.
+- Add actionable alerts only after runbooks and routing exist.
+- Add reverse-proxy and certificate monitoring during Project 004.
 
 ## Related Documentation
 
@@ -329,9 +300,9 @@ A small set of useful alerts is preferable to a noisy ruleset.
 - [Storage Architecture](storage.md)
 - [Security Architecture](security.md)
 - [Project 002](../projects/project-002-monitoring-observability.md)
-- [ADR-0002: Monitoring Stack](../decisions/ADR-0002-prometheus-grafana-monitoring-stack.md)
-- [Node Exporter](../services/node-exporter.md)
+- [Project 003](../projects/project-003-backup-recovery.md)
 - [Prometheus](../services/prometheus.md)
 - [Grafana](../services/grafana.md)
 - [Blackbox Exporter](../services/blackbox-exporter.md)
-- [Proxmox VE Platform](../services/proxmox.md)
+- [Backup Runbook](../runbooks/backup.md)
+- [Disaster Recovery](../runbooks/disaster-recovery.md)
