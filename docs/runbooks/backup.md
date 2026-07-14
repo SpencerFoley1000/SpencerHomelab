@@ -2,191 +2,300 @@
 
 ## Purpose
 
-Define the current backup design, implementation prerequisites, validation requirements, and documentation process for stable homelab workloads.
+Define the operational backup design, routine validation, failure handling, and maintenance process for stable homelab workloads.
 
 ## Status
 
 | Area | Details |
 | --- | --- |
-| Lifecycle | Planned implementation baseline |
+| Lifecycle | Operational / tested |
 | Project | Project 003: Backup and Recovery |
-| Inventory phase | Complete |
-| Backup target | 5 TB external HDD ordered; integration pending |
-| VM backups | Not yet configured |
-| Restore validation | Not yet completed |
-| Last reviewed | 2026-07-12 |
+| Backup target | Dedicated 5 TB external ext4 filesystem registered in Proxmox |
+| Protected VMs | `dns01`, `mon01` |
+| Initial backups | Completed successfully |
+| Restore validation | `dns01` isolated restore completed successfully |
+| Last reviewed | 2026-07-14 |
 
-This page is not a validated backup procedure. Replace planned values with tested implementation details as Project 003 progresses.
+This runbook uses sanitized placeholders. Exact drive identifiers, filesystem UUIDs, Proxmox storage labels, backup filenames, and internal addresses remain private.
 
 ## Backup Principles
 
-- Back up irreplaceable data and important configuration.
 - Keep backup storage separate from source storage.
-- Prefer documented restore procedures over untested backup assumptions.
 - Combine whole-VM backups with portable application exports where useful.
-- Separate data that must be preserved from workloads that can be rebuilt.
-- Treat a successful backup job as incomplete evidence until restoration succeeds.
-- Never commit backup secrets, drive identifiers, encryption keys, hashes, or raw recovery artifacts to this repository.
+- Treat backup artifacts as sensitive system state.
+- Prefer tested restore procedures over assumptions based only on successful jobs.
+- Document what is protected, how often, how long, and how restoration is validated.
+- Do not expose backup storage to untrusted or attacker-style workloads.
+- Recognize that one connected local disk is not immutable, offline, or off-site protection.
 
 ## Current Backup Scope
 
 | System or asset | Protection method | Destination | Current maturity |
 | --- | --- | --- | --- |
-| `dns01` VM | Proxmox VM backup | `<BACKUP_TARGET>` on 5 TB external drive | Pending implementation |
-| Pi-hole configuration | Protected Teleporter ZIP | Private recovery storage and future backup target | Exported, integrity-checked, privately inspected; import untested |
-| `mon01` VM | Proxmox VM backup | `<BACKUP_TARGET>` on 5 TB external drive | Pending implementation |
-| Prometheus and Blackbox configuration | VM backup plus reviewed configuration inventory | `<BACKUP_TARGET>` and protected private records | Inventory complete; restore untested |
-| Grafana database and data-source mapping | VM backup plus protected recovery mapping | `<BACKUP_TARGET>` and protected private records | Inventory complete; restore untested |
-| Node Exporter dashboard | Protected JSON export | Private recovery storage and future backup target | Syntax and private inspection complete |
-| Homelab Service Health dashboard | Protected JSON export | Private recovery storage and future backup target | Syntax and private inspection complete |
-| Homelab Infrastructure Overview | Protected Classic JSON export | Private recovery storage and future backup target | Export pending |
+| `dns01` VM | Proxmox full-VM backup | `<BACKUP_TARGET>` | Daily backup active; isolated whole-VM restore tested |
+| Pi-hole configuration | Protected Teleporter ZIP | Private recovery storage | Export integrity-checked and privately inspected; import not independently tested |
+| `mon01` VM | Proxmox full-VM backup | `<BACKUP_TARGET>` | Daily backup active; independent restore not yet tested |
+| Prometheus and Blackbox configuration | VM backup plus reviewed inventory | `<BACKUP_TARGET>` and protected private records | Backup active; manual rebuild requirements documented |
+| Grafana database and data-source mapping | VM backup plus protected recovery mapping | `<BACKUP_TARGET>` and protected private records | Backup active; data-source mapping documented |
+| Existing Grafana dashboards | Protected JSON exports | Private recovery storage | Existing exports syntax-checked and privately inspected |
+| Homelab Infrastructure Overview | Future protected Classic JSON export | Private recovery storage | Export remains follow-up work |
 | Documentation repository | Git history and GitHub | GitHub | Active; does not replace service-state backups |
 
-## Preconditions
+## Backup Target Design
 
-Before integrating the external target:
+| Setting | Current design |
+| --- | --- |
+| Physical target | Dedicated 5 TB external HDD |
+| Filesystem | ext4 |
+| Mount method | Persistent filesystem UUID |
+| Public mount reference | `<BACKUP_MOUNT>` |
+| Proxmox storage reference | `<BACKUP_TARGET>` |
+| Storage type | Directory storage |
+| Content type | Backup only |
+| Missing-mount protection | Proxmox mount-point enforcement enabled |
+| Approximate usable capacity | Multi-terabyte capacity consistent with a 5 TB marketed device |
 
-- The 5 TB drive is physically available.
-- The drive has passed visual inspection and capacity verification.
-- Important existing data on the drive, if any, has been handled intentionally.
-- The selected filesystem and mount strategy are documented privately.
-- A stable device identifier is available for mounting.
-- Proxmox management access and a physical-console recovery path are available.
-- `dns01` and `mon01` are healthy before the first backup.
-- Existing application exports remain protected outside Git.
+The target passed SMART overall-health validation and an extended SMART self-test before use.
 
-## Target Preparation Procedure
+## Scheduled Job
 
-The exact device path, UUID, model, serial number, and mount path must remain private.
+| Setting | Value |
+| --- | --- |
+| Guests | `dns01`, `mon01` |
+| Schedule | Daily at 10:00 local time |
+| Mode | Snapshot |
+| Compression | Zstandard |
+| Keep daily | 7 |
+| Keep weekly | 4 |
+| Keep monthly | 3 |
+| Repeat missed jobs | Disabled in the initial configuration |
+| Notification mode | Proxmox notification system |
 
-1. Identify the intended external drive carefully.
-2. Confirm expected capacity before destructive operations.
-3. Record the hardware identity privately.
-4. Review drive health where supported.
-5. Select and create the intended filesystem.
-6. Create a stable mount using a private identifier rather than an unstable device path.
-7. Confirm ownership and permissions.
-8. Mount the filesystem and verify expected free capacity.
-9. Add the target to Proxmox using a sanitized storage label such as `<BACKUP_TARGET>`.
-10. Restrict the configured content type to the intended backup artifacts.
-11. Confirm the target is visible and writable from Proxmox.
-12. Reboot or remount-test if required to confirm persistence.
+Review missed-run behavior if the Proxmox host is not consistently online at the scheduled time.
 
-Do not copy literal commands into public documentation until the actual device, filesystem, and mount design are validated and sanitized.
+## Pre-Backup Checks
 
-## Backup Job Design
+Before a manual backup or troubleshooting a scheduled job:
 
-Define and document before enabling scheduled jobs:
+1. Confirm the target is mounted:
 
-- Protected guests: initially `dns01` and `mon01`.
-- Backup mode.
-- Schedule.
-- Compression.
-- Retention and pruning.
-- Expected backup window.
-- Available-capacity thresholds.
-- Failure-notification path.
-- Whether the external drive remains connected continuously or follows a documented rotation process.
+   ```bash
+   findmnt <BACKUP_MOUNT>
+   ```
 
-The selected values should balance recoverability, drive capacity, service importance, and the current small number of VMs.
+2. Confirm expected capacity:
 
-## Initial Backup Procedure
+   ```bash
+   df -h <BACKUP_MOUNT>
+   ```
 
-1. Confirm `dns01`, `mon01`, Prometheus, Grafana, and both DNS probes are healthy.
-2. Confirm the backup target is mounted and available in Proxmox.
-3. Run the first backup manually rather than waiting for a schedule.
-4. Observe task output and record only sanitized results.
-5. Confirm the task reports success.
-6. Confirm an artifact exists for the intended VM.
-7. Confirm the artifact size is plausible relative to the guest disk and used space.
-8. Repeat for the second core VM.
-9. Review target free capacity.
-10. Enable the documented schedule only after manual backups succeed.
+3. Confirm Proxmox reports the target active:
 
-## Backup Validation
+   ```bash
+   pvesm status
+   ```
 
-For each protected VM, record privately:
+4. Confirm the stable VMs are present and healthy:
 
-- Backup date and time.
-- Guest identity.
-- Backup mode.
-- Completion status.
-- Artifact size.
-- Duration.
-- Relevant warning or error state.
-- Target free capacity after completion.
+   ```bash
+   qm list
+   ```
 
-Public documentation may summarize success, duration category, and lessons learned without exposing exact paths or identifiers.
+5. Confirm there is enough free capacity for another full backup.
+6. Confirm no hardware or filesystem errors are under investigation.
+
+Do not manually create the mount directory as a substitute when the external filesystem is absent. Mount-point enforcement is intended to make that condition fail visibly.
+
+## Manual Backup Procedure
+
+Run a manual backup when validating a new guest, testing after a major change, or retrying a failed scheduled job:
+
+```bash
+vzdump <VM_ID> \
+  --storage <BACKUP_TARGET> \
+  --mode snapshot \
+  --compress zstd
+```
+
+Expected completion evidence:
+
+```text
+INFO: Backup finished successfully
+```
+
+Confirm the artifact exists:
+
+```bash
+pvesm list <BACKUP_TARGET>
+```
+
+Repeat for each intended guest.
+
+VM IDs and exact artifact names should be recorded privately, not in public documentation.
+
+## Scheduled Job Verification
+
+View the configured jobs in a readable format:
+
+```bash
+pvesh get /cluster/backup --output-format yaml
+```
+
+Verify:
+
+- Job is enabled.
+- Node is correct.
+- Storage is `<BACKUP_TARGET>`.
+- Both `dns01` and `mon01` are included.
+- Mode is snapshot.
+- Compression is Zstandard.
+- Schedule is daily at the intended local time.
+- Retention is 7 daily, 4 weekly, and 3 monthly.
+
+The default table output may be wider than a terminal. YAML or pretty JSON is preferred for inspection.
+
+## Routine Validation
+
+After each scheduled or manual run, verify:
+
+- Task completed successfully.
+- An artifact exists for each intended guest.
+- Artifact size is plausible relative to guest usage.
+- Target free capacity remains healthy.
+- No unexpected warnings appear.
+- The previous known-good artifacts remain present.
+- Retention and pruning do not remove more history than intended.
+
+Useful commands:
+
+```bash
+pvesm status
+pvesm list <BACKUP_TARGET>
+df -h <BACKUP_MOUNT>
+```
 
 ## Restore Validation
 
-At least one representative isolated restore is required before Project 003 is complete.
+At least one representative isolated restore is required for an operational backup design.
 
-The restore test must confirm:
+Project 003 validated `dns01` by:
 
-1. The selected backup artifact can be read.
-2. The VM can be restored without overwriting the active production guest.
-3. The restored VM boots in an isolated or controlled network state.
-4. QEMU Guest Agent behavior is checked where applicable.
-5. Service state is validated.
-6. The restored guest is either safely removed or intentionally promoted through a separate change process.
+- Restoring to an unused temporary VM ID.
+- Writing the restored disk to normal VM storage.
+- Renaming the VM as a restore test.
+- Removing `net0` before the first boot.
+- Confirming Debian booted.
+- Confirming the expected filesystem existed.
+- Confirming `pihole-FTL` and Node Exporter were active.
+- Shutting down and deleting the temporary VM.
 
-### `dns01` post-restore checks
+See [Proxmox VM Restore](proxmox-vm-restore.md) for the tested procedure.
 
-- `pihole-FTL` is active and enabled.
-- Static networking is correct using protected values.
-- Public DNS resolution works.
-- Required local records work.
-- Node Exporter responds.
-- `blackbox_dns` returns success.
-- `blackbox_dns_local` returns success and the expected answer.
+The isolated test did not validate client DNS traffic, local DNS responses, remote metrics, or Blackbox probes because the restored VM had no network adapter. Those checks require a controlled network-connected test or an actual replacement recovery.
 
-### `mon01` post-restore checks
+## Backup Failure Handling
 
-- Prometheus, Grafana, Node Exporter, and Blackbox Exporter are active and enabled.
-- Prometheus includes `prometheus`, `node_exporter`, `blackbox_dns`, and `blackbox_dns_local`.
-- Blackbox includes `dns_udp` and `dns_udp_local`.
-- `pve01`, `dns01`, and `mon01` host targets are visible.
-- Both DNS probe series return success.
-- Grafana data-source health is valid.
-- Available protected dashboards display current data.
+If a job fails:
 
-## Failure Handling
+1. Do not delete the last known-good backup.
+2. Confirm `<BACKUP_MOUNT>` is a real mounted filesystem.
+3. Confirm `<BACKUP_TARGET>` is active in Proxmox.
+4. Check free capacity and inode availability.
+5. Review the Proxmox task result and relevant system logs.
+6. Confirm the source VM is healthy.
+7. Check for USB disconnects, I/O errors, filesystem errors, or power instability.
+8. Correct the narrowest identified issue.
+9. Run a manual backup for the affected VM.
+10. Confirm the artifact exists and update documentation if a permanent change was required.
 
-If a backup job fails:
+Useful host checks:
 
-1. Do not delete the last known-good artifact.
-2. Confirm the external target is mounted and writable.
-3. Confirm available capacity.
-4. Review the Proxmox task result and relevant logs.
-5. Confirm the source VM is healthy.
-6. Correct the narrowest identified issue.
-7. Rerun the backup manually.
-8. Document the root cause and permanent fix.
-9. Update monitoring or runbooks if the failure revealed a missing control.
+```bash
+findmnt <BACKUP_MOUNT>
+df -h <BACKUP_MOUNT>
+pvesm status
+journalctl -p warning..alert --since today
+```
+
+Do not disable mount-point enforcement to make a failed job appear successful.
+
+## Capacity and Retention Maintenance
+
+Review periodically:
+
+- Total and available capacity.
+- Backup growth by VM.
+- Oldest and newest recovery points.
+- Pruning behavior.
+- Whether the daily, weekly, and monthly mix still matches recovery needs.
+- Whether new stable VMs were added to the job.
+- Whether retired VMs still consume retention capacity.
+
+Capacity thresholds should be added to monitoring after a least-privilege Proxmox metrics design exists.
+
+## Drive Health Maintenance
+
+Review SMART information periodically and after unusual I/O behavior:
+
+```bash
+smartctl -a <BACKUP_DEVICE>
+```
+
+Run an extended test during a suitable maintenance window:
+
+```bash
+smartctl -t long <BACKUP_DEVICE>
+smartctl -l selftest <BACKUP_DEVICE>
+```
+
+The exact device path and serial number remain private. Do not run destructive filesystem repair commands without confirming the target and preserving available evidence.
+
+## Application-Level Recovery Assets
+
+Whole-VM backups do not remove the need to maintain:
+
+- Pi-hole Teleporter exports after meaningful DNS changes.
+- Grafana dashboard exports after meaningful dashboard changes.
+- Prometheus and Blackbox configuration inventories.
+- Grafana data-source recovery mapping.
+- Package and service baselines.
+- Sanitized rebuild instructions.
+
+Raw exports remain outside Git because they may contain credentials, private addressing, leases, identifiers, and operational state.
 
 ## Security Considerations
 
-- Keep the target inaccessible to untrusted or security-lab workloads.
-- Restrict write access to required backup operations.
-- Keep encryption keys and credentials outside Git.
-- Do not publish drive serial numbers, UUIDs, exact mount paths, or raw task logs.
-- Treat backup artifacts as sensitive because they may contain credentials, tokens, leases, private addresses, and application state.
-- Consider an offline, rotated, or second copy later; one always-connected drive is not immutable or off-site protection.
+- Treat every VM backup as sensitive.
+- Keep exact UUIDs, serial numbers, paths, backup names, hashes, and identifiers outside Git.
+- Restrict target write access to trusted backup operations.
+- Keep security-lab systems away from trusted backup storage.
+- Do not expose the backup target through unnecessary network shares.
+- Use a separate failure-domain copy later for stronger ransomware, physical-loss, and operator-error resilience.
+- Store any future encryption keys independently from the backup media.
+
+## Known Limitations
+
+- The current drive is directly attached and normally connected to the Proxmox host.
+- It is not immutable, offline, or off-site.
+- Full backups do not provide Proxmox Backup Server deduplication.
+- `mon01` has not been independently restored.
+- Missed scheduled runs are not repeated automatically in the initial configuration.
+- Backup task and backup-age alerting are not yet implemented.
 
 ## Documentation Requirements
 
-After implementation or a restore test, update:
+After a meaningful backup change or restore test, update:
 
 - [Project 003](../projects/project-003-backup-recovery.md).
 - [Storage Architecture](../architecture/storage.md).
 - [VM Inventory](../architecture/vm-inventory.md).
-- Relevant service pages.
-- [Disaster Recovery Runbook](disaster-recovery.md).
+- [Proxmox VE Platform](../services/proxmox.md).
+- [Disaster Recovery](disaster-recovery.md).
+- The relevant ADR or dated change record.
 - `CHANGELOG.md`.
-- `ROADMAP.md` if a milestone is completed.
+- `ROADMAP.md` when priorities or milestones change.
 
-Run:
+Run the repository Markdown link validator from a local clone:
 
 ```bash
 python scripts/check-markdown-links.py
@@ -195,11 +304,10 @@ python scripts/check-markdown-links.py
 ## Related Documentation
 
 - [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
-- [Storage Architecture](../architecture/storage.md)
-- [VM Inventory](../architecture/vm-inventory.md)
+- [ADR-0003: Direct-Attached Proxmox Backup Storage](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
+- [Proxmox VM Restore](proxmox-vm-restore.md)
 - [Disaster Recovery](disaster-recovery.md)
 - [Service Configuration Export and Inspection](service-config-export.md)
+- [Storage Architecture](../architecture/storage.md)
+- [VM Inventory](../architecture/vm-inventory.md)
 - [Proxmox VE Platform](../services/proxmox.md)
-- [Pi-hole Service](../services/pihole.md)
-- [Prometheus Service](../services/prometheus.md)
-- [Grafana Service](../services/grafana.md)
