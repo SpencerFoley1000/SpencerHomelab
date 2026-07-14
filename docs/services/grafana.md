@@ -6,12 +6,12 @@ Active
 
 ## Purpose
 
-Grafana provides visualization for the homelab monitoring stack. It queries Prometheus and turns host and service metrics into operational dashboards for troubleshooting, capacity review, and rapid health checks.
+Grafana visualizes homelab metrics from Prometheus for troubleshooting, capacity review, and rapid health checks.
 
-Grafana currently answers:
+Current dashboards answer:
 
 - Are `mon01`, `dns01`, and `pve01` reporting metrics?
-- How are CPU, memory, filesystem utilization, and uptime trending?
+- How are CPU, memory, filesystem use, and uptime changing?
 - Are recursive and local DNS checks both succeeding?
 - Is DNS probe duration changing or spiking?
 
@@ -19,17 +19,16 @@ Grafana currently answers:
 
 | Component | Value |
 | --- | --- |
-| Service | Grafana |
 | Package version | `13.1.0` |
 | Host | `mon01` |
-| Operating system | Debian 13.5 |
+| Operating system | Debian 13.5 Trixie |
 | Data source | Prometheus at `http://localhost:9090` |
-| Listen port | `3000/tcp` |
-| Access scope | Internal homelab only |
+| Listen port | TCP `3000` |
+| Access | Internal homelab only |
 | Public exposure | None |
-| Backup maturity | Existing dashboards exported privately; new infrastructure overview export pending |
+| Backup maturity | Daily `mon01` VM backup active; existing dashboard exports protected; independent VM restore not yet tested |
 
-Exact private addresses, data-source identifiers, and raw dashboard JSON remain outside the public repository.
+Exact addresses, data-source identifiers, raw dashboard JSON, and credentials remain outside the repository.
 
 ## Data Source
 
@@ -38,15 +37,15 @@ Exact private addresses, data-source identifiers, and raw dashboard JSON remain 
 | Name | `prometheus` |
 | Type | Prometheus |
 | URL | `http://localhost:9090` |
-| Current UID | Retained privately as `<PROMETHEUS_DATASOURCE_UID>` |
-| Storage | Local Grafana database state |
+| UID | Retained privately as `<PROMETHEUS_DATASOURCE_UID>` |
+| Storage | Grafana local database |
 
-`localhost` is used because Grafana and Prometheus run on the same VM.
+Grafana and Prometheus share `mon01`, so the data source uses `localhost`.
 
-The active data source is not yet represented by reviewed provisioning files. Recovery therefore requires either:
+The active data source is not yet managed through reviewed provisioning files. Recovery requires either:
 
 - a consistency-preserving restore of `grafana.db`, or
-- manual recreation of the Prometheus data source before dashboard import.
+- manual data-source recreation before dashboard import.
 
 ## Current Dashboards
 
@@ -54,67 +53,41 @@ The active data source is not yet represented by reviewed provisioning files. Re
 
 Purpose:
 
-- Detailed host-level CPU, memory, filesystem, disk, network, and uptime visibility.
-- Multi-host selection through the shared `node_exporter` job.
-- Deeper troubleshooting than the summary dashboard.
+- Detailed CPU, memory, filesystem, disk, network, and uptime views.
+- Multi-host troubleshooting through the shared `node_exporter` job.
 
-Current hosts:
+Hosts:
 
 - `mon01`
 - `dns01`
 - `pve01`
 
-Protected export:
-
-| Item | Value |
-| --- | --- |
-| Filename | `node-exporter-dashboard.json` |
-| JSON validation | Successful |
-| Storage | Private location outside Git |
+A protected JSON export exists outside Git and passed private syntax inspection.
 
 ### Homelab Service Health
 
 Purpose:
 
-- Visualize DNS availability and probe history separately from host health.
+- Separate DNS service behavior from host health.
+- Display current availability, response duration, and state history.
 
-Current panels:
-
-| Panel | Metric | Purpose |
-| --- | --- | --- |
-| DNS availability | `probe_success` | Shows current DNS probe state |
-| DNS probe duration | `probe_duration_seconds` | Shows response duration over time |
-| DNS probe status | `probe_success` | Shows state history |
-
-Protected export:
-
-| Item | Value |
-| --- | --- |
-| Filename | `homelab-service-health-dashboard.json` |
-| JSON validation | Successful |
-| Storage | Private location outside Git |
+A protected JSON export exists outside Git and passed private syntax inspection.
 
 ### Homelab Infrastructure Overview
 
-Created on 2026-07-11 as a manually built summary dashboard. It demonstrates intentional PromQL and panel design rather than relying entirely on imported dashboards.
+Created manually on 2026-07-11.
 
 | Panel | Visualization | Purpose |
 | --- | --- | --- |
-| Host Availability | Stat | Shows `UP` or `DOWN` for `mon01`, `dns01`, and `pve01` |
-| CPU Utilization by Host | Time series | Compares CPU utilization across all monitored hosts |
-| Memory Utilization by Host | Time series | Compares memory utilization across all monitored hosts |
-| Root Filesystem Utilization | Gauge | Shows root-filesystem consumption with warning and critical thresholds |
-| Host Uptime | Stat | Displays uptime for each monitored host |
-| DNS Availability | Stat | Shows independent Recursive DNS and Local DNS states |
-| DNS Probe Duration | Full-width time series | Shows recursive DNS probe latency and makes spikes easier to inspect |
+| Host Availability | Stat | Current state of all three Node Exporter targets |
+| CPU Utilization by Host | Time series | Compare CPU demand |
+| Memory Utilization by Host | Time series | Compare memory pressure |
+| Root Filesystem Utilization | Gauge | Show capacity risk |
+| Host Uptime | Stat | Show time since boot |
+| DNS Availability | Stat | Show Recursive DNS and Local DNS independently |
+| DNS Probe Duration | Time series | Show recursive DNS latency and spikes |
 
-The dashboard uses:
-
-- `node_exporter` metrics for `mon01`, `dns01`, and `pve01`
-- `blackbox_dns` for recursive DNS
-- `blackbox_dns_local` for the internal-record probe
-
-The dashboard is operational, but its Classic JSON export and private validation remain pending. It must not be described as a protected recovery artifact until that export is created and tested.
+The dashboard is operational. Its protected Classic JSON export remains pending and must not be described as a portable recovery artifact yet.
 
 ## Key PromQL
 
@@ -171,10 +144,10 @@ probe_success{job="blackbox_dns", host="dns01"}
 Local DNS:
 
 ```promql
-probe_success{job="blackbox_dns_local", host="dns01"}
+probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
 ```
 
-DNS probe duration:
+Probe duration:
 
 ```promql
 probe_duration_seconds{job="blackbox_dns", host="dns01"}
@@ -184,28 +157,23 @@ probe_duration_seconds{job="blackbox_dns", host="dns01"}
 
 ### Summary and Detail Separation
 
-The Homelab Infrastructure Overview is the at-a-glance operational dashboard. The imported Node Exporter dashboard remains available for detailed host troubleshooting.
+The Infrastructure Overview provides rapid status. The imported Node Exporter dashboard supports detailed host troubleshooting.
 
 ### Full-Width Trend Panels
 
-Memory utilization and DNS probe duration use the full dashboard width. This removes unused grid space and improves visibility into small changes and latency spikes.
+Longer trend panels use the dashboard width to improve visibility into gradual changes and latency spikes.
 
 ### Uptime Is Informational
 
-Uptime values use a healthy neutral or green presentation rather than red thresholds. A recent reboot is not automatically a fault.
+A recent reboot is not automatically a fault, so uptime does not use misleading critical thresholds.
 
 ### Independent DNS States
 
-The DNS Availability panel shows two separate stats:
-
-- Recursive DNS
-- Local DNS
-
-This prevents a working local-record service from being hidden by an upstream outage and vice versa.
+Recursive DNS and Local DNS remain separate so an upstream outage cannot hide healthy local records and vice versa.
 
 ## Validation
 
-Service checks on `mon01`:
+Service checks:
 
 ```bash
 systemctl is-active grafana-server
@@ -213,115 +181,125 @@ systemctl is-enabled grafana-server
 curl -I localhost:3000
 ```
 
-Dashboard validation:
+Dashboard checks:
 
 1. Confirm the Prometheus data source passes **Save & test**.
-2. Confirm `mon01`, `dns01`, and `pve01` all show `UP`.
-3. Confirm host CPU, memory, filesystem, and uptime panels populate.
-4. Confirm Recursive DNS and Local DNS both show `UP`.
-5. Confirm DNS probe duration continues updating.
-6. Confirm panel labels do not expose exact private addresses.
+2. Confirm `mon01`, `dns01`, and `pve01` show current data.
+3. Confirm CPU, memory, filesystem, and uptime panels populate.
+4. Confirm Recursive DNS and Local DNS both show expected state.
+5. Confirm DNS probe duration updates.
+6. Confirm labels do not expose private addresses.
 
 ## Troubleshooting Lessons
 
 ### Only One DNS Stat Appeared
 
-Prometheus returned both DNS series, but Grafana initially displayed only one. The panel queries did not have clean, distinct query reference IDs.
+Prometheus returned both DNS series, but Grafana initially displayed one.
 
 Resolution:
 
-- Use query reference IDs `A` and `B`.
-- Put `Recursive DNS` and `Local DNS` in the legend fields.
-- Use Instant queries for current-state stats.
-- Validate the raw Prometheus results before assuming Grafana is the data source of the failure.
+- Use distinct query reference IDs such as `A` and `B`.
+- Put friendly labels in the legend fields.
+- Validate raw Prometheus results before changing panels.
 
-Operational lesson: query reference IDs and user-facing legends are separate concepts.
+### Dashboard Threshold Parsing
 
-### Dashboard v2 Threshold Parsing
-
-A dashboard v2 operation failed when threshold values were stored as strings instead of numbers:
-
-```text
-cannot unmarshal string ... thresholds.steps.value of type float64
-```
-
-Threshold values must be numeric JSON values such as `70`, not quoted strings such as `"70"`. Value-mapping labels such as `UP` and `DOWN` remain strings.
+Threshold values must be JSON numbers such as `70`, not quoted strings such as `"70"`.
 
 ### Imported Dashboard Variables
 
-Imported dashboards may expect different job names. Refresh variables and select the `node_exporter` job before modifying working panel queries.
+Imported dashboards may assume different job names. Refresh variables and select `node_exporter` before modifying working queries.
 
 ### Grafana Is Often the Symptom
 
-When a dashboard is empty, validate in this order:
+Troubleshoot in this order:
 
-1. Prometheus data source
-2. Prometheus service
-3. Expected jobs and targets
-4. Exporter endpoints
-5. Panel query and query reference IDs
-
-## Security Considerations
-
-- Change default administrative credentials during deployment.
-- Store credentials in a password manager, never Git.
-- Keep Grafana internal-only.
-- Do not expose TCP `3000` publicly.
-- Treat dashboards and JSON exports as operationally sensitive.
-- Do not publish screenshots containing exact addresses, usernames, tokens, or private topology.
-- Use placeholders such as `<MON01_IP>`, `<DNS01_IP>`, and `<PROMETHEUS_DATASOURCE_UID>`.
-- Keep original recovery exports outside Git even if sanitized portfolio copies are created later.
+1. Grafana data source.
+2. Prometheus service.
+3. Expected jobs and targets.
+4. Exporter endpoints.
+5. Panel queries and reference IDs.
 
 ## Backup Strategy
 
 Grafana recovery uses multiple layers:
 
-1. Proxmox VM backup — pending implementation and restore validation.
-2. Consistent `grafana.db` backup — procedure must preserve SQLite consistency.
-3. Dashboard JSON exports — portable but require data-source verification.
-4. Private data-source recovery mapping — records name, type, URL, and UID.
-5. Sanitized repository documentation — records architecture and recovery steps without secrets.
+1. **Daily Proxmox VM backup**
+   - Snapshot mode with Zstandard compression.
+   - Retention of 7 daily, 4 weekly, and 3 monthly backups.
+   - Dedicated external storage with mount-point enforcement.
 
-The existing Node Exporter and Homelab Service Health exports were created and privately inspected. The Homelab Infrastructure Overview export is pending and should be completed after the next work session begins.
+2. **Grafana database state**
+   - `/var/lib/grafana/grafana.db` contains dashboards, data sources, and local state.
+   - Any separate copy must preserve SQLite consistency.
+
+3. **Dashboard JSON exports**
+   - Existing Node Exporter and Service Health exports are protected outside Git.
+   - The Infrastructure Overview export remains pending.
+
+4. **Private data-source mapping**
+   - Records name, type, URL, and UID.
+
+5. **Sanitized documentation**
+   - Records architecture and recovery steps without secrets.
+
+`mon01` has successful VM backup coverage but has not been independently restored. The Project 003 `dns01` restore proved the Proxmox restore workflow, not Grafana application recovery.
 
 ## Recovery Procedure
 
-1. Restore a validated VM backup when available.
-2. For a manual rebuild, install Grafana on `mon01`.
-3. Restore configuration and `grafana.db` consistently, or recreate the Prometheus data source.
-4. Import the Node Exporter dashboard.
-5. Import the Homelab Service Health dashboard.
-6. Import the Homelab Infrastructure Overview after its private export is created.
-7. Verify each panel uses the intended Prometheus data source.
-8. Confirm all three host series and both DNS probe series display current data.
+Preferred path:
 
-This remains a draft recovery baseline until exercised during a controlled restore.
+1. Restore the latest appropriate `mon01` VM backup.
+2. Keep the VM isolated during initial boot checks if duplicate identity is possible.
+3. Confirm Grafana, Prometheus, Node Exporter, and Blackbox Exporter are active.
+4. Confirm the Prometheus data source is healthy.
+5. Confirm all host and DNS panels display current data.
+
+Manual rebuild path:
+
+1. Install Grafana on supported Debian.
+2. Restore configuration and `grafana.db` consistently, or recreate the data source.
+3. Import protected dashboards.
+4. Rebind panels and variables to the intended data source.
+5. Reinstall required non-bundled plugins.
+6. Validate all three hosts and both DNS probe series.
+
+## Security Considerations
+
+- Change default administrative credentials.
+- Store credentials in a password manager, never Git.
+- Keep Grafana internal-only and do not expose TCP `3000` publicly.
+- Treat dashboards and exports as operationally sensitive.
+- Do not publish screenshots with exact addresses, usernames, tokens, or private topology.
+- Keep original recovery exports and VM backups outside Git.
 
 ## Maintenance Notes
 
 - Export dashboards after meaningful changes.
-- Validate exported JSON privately before treating it as a recovery artifact.
+- Validate exported JSON privately before treating it as recoverable.
 - Review data-source health after Prometheus changes.
-- Keep query legends aligned with job scope.
 - Record manually installed plugins.
 - Update the private data-source record if its UID changes.
-- Update Project 003 after backup or restore validation.
+- Confirm a recent successful VM backup before major upgrades.
+- Perform an independent `mon01` restore after major changes or before migration.
 
 ## Future Improvements
 
-- Export and privately validate the Homelab Infrastructure Overview as Classic JSON.
+- Export and privately validate the Infrastructure Overview.
 - Create reviewed provisioning files for data sources and dashboards.
-- Create sanitized dashboard copies suitable for version control.
+- Create sanitized dashboard examples suitable for version control.
 - Add Pi-hole-specific panels after application metrics exist.
-- Add Proxmox platform and backup-health panels after those metrics are available.
-- Validate Grafana database backup and restore.
+- Add Proxmox platform and backup-health panels after those metrics exist.
+- Validate Grafana-specific recovery through an independent `mon01` restore.
 
 ## Related Documentation
 
-- [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
-- [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
+- [Project 002](../projects/project-002-monitoring-observability.md)
+- [Project 003](../projects/project-003-backup-recovery.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
-- [Prometheus Service](prometheus.md)
-- [Blackbox Exporter Service](blackbox-exporter.md)
-- [Node Exporter Service](node-exporter.md)
+- [Prometheus](prometheus.md)
+- [Blackbox Exporter](blackbox-exporter.md)
+- [Node Exporter](node-exporter.md)
+- [Backup Runbook](../runbooks/backup.md)
+- [Disaster Recovery](../runbooks/disaster-recovery.md)
 - [Prometheus Scrape Target Troubleshooting](../runbooks/prometheus-scrape-target-troubleshooting.md)
