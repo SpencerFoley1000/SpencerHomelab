@@ -24,11 +24,13 @@ The homelab currently includes:
 - Local-record DNS monitoring independent of upstream recursion.
 - Grafana dashboards for detailed host metrics, DNS service health, and an at-a-glance infrastructure overview.
 - Operational troubleshooting documentation based on real configuration incidents.
-- Project 003A backup-readiness inventories and protected application-level recovery exports.
-- A 5 TB external backup drive acquired for Project 003 and pending Proxmox integration.
+- A dedicated 5 TB external Proxmox backup target using ext4, persistent UUID mounting, backup-only content restriction, and mount-point enforcement.
+- Daily snapshot-mode, Zstandard-compressed backups for `dns01` and `mon01` with 7 daily, 4 weekly, and 3 monthly retention.
+- A validated isolated whole-VM restore for `dns01`, including Debian boot, filesystem, Pi-hole FTL, and Node Exporter checks.
+- Protected application-level recovery exports and sanitized rebuild documentation.
 - Hardware acquired for a future dedicated virtualization server, pending assembly and validation.
 
-The current primary focus is Project 003 backup implementation and restore testing. Project 004 reverse proxy and internal HTTPS work follows, then the new virtualization server build and Project 005 power-resilience work. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform metrics, backup-health monitoring, and actionable alerting.
+Project 003 backup and recovery is complete. The next primary focus is Project 004 reverse proxy and internal HTTPS, followed by the new virtualization server build and Project 005 power-resilience work. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
 
 ## Documentation Structure
 
@@ -46,6 +48,6 @@ The current primary focus is Project 003 backup implementation and restore testi
 
 ## Public Documentation Notice
 
-This repository is public by design. It avoids publishing secrets, personally identifying information, exact private network details, SSIDs, public IP addresses, serial numbers, recovery artifacts, and other sensitive operational data.
+This repository is public by design. It avoids publishing secrets, personally identifying information, exact private network details, SSIDs, public IP addresses, serial numbers, drive UUIDs, backup filenames, recovery artifacts, and other sensitive operational data.
 
-Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<PROXMOX_ADMIN_ACCOUNT>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
+Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<PROXMOX_ADMIN_ACCOUNT>`, `<BACKUP_MOUNT>`, `<BACKUP_TARGET>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
