@@ -2,7 +2,7 @@
 
 This directory contains Architecture Decision Records (ADRs) for the homelab.
 
-ADRs document meaningful infrastructure decisions, the context behind them, alternatives considered, and the tradeoffs accepted. They are written for future maintainers and for portfolio readers who want to understand the engineering reasoning behind the lab.
+ADRs document meaningful infrastructure decisions, the context behind them, alternatives considered, and the tradeoffs accepted. They are written for future maintainers and portfolio readers who want to understand the engineering reasoning behind the lab.
 
 ## Purpose
 
@@ -60,6 +60,7 @@ Keep filenames lowercase after the ADR number and use hyphens between words.
 | --- | --- | --- |
 | [ADR-0001](ADR-0001-proxmox-on-thinkpad-e16.md) | Accepted | Use Lenovo ThinkPad E16 Gen 1 as the initial Proxmox host |
 | [ADR-0002](ADR-0002-prometheus-grafana-monitoring-stack.md) | Accepted | Use Prometheus, Grafana, Node Exporter, and Blackbox Exporter for monitoring |
+| [ADR-0003](ADR-0003-direct-attached-proxmox-backup-storage.md) | Accepted | Use direct-attached ext4 Proxmox backup storage with layered recovery assets |
 
 ## Template
 
@@ -69,6 +70,9 @@ Use [ADR Template](ADR_TEMPLATE.md) when creating a new decision record.
 
 - [Architecture Overview](../architecture/overview.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
+- [Storage Architecture](../architecture/storage.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Hardware Documentation](../hardware/)
 - [Services Documentation](../services/)
+- [Projects](../projects/)
+- [Infrastructure Change Records](../changes/)
