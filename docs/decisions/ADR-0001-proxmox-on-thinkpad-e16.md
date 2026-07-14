@@ -22,99 +22,89 @@ The first host needed to balance:
 - Ease of administration.
 - Learning value.
 
-The available hardware was a Lenovo ThinkPad E16 Gen 1 business laptop with a 13th Gen Intel Core i5-1335U, 16 GB RAM, and a 1 TB PCIe SSD.
+Available hardware was a Lenovo ThinkPad E16 Gen 1 with an Intel Core i5-1335U, 16 GB RAM, and a 1 TB PCIe SSD.
 
 ## Decision
 
-Use the Lenovo ThinkPad E16 Gen 1 as the initial Proxmox VE host for the homelab.
+Use the Lenovo ThinkPad E16 Gen 1 as the initial Proxmox VE host.
 
-The system serves as the active virtualization host during the first phase of the lab. A future ADR will determine its long-term role after the acquired X299 server is assembled and validated.
+It remains the active host during the first phase of the lab. A future ADR will determine its long-term role after the X299 server is assembled and validated.
 
 ## Rationale
 
-A business-class laptop was a practical first virtualization host for this stage of the homelab.
+A business-class laptop was practical for the initial phase.
 
 Reasons:
 
-- It provides enough compute capacity for early VMs, containers, and infrastructure services.
-- It is quieter and more power-efficient than typical rack server hardware.
-- It avoided the cost and complexity of enterprise server hardware before the lab required it.
-- It kept the initial environment physically simple while networking, monitoring, documentation, and recovery foundations were built.
-- The integrated battery provides limited ride-through during brief power interruptions, although it is not a replacement for a proper UPS.
-- Proxmox VE provides practical experience with virtualization, management-plane security, monitoring, capacity planning, and recovery.
+- Enough compute for early infrastructure VMs.
+- Quieter and more efficient than typical rack hardware.
+- Avoided unnecessary cost and complexity.
+- Kept the environment simple while networking, monitoring, backup, security, and documentation foundations were built.
+- Integrated battery provides limited ride-through for brief interruptions.
+- Proxmox provides hands-on experience with virtualization, capacity, monitoring, management security, and recovery.
 
 ## Alternatives Considered
 
 | Alternative | Reason not chosen initially |
 | --- | --- |
-| Enterprise rack server | Higher cost, more noise, more power usage, and unnecessary complexity for the first phase |
-| Desktop-based virtualization | Would blur the line between personal workstation and lab infrastructure |
-| Multiple mini PCs | Useful later, but unnecessary before the initial architecture and services were stable |
-| Cloud-only lab | Valuable for future Azure learning but does not provide the same hands-on hardware and local networking experience |
+| Enterprise rack server | Higher cost, noise, power use, and unnecessary complexity |
+| Desktop-based virtualization | Would mix personal workstation and infrastructure roles |
+| Multiple mini PCs | Useful later but unnecessary before the architecture stabilized |
+| Cloud-only lab | Valuable for future Azure work but lacks the same local hardware and networking practice |
 
 ## Consequences
 
 ### Positive
 
-- Provides a dedicated compute platform for the homelab.
-- Keeps the initial lab quiet and power-efficient.
-- Makes the early environment easier to maintain.
-- Supports practical Proxmox, VM, storage, monitoring, and backup learning.
+- Dedicated compute platform for the homelab.
+- Quiet and power-efficient initial environment.
+- Simple physical footprint.
+- Supports practical Proxmox, VM, storage, monitoring, backup, and recovery work.
 - Successfully hosts the DNS and monitoring foundation.
-- Leaves room to add or transition to dedicated server hardware later.
+- Allows a later transition to dedicated server hardware.
 
 ### Negative / Tradeoffs
 
-- Limited memory compared with dedicated server hardware.
-- Limited internal storage expansion.
-- Fewer network interfaces than a dedicated server or firewall platform.
-- Laptop hardware is not ideal for every production-style server scenario.
-- Future workloads require either careful capacity management or host expansion.
-- The integrated battery protects only the laptop, not the switch, router, external backup drive, or future server.
+- Limited memory and internal storage expansion.
+- Fewer network interfaces than dedicated server hardware.
+- Laptop hardware is not ideal for every production-style scenario.
+- Future workload growth requires capacity discipline or migration.
+- The integrated battery does not protect the router, switch, external backup drive, or future server.
 
-### Follow-Up Work
+## Follow-Up Work
 
-- [ ] Document and test Proxmox host maintenance procedures.
-- [x] Add a VM inventory once workloads are deployed.
+- [ ] Validate a complete Proxmox maintenance window.
+- [x] Add a VM inventory.
 - [x] Add Linux host monitoring for `pve01`.
 - [ ] Add Proxmox platform-specific VM, storage, task, and backup metrics.
-- [ ] Complete protected VM backup and restore validation.
-- [x] Reassess host capacity after core services are deployed.
-- [ ] Create a future ADR defining the relationship between the ThinkPad and X299 server.
-- [ ] Integrate the host into UPS monitoring and graceful shutdown design.
+- [x] Complete protected VM backup and representative restore validation.
+- [x] Reassess host capacity after core services were deployed.
+- [ ] Create an ADR defining the ThinkPad and X299 server relationship.
+- [ ] Integrate the host into UPS monitoring and graceful-shutdown design.
 
-The first capacity review resulted in increasing `mon01` from 2 GB to 3 GB RAM after monitoring showed limited headroom. The current host remains suitable for the deployed DNS and monitoring workloads, but memory and local storage remain the primary growth constraints.
+The first capacity review increased `mon01` from 2 GB to 3 GB RAM after monitoring showed limited headroom. The host remains suitable for the current DNS and monitoring workloads, but memory and local storage remain the main growth constraints.
 
 ## Validation
 
-This decision is validated over time by tracking:
+Current evidence:
 
-- Host stability.
-- Resource utilization.
-- VM performance.
-- Ease of maintenance.
-- Backup and restore reliability.
-- Management-access security and recoverability.
-- Whether future workloads exceed the hardware limits.
-
-Current validation evidence:
-
-- `dns01` and `mon01` are active on the host.
-- Node Exporter exposes `pve01` Linux host metrics to Prometheus and Grafana.
-- Monitoring identified and justified a resource adjustment for `mon01`.
-- The host has sufficient capacity for the current foundation while retaining limited headroom.
+- `dns01` and `mon01` are active.
+- Node Exporter exposes `pve01` Linux metrics to Prometheus and Grafana.
+- Monitoring identified and justified the `mon01` memory increase.
 - Proxmox management uses named routine administration, a protected root break-glass path, TOTP, and independent recovery keys.
-- Project 003A documented service recovery state and protected application-level exports.
+- A dedicated 5 TB external backup target is active.
+- Daily backups protect `dns01` and `mon01`.
+- `dns01` was restored to an isolated temporary VM and locally validated.
+- The temporary restore VM was removed after testing.
 
 Remaining validation gaps:
 
-- Protected VM backups are not yet operational.
-- No representative VM restore has been completed.
-- Proxmox platform-specific monitoring is not yet implemented.
-- The host's role after the future server is validated has not been decided.
-- Coordinated UPS-backed shutdown is not yet implemented.
+- Proxmox platform-specific monitoring is not implemented.
+- `mon01` has not been independently restored.
+- The host's role after future-server validation is undecided.
+- Coordinated UPS-backed shutdown is not implemented.
 
-If the active host becomes a bottleneck or changes role, a future ADR must document whether to retain it as primary, add another Proxmox node, migrate stable workloads, or repurpose it.
+A future ADR must document whether to retain the ThinkPad as primary, add another node, migrate stable workloads, or repurpose it.
 
 ## Related Documentation
 
@@ -128,3 +118,4 @@ If the active host becomes a bottleneck or changes role, a future ADR must docum
 - [Future Virtualization Server Build](../hardware/server-build.md)
 - [Proxmox VE Platform](../services/proxmox.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
+- [ADR-0003](ADR-0003-direct-attached-proxmox-backup-storage.md)
