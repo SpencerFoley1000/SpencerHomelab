@@ -6,35 +6,35 @@ Active
 
 ## Purpose
 
-Blackbox Exporter performs service-level probes from `mon01`. Node Exporter reports the condition of a Linux host; Blackbox Exporter verifies whether a network service behaves correctly from another system's point of view.
+Blackbox Exporter performs service-level probes from `mon01`. Node Exporter reports Linux host condition; Blackbox Exporter verifies whether a network service behaves correctly from another system's perspective.
 
-The deployed DNS probes answer two separate questions:
+The deployed probes answer:
 
-- Can `dns01` resolve a public name through its configured upstream resolver?
-- Can `dns01` return the expected internal A record without depending on upstream DNS or internet connectivity?
+- Can `dns01` resolve a public name through its upstream resolver?
+- Can `dns01` return the expected internal A record without upstream DNS or internet access?
 
 ## Technology Stack
 
 | Component | Value |
 | --- | --- |
-| Service | Blackbox Exporter |
 | Package | `prometheus-blackbox-exporter` |
 | Verified version | `0.26.0-1` |
 | Host | `mon01` |
-| Operating system | Debian 13.5 |
+| Operating system | Debian 13.5 Trixie |
 | Configuration | `/etc/prometheus/blackbox.yml` |
 | Listen endpoint | `localhost:9115` |
 | Consumer | Prometheus on `mon01` |
 | Public exposure | None |
+| Backup maturity | Protected by daily `mon01` VM backup; configuration inventoried; independent restore not yet tested |
 
 ## Current Probes
 
-| Module | Prometheus job | Query scope | What success proves | Status |
-| --- | --- | --- | --- | --- |
-| `dns_udp` | `blackbox_dns` | Public A-record query | `mon01` can reach `dns01`, Pi-hole can recurse through its upstream resolver, and the public query returns successfully | Active |
-| `dns_udp_local` | `blackbox_dns_local` | Internal A-record query | `mon01` can reach `dns01` and Pi-hole returns the expected local record independently of upstream recursion | Active |
+| Module | Prometheus job | Scope | What success proves |
+| --- | --- | --- | --- |
+| `dns_udp` | `blackbox_dns` | Public A-record query | `mon01` reaches `dns01`; Pi-hole recurses through the upstream resolver; the public query succeeds |
+| `dns_udp_local` | `blackbox_dns_local` | Internal A-record query | `mon01` reaches `dns01`; Pi-hole returns the expected local record independently of upstream recursion |
 
-Both jobs target `<DNS01_IP>:53` through Blackbox Exporter on `localhost:9115`. Exact addresses and environment-specific DNS values remain private.
+Both jobs target `<DNS01_IP>:53` through `localhost:9115`. Exact addresses and private DNS values remain outside Git.
 
 ## Sanitized Configuration
 
@@ -66,58 +66,38 @@ modules:
           - '^<ESCAPED_INTERNAL_RECORD>\..*[[:space:]]IN[[:space:]]+A[[:space:]]+.*$'
 ```
 
-The local probe validates the answer section instead of accepting any `NOERROR` response. This prevents a successful result when the expected local A record is absent.
+The local probe validates the answer section instead of accepting any `NOERROR` response.
 
 ## Probe Paths
 
-Recursive DNS:
+Recursive:
 
 ```text
-Prometheus on mon01
-        |
-        | scrape /probe?module=dns_udp
-        v
-Blackbox Exporter on localhost:9115
-        |
-        | UDP DNS query
-        v
-dns01 / Pi-hole
-        |
-        | upstream recursion
-        v
-Public DNS answer
+Prometheus -> Blackbox Exporter -> dns01 / Pi-hole -> upstream resolver -> public answer
 ```
 
-Local DNS:
+Local:
 
 ```text
-Prometheus on mon01
-        |
-        | scrape /probe?module=dns_udp_local
-        v
-Blackbox Exporter on localhost:9115
-        |
-        | UDP DNS query
-        v
-dns01 / Pi-hole local record
+Prometheus -> Blackbox Exporter -> dns01 / Pi-hole -> expected local answer
 ```
 
-Separating the probes narrows incidents:
+Interpretation:
 
-- Recursive probe down, local probe up: investigate upstream resolver or internet dependencies.
-- Both probes down: investigate `dns01`, Pi-hole, routing, firewall policy, or the monitoring path.
-- Local probe down, recursive probe up: investigate Pi-hole local-record configuration or the expected answer pattern.
+- Recursive down, local up: investigate upstream resolver or internet dependencies.
+- Both down: investigate `dns01`, Pi-hole, routing, firewall policy, or monitoring path.
+- Local down, recursive up: investigate local-record configuration or answer matching.
 
 ## Safe Configuration Procedure
 
-Create a rollback copy before editing:
+Create a rollback copy:
 
 ```bash
 sudo cp /etc/prometheus/blackbox.yml \
   /etc/prometheus/blackbox.yml.bak-$(date +%Y%m%d-%H%M)
 ```
 
-Preflight a changed configuration on an unused local port before restarting the systemd service:
+Preflight on an unused local port:
 
 ```bash
 sudo timeout 3s /usr/bin/prometheus-blackbox-exporter \
@@ -125,7 +105,7 @@ sudo timeout 3s /usr/bin/prometheus-blackbox-exporter \
   --web.listen-address=127.0.0.1:19115
 ```
 
-Expected output includes `Loaded config file` and `Listening on`. The timeout sends SIGTERM after the short validation window.
+Expected output includes `Loaded config file` and `Listening on`.
 
 Apply and verify:
 
@@ -145,7 +125,7 @@ curl -sG http://localhost:9115/probe \
 grep -E '^(probe_success|probe_dns_)'
 ```
 
-Manual local-record probe:
+Manual local probe:
 
 ```bash
 curl -sG http://localhost:9115/probe \
@@ -162,7 +142,7 @@ probe_dns_query_succeeded 1
 probe_success 1
 ```
 
-Prometheus validation:
+Prometheus:
 
 ```promql
 probe_success{job="blackbox_dns"}
@@ -178,25 +158,19 @@ Both should return `1`.
 
 ### Module Indentation Failure
 
-The first local-module edit placed `dns_udp_local` at the wrong YAML level. Blackbox Exporter failed with:
+The first local module was placed at the wrong YAML level, producing an application-schema error.
 
-```text
-field dns_udp_local not found in type config.plain
-```
+Safe resolution:
 
-Resolution:
-
-1. Restore the known-good rollback copy.
-2. Confirm the service returns to `active`.
-3. Add the new module as a direct child of `modules:`.
-4. Preflight the full file on an alternate port.
-5. Restart the live service only after the preflight succeeds.
-
-This incident demonstrated that YAML can be syntactically readable while still mapping fields into the wrong application structure.
+1. Restore the known-good file.
+2. Confirm the service is active.
+3. Add the module as a direct child of `modules:`.
+4. Preflight the complete file on an alternate port.
+5. Restart production only after validation.
 
 ### Local-Only Endpoint
 
-Prometheus and Blackbox Exporter run on the same VM. `localhost:9115` is sufficient and avoids unnecessary LAN exposure.
+Prometheus and Blackbox Exporter share `mon01`, so `localhost:9115` avoids unnecessary LAN exposure.
 
 ### Layered Validation
 
@@ -204,59 +178,72 @@ Validate in this order:
 
 1. Exporter service.
 2. Module directly through `/probe`.
-3. Prometheus configuration with `promtool`.
+3. Prometheus configuration.
 4. Prometheus target and metric results.
 5. Grafana visualization.
-
-## Security Considerations
-
-- Keep Blackbox Exporter internal-only.
-- Do not expose TCP `9115` to untrusted networks.
-- Do not publish exact probe targets or internal record values when unnecessary.
-- Treat probe configuration and output as topology-revealing operational data.
-- Keep security-lab probes isolated from trusted infrastructure.
 
 ## Backup and Recovery
 
 Important state:
 
-- `/etc/prometheus/blackbox.yml`
-- Blackbox-related jobs in `/etc/prometheus/prometheus.yml`
-- Grafana panels using probe metrics
-- Sanitized documentation in this repository
+- `/etc/prometheus/blackbox.yml`.
+- Blackbox jobs in `/etc/prometheus/prometheus.yml`.
+- Grafana panels using probe metrics.
+- Sanitized documentation.
 
-The service is rebuildable, but protected VM backups and restore validation remain pending under Project 003.
+Project 003 provides:
+
+- Daily full-VM backup of `mon01`.
+- Snapshot mode with Zstandard compression.
+- Retention of 7 daily, 4 weekly, and 3 monthly backups.
+- Dedicated external storage with mount-point enforcement.
+- Configuration and dependency inventory.
 
 Recovery order:
 
-1. Restore or recreate `/etc/prometheus/blackbox.yml`.
-2. Preflight the file on an alternate port.
-3. Start and validate Blackbox Exporter.
-4. Restore or recreate both Prometheus jobs.
-5. Validate both `probe_success` series.
-6. Confirm Grafana displays recursive and local DNS state.
+1. Restore the `mon01` VM backup or rebuild Debian.
+2. Restore or recreate `blackbox.yml`.
+3. Preflight on an alternate local port.
+4. Start and validate Blackbox Exporter.
+5. Restore or recreate both Prometheus jobs.
+6. Validate both `probe_success` series.
+7. Confirm Grafana displays recursive and local DNS state.
+
+Current limitation: `mon01` has not been independently restored.
+
+## Security Considerations
+
+- Keep Blackbox Exporter internal-only.
+- Do not expose TCP `9115` to untrusted networks.
+- Do not publish exact probe targets or internal record values.
+- Treat probe configuration and output as topology-revealing.
+- Keep security-lab probes isolated from trusted infrastructure.
 
 ## Maintenance Notes
 
 - Revalidate both probes after DNS, routing, firewall, upstream-resolver, or local-record changes.
-- Keep dashboard labels aligned with actual probe scope.
-- Export affected dashboards after meaningful changes.
-- Remove temporary rollback files after a protected known-good copy exists.
+- Keep dashboard labels aligned with probe scope.
+- Confirm a recent successful `mon01` backup before major changes.
+- Remove temporary rollback files only after a protected known-good copy exists.
 - Add alerts only after response procedures are documented.
 
 ## Future Improvements
 
-- Add HTTP probes for future internal web services.
-- Add narrowly scoped ICMP or TCP probes only when they answer a defined operational question.
+- Add HTTP probes for Project 004 services.
+- Add certificate-expiry checks through an appropriate monitoring design.
+- Add narrowly scoped ICMP or TCP probes only for defined operational questions.
 - Add actionable DNS alerts with runbooks.
-- Protect configuration through Project 003 backups and restore testing.
+- Perform an independent `mon01` restore test.
 
 ## Related Documentation
 
-- [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
+- [Project 002](../projects/project-002-monitoring-observability.md)
+- [Project 003](../projects/project-003-backup-recovery.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
-- [Prometheus Service](prometheus.md)
-- [Grafana Service](grafana.md)
-- [Node Exporter Service](node-exporter.md)
-- [Pi-hole Service](pihole.md)
+- [Prometheus](prometheus.md)
+- [Grafana](grafana.md)
+- [Node Exporter](node-exporter.md)
+- [Pi-hole](pihole.md)
+- [Backup Runbook](../runbooks/backup.md)
+- [Disaster Recovery](../runbooks/disaster-recovery.md)
 - [Prometheus Scrape Target Troubleshooting](../runbooks/prometheus-scrape-target-troubleshooting.md)
