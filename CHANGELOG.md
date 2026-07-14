@@ -2,6 +2,72 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-14 - Project 003 Backup and Recovery Completion
+
+### Changed
+
+- Placed the dedicated 5 TB external backup drive into operational service.
+- Confirmed SMART overall health passed and completed an extended SMART self-test without error.
+- Replaced the factory NTFS layout with an ext4 filesystem for dedicated Proxmox backup use.
+- Configured a persistent filesystem-UUID mount while retaining the exact UUID and device identity privately.
+- Registered the drive as Proxmox directory storage restricted to backup artifacts.
+- Enabled mount-point enforcement so an absent external disk cannot silently redirect backup writes into the host root filesystem.
+- Completed initial snapshot-mode, Zstandard-compressed backups for `dns01` and `mon01`.
+- Configured daily backups at 10:00 local time with retention of 7 daily, 4 weekly, and 3 monthly backups.
+- Restored `dns01` to a temporary VM without overwriting the active guest.
+- Removed the restored VM's network adapter before boot to prevent duplicate address and service conflicts.
+- Confirmed the restored Debian guest booted, mounted its filesystem, and reported `pihole-FTL` and Node Exporter active.
+- Removed the temporary restored VM after validation.
+- Marked Project 003 completed and moved the primary roadmap focus to Project 004 reverse proxy and internal HTTPS.
+- Added a tested Proxmox VM restore runbook.
+- Added ADR-0003 documenting the direct-attached backup and layered recovery design.
+- Added a dated Project 003 completion change record.
+- Synchronized repository entry points, storage architecture, VM inventory, hardware inventory, Proxmox service documentation, runbook indexes, project indexes, roadmap, and recovery documentation.
+
+### Why
+
+- Stable infrastructure VMs required scheduled recovery points separate from the active VM datastore.
+- A missing removable backup disk must cause visible failure rather than unexpected consumption of the Proxmox root filesystem.
+- Tiered retention provides recent and historical recovery points without unlimited full-backup growth.
+- A successful backup job is incomplete evidence until a restoration path is exercised.
+- Whole-VM backups, portable application exports, configuration inventories, and runbooks solve different recovery problems and provide stronger coverage together.
+
+### Validation
+
+- Drive health: SMART passed.
+- Extended drive self-test: completed without error.
+- Filesystem: ext4 mounted with expected multi-terabyte usable capacity.
+- Proxmox storage: active, backup-only, and mount-point protected.
+- Initial backup coverage: `dns01` and `mon01` completed successfully.
+- Scheduled job: enabled for both VMs using snapshot mode and Zstandard compression.
+- Retention: 7 daily, 4 weekly, and 3 monthly.
+- Restore: `dns01` reconstructed under a temporary VM ID on normal VM storage.
+- Isolation: restored network adapter removed before startup.
+- Guest state: Debian booted; root filesystem present; Pi-hole FTL active; Node Exporter active.
+- Cleanup: temporary restore VM deleted after shutdown.
+
+### Lessons Learned
+
+- Positive device identification must precede every destructive disk operation.
+- Manufacturer decimal capacity and Linux binary capacity reporting differ as expected.
+- SMART health plus an extended self-test provides stronger initial evidence than formatting alone.
+- UUID mounting is safer than depending on `/dev/sdX` naming.
+- Proxmox mount-point enforcement is an important safeguard for removable backup storage.
+- Restore tests should use a different VM ID and network isolation while the production guest remains online.
+- Local boot and service state do not prove end-to-end network behavior; validation boundaries must be documented honestly.
+- Backup maturity should be recorded per VM: `dns01` is restore-tested, while `mon01` currently has successful backup coverage without an independent restore test.
+
+### Remaining Work
+
+- Observe scheduled job execution and pruning over time.
+- Add backup-age, task-failure, and capacity monitoring through a least-privilege Proxmox integration.
+- Define an actionable backup-job failure notification path.
+- Perform an independent `mon01` restore test when operationally useful.
+- Perform a controlled network-connected `dns01` recovery test when duplicate identity risk can be eliminated.
+- Export and privately validate the Homelab Infrastructure Overview dashboard.
+- Evaluate an offline, rotated, off-site, NAS, or Proxmox Backup Server copy when justified.
+- Begin Project 004 reverse proxy and internal HTTPS.
+
 ## 2026-07-12 - Proxmox Security Hardening, Hardware Acquisition, and Documentation Synchronization
 
 ### Changed
