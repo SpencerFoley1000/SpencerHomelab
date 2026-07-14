@@ -2,44 +2,51 @@
 
 ## Purpose
 
-This document describes the virtualization design for the homelab. It focuses on the role of Proxmox VE, the current workload model, platform security, monitoring boundaries, and the operational assumptions that should guide future VM, container, and host decisions.
+Describe the homelab virtualization design, Proxmox platform role, workload model, security controls, monitoring boundaries, backup architecture, and future host transition.
 
 ## Current Status
 
-Proxmox VE is the active virtualization platform. The environment currently runs two production-style infrastructure VMs and is preparing for a future dedicated virtualization server.
+Proxmox VE is the active virtualization platform. Two stable infrastructure VMs run on `pve01`, and hardware has been acquired for a future dedicated server.
 
 Current priorities:
 
-- Keep the active Proxmox host reachable, secure, monitored, and documented.
-- Track active VMs in the [VM Inventory](vm-inventory.md).
-- Keep DNS and monitoring responsibilities on separate systems.
-- Install QEMU Guest Agent on stable Linux VMs where supported.
-- Complete Project 003 VM backup and restore validation.
+- Keep `pve01` reachable, secure, monitored, backed up, and documented.
+- Track every persistent VM in the [VM Inventory](vm-inventory.md).
+- Keep DNS and monitoring on separate guests.
+- Include stable VMs in backup and recovery planning before considering deployment complete.
+- Complete Project 004 reverse proxy and internal HTTPS.
 - Assemble and validate the future server before assigning it a production role.
 - Prevent experimental workloads from consuming resources required by core infrastructure.
 
 ## Active Platform
 
-| Area | Current State |
+| Area | Current state |
 | --- | --- |
 | Hypervisor | Proxmox VE `9.2.2` |
 | Debian base | Debian 13 Trixie |
 | Running kernel | `7.0.2-6-pve` |
-| Active host | Lenovo ThinkPad E16 Gen 1, documented as `pve01` |
-| Primary role | Run stable infrastructure VMs and future lab workloads |
-| Management access | Internal network only; exact endpoint omitted |
+| Active host | Lenovo ThinkPad E16 Gen 1, `pve01` |
+| Management access | Internal-only |
 | Administrative model | Named routine administrator plus root break-glass identity, both protected by TOTP and independent recovery keys |
-| Current storage | Local 1 TB PCIe SSD |
-| Host monitoring | Active through Node Exporter, Prometheus, and Grafana |
-| Backup status | Project 003A readiness complete; VM backups and restore testing pending |
+| Local storage | 1 TB PCIe SSD |
+| Backup storage | Dedicated 5 TB external ext4 target |
+| Host monitoring | Node Exporter, Prometheus, and Grafana |
+| Backup status | Daily backups active for `dns01` and `mon01`; isolated `dns01` restore tested |
 
-The exact bridge names, addresses, storage identifiers, VM IDs, authentication seeds, and recovery material remain private.
+Exact bridges, addresses, VM IDs, storage identifiers, drive UUIDs, authentication material, and backup filenames remain private.
+
+## Current Workloads
+
+| VM | Role | Status | Backup maturity |
+| --- | --- | --- | --- |
+| `dns01` | Pi-hole DNS, local records, and Node Exporter | Active | Daily backup; isolated whole-VM restore tested 2026-07-14 |
+| `mon01` | Prometheus, Grafana, Node Exporter, and Blackbox Exporter | Active | Daily backup; independent restore not yet tested |
+
+See [VM Inventory](vm-inventory.md) for resources, monitoring coverage, and recovery priority.
 
 ## Planned Dedicated Server
 
-Hardware has been acquired for a future dedicated virtualization server.
-
-Current known configuration:
+Acquired baseline:
 
 | Component | Sanitized specification |
 | --- | --- |
@@ -50,197 +57,188 @@ Current known configuration:
 | Power supply | Existing 500 W unit |
 | Chassis | Existing NZXT H510 |
 | Planned local storage | Two existing 1 TB NVMe devices |
-| Known limitation | One inner DIMM slot is nonfunctional; CPU and 32 GB memory were detected in seller validation |
-| Current status | Acquired; assembly and local validation pending |
+| Known limitation | One inner DIMM slot reported nonfunctional |
+| Status | Acquired; assembly and local validation pending |
 
-The future server is not considered production infrastructure until it passes:
+The future server is not production infrastructure until it passes:
 
 - Visual inspection and assembly validation.
 - CPU and memory detection checks.
-- Stability and temperature testing.
-- Storage-health validation.
+- Memory stability and thermal testing.
+- Storage-health validation and layout selection.
 - Network validation.
-- Hypervisor installation and management-access validation.
+- Hypervisor installation and security baseline.
 - Monitoring and backup integration.
+- Power measurement and operational review.
 
-A future ADR should decide whether this server replaces the ThinkPad, supplements it as another node, or changes the ThinkPad to a secondary role.
-
-## Current Workloads
-
-| VM | Role | Status | Notes |
-| --- | --- | --- | --- |
-| `dns01` | Pi-hole DNS server | Active | Provides internal DNS records, DNS filtering, Node Exporter metrics, and recursive/local DNS probe targets |
-| `mon01` | Monitoring and observability | Active | Runs Prometheus, Grafana, Node Exporter, and Blackbox Exporter |
-
-See the [VM Inventory](vm-inventory.md) for current resource allocations, backup maturity, monitoring coverage, and recovery priority.
+A future ADR must decide whether it replaces the ThinkPad, supplements it, or changes the ThinkPad to a secondary role.
 
 ## Design Goals
 
 - Provide a flexible platform for infrastructure services and lab workloads.
-- Practice VM lifecycle management, capacity planning, backups, and recovery.
 - Keep core infrastructure separate from experimental systems.
-- Avoid making the hypervisor dependent on undocumented manual changes.
-- Support future automation without requiring automation before the environment is understood.
+- Practice VM lifecycle, capacity, backup, and recovery operations.
 - Make workload criticality and restore order explicit.
-- Treat host transitions as documented migrations rather than informal hardware swaps.
+- Avoid undocumented hypervisor changes.
+- Support automation only after the manual design is understood.
+- Treat host transitions as documented migrations rather than hardware swaps.
 
 ## Workload Categories
 
 | Category | Examples | Stability expectation |
 | --- | --- | --- |
-| Core infrastructure | DNS, monitoring, backup services, management tooling | Stable, monitored, documented, and backed up after Project 003 |
-| Lab services | Reverse proxy, internal applications, dashboards | Documented but may change frequently |
-| Security lab | Attacker machines, vulnerable VMs, detection engineering projects | Isolated and clearly labeled |
-| Temporary experiments | Short-lived tests and proofs of concept | Disposable unless promoted to a documented service |
+| Core infrastructure | DNS, monitoring, backup-related tooling, management services | Stable, monitored, documented, and backed up |
+| Lab services | Reverse proxy, internal applications, dashboards | Documented and recoverable; may evolve frequently |
+| Security lab | Attacker systems, vulnerable VMs, detection projects | Isolated and clearly labeled |
+| Temporary experiments | Short-lived tests and proofs of concept | Disposable unless promoted through documentation and onboarding |
+
+## VM Onboarding Standard
+
+Before a persistent VM is considered complete:
+
+- Assign a role-based hostname.
+- Record purpose, operating system, resources, storage, and network placement.
+- Configure non-root administration where appropriate.
+- Install QEMU Guest Agent when supported.
+- Add host or service monitoring.
+- Define recovery priority and dependencies.
+- Add backup coverage.
+- Document validation and security considerations.
+- Update the VM inventory, project page, service page, roadmap, and changelog as applicable.
 
 ## Naming Convention
 
-Current pattern:
+Use:
 
 ```text
 <role><number>
 ```
 
-Examples:
+Examples include `dns01`, `mon01`, `proxy01`, `pbs01`, and `sec-lab01`.
 
-- `dns01`
-- `mon01`
-- `pbs01`
-- `proxy01`
-- `sec-lab01`
+Avoid personal names, family names, locations, or identifying labels in public VM names.
 
-Avoid personal names, family names, locations, or identifying labels in VM names committed to public documentation.
+## Resource Allocation
 
-## Resource Allocation Strategy
-
-Resource allocation starts conservative and is adjusted using observed behavior.
+Resource allocation starts conservatively and changes based on observed behavior.
 
 Current lessons:
 
-- `mon01` memory was increased from 2 GB to 3 GB after Grafana showed limited headroom.
-- Monitoring infrastructure should be sized using observed usage rather than assumptions alone.
-- The active Proxmox host has 16 GB RAM, so stable services require deliberate capacity planning.
-- The future server's 32 GB baseline provides additional capacity but does not eliminate the need for workload prioritization.
-- The failed DIMM slot reduces maximum memory flexibility and must be documented during future expansion.
-
-Guidelines:
-
-- Keep enough host memory and CPU available for Proxmox management and emergency access.
-- Document unusually large or changed allocations.
-- Give core infrastructure priority over experiments.
-- Avoid adding persistent workloads without checking host capacity.
-- Reassess storage before VM disks and monitoring retention consume most local capacity.
-- Validate hardware limits before purchasing upgrades.
+- `mon01` increased from 2 GB to 3 GB RAM after Grafana showed limited headroom.
+- The current host's 16 GB RAM is the main workload-growth constraint.
+- Core infrastructure receives priority over experiments.
+- Host capacity must remain available for Proxmox management and recovery.
+- The future server's 32 GB baseline improves capacity but does not eliminate planning.
+- The failed DIMM slot must be validated before memory expansion decisions.
 
 ## Networking Model
 
-Current model:
-
 - Core infrastructure VMs connect to the homelab LAN.
-- Static addressing is used for foundational services.
+- Foundational services use static addressing.
 - Internal DNS records are managed through Pi-hole.
-- Exact bridge names, addresses, VM IDs, and MAC addresses are sanitized.
+- Public documentation sanitizes bridge names, addresses, VM IDs, and MAC addresses.
 - `mon01` scrapes Node Exporter on `dns01` and `pve01`.
-- `mon01` probes both recursive and local DNS behavior on `dns01`.
+- `mon01` probes recursive and local DNS behavior on `dns01`.
+- Security-lab networking remains a future isolation project.
 
-Future documentation should include:
-
-- Sanitized Proxmox bridge roles.
-- VLAN-aware bridge configuration if implemented.
-- Management-network placement.
-- Allowed VM groups on each network segment.
-- Security-lab isolation boundaries.
-- Network placement for the future dedicated server.
+Project 004 will add a reverse proxy and internal HTTPS. Its network placement, DNS names, certificate trust, and service dependencies must be documented before it becomes foundational infrastructure.
 
 ## Guest Integration
 
 QEMU Guest Agent is installed on `dns01` and `mon01`.
 
-The agent depends on both:
+It depends on:
 
 - The guest package and systemd service.
 - The Proxmox-provided virtio serial device.
 
-A full Proxmox stop/start may be required after enabling virtual hardware. The operational procedure is documented in the [QEMU Guest Agent Troubleshooting Runbook](../runbooks/qemu-guest-agent-troubleshooting.md).
+A full Proxmox stop/start may be required after enabling the virtual hardware. See [QEMU Guest Agent Troubleshooting](../runbooks/qemu-guest-agent-troubleshooting.md).
 
 ## Monitoring
 
-Current monitoring includes:
+Current monitoring:
 
 - Node Exporter on `pve01`, `dns01`, and `mon01`.
 - Prometheus target health for all three systems.
 - Grafana CPU, memory, filesystem, network, and uptime views.
-- Recursive and local DNS service probes for `dns01`.
+- Recursive and local DNS probes for `dns01`.
 
-Node Exporter on `pve01` provides Linux operating-system metrics. It does not provide authoritative:
+Node Exporter on `pve01` does not provide authoritative:
 
 - VM or container state.
 - Storage-pool health.
 - Proxmox task results.
-- Backup-job status.
+- Backup-job success or age.
 - Cluster or quorum state.
 - Replication or migration state.
 
-Proxmox platform metrics remain a separate future integration requiring a documented least-privilege identity.
+Future Proxmox platform monitoring requires a documented least-privilege identity.
 
 ## Backup and Recovery
 
-Project 003A completed:
+Project 003 implemented:
 
-- Recovery inventories for `dns01` and `mon01`.
-- Private Pi-hole Teleporter export creation and inspection.
-- Private Grafana dashboard export creation and inspection.
-- Prometheus, Blackbox Exporter, Grafana, and Node Exporter state classification.
-- Preliminary manual recovery notes.
+- A dedicated 5 TB external ext4 backup target.
+- Persistent UUID-based mounting.
+- Proxmox backup-only directory storage.
+- Mount-point enforcement.
+- Daily snapshot-mode backups with Zstandard compression.
+- Retention of 7 daily, 4 weekly, and 3 monthly backups.
+- Initial successful backups for `dns01` and `mon01`.
+- A successful isolated `dns01` whole-VM restore.
+- Tested backup and restore runbooks.
 
-The 5 TB external drive has been acquired but is not yet integrated as Proxmox backup storage.
+Restore testing used a temporary VM ID and removed the virtual network adapter before boot. It proved VM reconstruction, Debian boot, filesystem availability, Pi-hole FTL startup, and Node Exporter startup. It did not prove network-facing DNS or monitoring behavior.
 
 Current recovery priority:
 
 1. Restore physical networking and Proxmox management access.
-2. Restore `dns01` and validate public and local DNS.
-3. Restore `mon01` and validate Prometheus, both Blackbox jobs, and Grafana.
-4. Confirm monitoring observes all restored systems.
-5. Restore lower-priority lab and experimental workloads.
-
-Project 003 must still define backup scheduling, retention, protected VM coverage, backup-health validation, and a representative isolated restore test.
+2. Confirm local and backup storage.
+3. Restore `dns01` and validate public plus local DNS.
+4. Restore `mon01` and validate Prometheus, both Blackbox jobs, and Grafana.
+5. Confirm monitoring observes all restored systems.
+6. Restore lower-priority workloads.
 
 ## Security Considerations
 
-- Do not expose Proxmox management directly to the internet.
-- Use a named routine administrator and reserve the root identity for break-glass and root-only work.
-- Store passwords, TOTP seeds, recovery keys, API credentials, and private keys outside the repository.
-- Limit administrative access to trusted devices and future management networks.
-- Keep security-lab workloads isolated from trusted infrastructure.
-- Document privileged containers, passthrough devices, or unusual VM permissions.
-- Apply Proxmox and guest updates through a deliberate maintenance process.
-- Avoid publishing VM IDs, exact addresses, MAC addresses, storage identifiers, or raw configuration exports.
-- Introduce platform-monitoring credentials only through a least-privilege design.
+- Do not expose Proxmox management publicly.
+- Use the named routine administrator and reserve root for break-glass work.
+- Store credentials, TOTP material, recovery keys, API credentials, and private keys outside Git.
+- Keep backup storage away from attacker-style workloads.
+- Limit administrative access to trusted systems and future management networks.
+- Document privileged containers, passthrough, nesting, and unusual permissions.
+- Avoid publishing VM IDs, addresses, MAC addresses, storage identifiers, or raw configuration exports.
+- Introduce platform-monitoring credentials only through least privilege.
 
 ## Maintenance Notes
 
-Proxmox maintenance procedures should document:
+Before major hypervisor work:
 
-- Installed version and update process.
-- Backup checks before major changes.
-- VM shutdown and startup order.
-- Host reboot expectations.
-- Validation of `dns01`, `mon01`, and `pve01` monitoring after maintenance.
-- TOTP and system-time validation.
-- Recovery steps if management access is lost.
+- Confirm a recent successful backup.
+- Confirm the external target is truly mounted and active.
+- Record VM shutdown and startup order.
+- Review available host resources.
+- Preserve management and physical-console access.
 
-The [VM Provisioning Runbook](../runbooks/vm-provisioning.md) provides the current baseline checklist for new VMs.
+After maintenance:
+
+- Validate `dns01`, `mon01`, and `pve01` monitoring.
+- Confirm system time and TOTP authentication.
+- Confirm backup storage remounts.
+- Review the next scheduled backup.
+- Re-test recovery after major storage, hypervisor, or migration changes.
 
 ## Future Improvements
 
-- Document the sanitized bridge and storage layout.
+- Complete Project 004 reverse proxy and internal HTTPS.
+- Document sanitized bridge and local-storage layouts.
+- Add Proxmox VM, storage, task, and backup metrics.
 - Add a tested Proxmox maintenance and management-access recovery runbook.
-- Complete backup and restore validation under Project 003.
-- Add Proxmox-specific platform metrics through least-privilege integration.
-- Assemble and validate the future dedicated server.
-- Create an ADR defining the future relationship between the ThinkPad and dedicated server.
+- Perform an independent `mon01` restore test.
+- Add a second backup copy in a separate failure domain.
+- Assemble and validate the future server.
+- Create the future host-role and migration ADR.
 - Integrate power measurement, UPS monitoring, and graceful shutdown.
-- Add ADRs for future clustering, storage, networking, or container decisions.
 
 ## Related Documentation
 
@@ -251,7 +249,9 @@ The [VM Provisioning Runbook](../runbooks/vm-provisioning.md) provides the curre
 - [Monitoring Architecture](monitoring.md)
 - [Security Architecture](security.md)
 - [Proxmox Platform](../services/proxmox.md)
-- [Pi-hole Service](../services/pihole.md)
-- [Current Proxmox Host Hardware](../hardware/server.md)
-- [Future Virtualization Server Hardware](../hardware/server-build.md)
-- [Hardware Inventory](../hardware/inventory.md)
+- [Current Proxmox Host](../hardware/server.md)
+- [Future Virtualization Server](../hardware/server-build.md)
+- [Project 003](../projects/project-003-backup-recovery.md)
+- [ADR-0003](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
+- [Backup Runbook](../runbooks/backup.md)
+- [Proxmox VM Restore](../runbooks/proxmox-vm-restore.md)
