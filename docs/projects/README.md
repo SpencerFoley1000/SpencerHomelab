@@ -2,7 +2,7 @@
 
 This directory tracks meaningful homelab projects from planning through implementation and follow-up work.
 
-Projects are stored as numbered Markdown files in this directory. Each project page records its lifecycle status so the repository remains simple to navigate as it grows.
+Projects are stored as numbered Markdown files. Each page records its lifecycle status so the repository remains simple to navigate as it grows.
 
 ## Project Documentation Standard
 
@@ -28,7 +28,7 @@ Use the [Project Template](TEMPLATE.md) when starting a new project.
 | [Project 001: Pi-hole DNS Service](project-001-pihole-dns.md) | Completed | Deployed `dns01` and established Pi-hole as the first production-style homelab service. |
 | [Project 002: Monitoring and Observability Stack](project-002-monitoring-observability.md) | Active — foundation complete | Three-host metrics, recursive and local DNS probes, and operational dashboards are active; application/platform metrics and alerting remain follow-up work. |
 | [Project 003: Backup and Recovery](project-003-backup-recovery.md) | Completed | Added dedicated backup storage, daily VM backups, tiered retention, and a validated isolated `dns01` restore path. |
-| Project 004: Reverse Proxy and Internal HTTPS | Planned — next focus | Add friendly internal names, reverse proxying, internal TLS, certificate lifecycle documentation, and monitoring. |
+| [Project 004: Reverse Proxy and Internal HTTPS](project-004-reverse-proxy-internal-https.md) | Planned — next focus | Add friendly internal names, reverse proxying, internal TLS, trust lifecycle documentation, monitoring, and tested recovery. |
 | Infrastructure Milestone: Future Virtualization Server | Acquired / pre-deployment | Assemble and validate the X299 server before deciding its production role. |
 | Project 005: Power Resilience and Graceful Shutdown | Planned | Measure power, select a UPS, monitor it, and implement orderly shutdown before centralized identity services. |
 | Project 006: Active Directory and Centralized Identity | Planned | Deploy identity services only after the new server and power-protection controls are operational. |
@@ -39,9 +39,9 @@ Use the [Project Template](TEMPLATE.md) when starting a new project.
 | --- | --- |
 | Planned | Approved future work that has not started |
 | Active | Work is currently being implemented or validated |
-| Completed | Intended project scope is complete; follow-up improvements may remain |
+| Completed | Intended scope is complete; follow-up improvements may remain |
 | Paused | Work is intentionally deferred |
-| Blocked | Work is approved but cannot proceed until a documented dependency is available |
+| Blocked | Work cannot proceed until a documented dependency is available |
 | Retired | The project or resulting infrastructure is no longer active |
 
 A project may be completed while clearly documented operational improvements remain. Follow-up work must not be mislabeled as completed validation.
