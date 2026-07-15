@@ -4,22 +4,47 @@ This roadmap tracks planned homelab work at a high level. Detailed implementatio
 
 ## Current Focus
 
-- Begin Project 004 reverse proxy and internal HTTPS implementation.
-- Select NGINX Proxy Manager or an equivalent reverse proxy based on documented requirements.
-- Define friendly internal service names without exposing private DNS details publicly.
-- Select and document the internal certificate-authority and trust-distribution model.
-- Implement HTTPS for selected internal services.
-- Document certificate issuance, renewal, backup, and recovery.
-- Monitor proxy availability and certificate expiration after deployment.
-- Export and privately validate the Homelab Infrastructure Overview dashboard.
-- Add alerting only after each condition has a clear response and supporting runbook.
-- Assemble and validate the acquired X299 virtualization server after Project 004 is complete unless hardware timing justifies an explicitly documented sequencing change.
+- Assemble and validate the acquired X299 virtualization server.
+- Verify CPU, memory, thermals, storage, network connectivity, and the reported failed DIMM slot.
 - Decide the long-term relationship between the ThinkPad host and new server through an ADR.
+- Integrate the future server with monitoring and backup only after local validation passes.
 - Complete Project 005 power resilience, UPS monitoring, and graceful shutdown automation before centralized identity services.
+- Measure combined power consumption before final UPS sizing.
+- Export and privately validate the updated Homelab Infrastructure Overview dashboard.
+- Create a second encrypted or offline root CA private-key copy in a separate failure domain.
+- Add alerting only after each condition has a clear response and supporting runbook.
 - Begin Project 006 Active Directory only after the new server and power-protection controls are operational.
 - Continue maintaining public, sanitized, portfolio-quality documentation after meaningful changes.
 
 ## Recently Completed Work
+
+### Project 004: Reverse Proxy and Internal HTTPS
+
+Project 004 delivered:
+
+- Dedicated reverse-proxy VM: `proxy01`.
+- Debian 13, QEMU Guest Agent, Node Exporter, Docker Engine, and Docker Compose.
+- NGINX Proxy Manager with persistent state.
+- Friendly `lab.home.arpa` service names through Pi-hole.
+- Internal HTTPS for Grafana and Pi-hole administration.
+- An encrypted private root CA key kept off the proxy.
+- A wildcard service certificate for `*.lab.home.arpa` and `lab.home.arpa`.
+- Trusted root CA installation on Windows and `mon01`.
+- HTTP-to-HTTPS redirects and a Pi-hole root-path redirect.
+- `proxy01` host metrics.
+- Blackbox HTTPS and certificate-expiration monitoring.
+- Grafana panels for HTTPS availability and certificate days remaining.
+- Daily Proxmox backup coverage.
+- A successful isolated whole-VM restore of `proxy01`.
+- NGINX Proxy Manager service documentation, certificate lifecycle runbook, ADR-0004, and a dated completion record.
+
+Remaining improvements are follow-up hardening rather than Project 004 blockers:
+
+- Create a second protected root CA key copy.
+- Define a formal renewal calendar and ownership process.
+- Add certificate-expiration alerts after notification routing exists.
+- Restrict proxy administration through future segmentation.
+- Re-evaluate wildcard certificates as the service count grows.
 
 ### Project 003: Backup and Recovery
 
@@ -31,15 +56,15 @@ Project 003 delivered:
 - SMART validation and an extended drive self-test.
 - ext4 filesystem and persistent UUID-based mounting.
 - Proxmox backup-only directory storage with mount-point enforcement.
-- Initial successful VM backups for `dns01` and `mon01`.
-- A daily backup job using snapshot mode and Zstandard compression.
+- Daily VM backups using snapshot mode and Zstandard compression.
 - Retention of 7 daily, 4 weekly, and 3 monthly backups.
 - A successful isolated `dns01` whole-VM restore.
-- Validation of Debian boot, filesystem availability, Pi-hole FTL, and Node Exporter.
 - A tested Proxmox VM restore runbook.
 - ADR-0003 documenting the initial backup architecture.
 
-Remaining backup improvements are operational follow-up rather than Project 003 blockers:
+Project 004 extended the same backup design to `proxy01` and completed a second isolated restore test.
+
+Remaining backup improvements:
 
 - Monitor backup age, job results, pruning, and capacity.
 - Define an actionable failure-notification path.
@@ -53,12 +78,13 @@ Project 002 has delivered:
 - Dedicated monitoring VM: `mon01`.
 - Prometheus metrics collection and PromQL validation.
 - Grafana dashboarding.
-- Node Exporter host metrics for `mon01`, `dns01`, and `pve01`.
+- Node Exporter host metrics for `mon01`, `dns01`, `pve01`, and `proxy01`.
 - Linux operating-system monitoring for the Proxmox host without API credentials.
 - Recursive DNS monitoring through `dns01` and its upstream resolver.
 - Local-record DNS monitoring independent of upstream recursion.
+- Internal HTTPS and certificate-expiration monitoring through `proxy01`.
 - Homelab Service Health dashboard.
-- Homelab Infrastructure Overview with host availability, CPU, memory, filesystem, uptime, recursive DNS, local DNS, and probe-duration panels.
+- Homelab Infrastructure Overview with host, DNS, HTTPS, and certificate panels.
 - Prometheus scrape-target troubleshooting documentation based on a real incident.
 - Blackbox Exporter configuration validation using rollback and alternate-port preflight testing.
 
@@ -83,17 +109,18 @@ Operational foundation:
 - Grafana
 - Node Exporter
 - Blackbox Exporter
-- Host metrics for `mon01`, `dns01`, and `pve01`
+- Four-host metrics
 - Recursive and local DNS probes
+- Internal HTTPS and certificate probes
 - Service-health and infrastructure-overview dashboards
 
 Remaining improvements:
 
-- Export the infrastructure overview as a private recovery artifact.
+- Refresh the infrastructure overview private recovery export.
 - Add Pi-hole-specific application metrics.
 - Add Proxmox VM, storage, task, and backup metrics through least-privilege integration.
 - Add backup-age and backup-failure monitoring.
-- Add alerting after runbooks exist.
+- Add alerting after runbooks and notification routing exist.
 
 ### 2. Project 003: Backup and Recovery — Completed
 
@@ -101,9 +128,9 @@ Completed scope:
 
 - Integrated the 5 TB external backup target.
 - Configured backup scheduling, retention, and pruning.
-- Completed initial backups for core VMs.
-- Completed representative isolated restore testing.
-- Finalized the operational backup and restore runbooks.
+- Completed backup coverage for `dns01`, `mon01`, and later `proxy01`.
+- Completed representative isolated restore testing for `dns01` and `proxy01`.
+- Finalized operational backup and restore runbooks.
 - Added a backup architecture ADR and dated change record.
 
 Future improvements:
@@ -112,16 +139,25 @@ Future improvements:
 - Independently restore-test `mon01`.
 - Evaluate an offline, rotated, off-site, NAS, or Proxmox Backup Server copy.
 
-### 3. Project 004: Reverse Proxy and Internal HTTPS
+### 3. Project 004: Reverse Proxy and Internal HTTPS — Completed
 
-- Select NGINX Proxy Manager or an equivalent reverse proxy.
-- Provide friendly internal hostnames.
-- Implement internal HTTPS.
-- Define the internal CA and client trust model.
-- Document certificate issuance, renewal, revocation, backup, and recovery.
-- Avoid placing the proxy in front of services where it creates unnecessary risk or dependency.
-- Monitor proxy availability and certificate expiration.
-- Add service and disaster-recovery dependencies to current documentation.
+Completed scope:
+
+- Selected and deployed NGINX Proxy Manager.
+- Added friendly internal hostnames.
+- Implemented internal HTTPS.
+- Defined the private CA and client trust model.
+- Documented certificate issuance, renewal, replacement, backup, and recovery.
+- Preserved direct backend and Proxmox recovery paths.
+- Monitored proxy host availability, HTTPS endpoints, and certificate expiration.
+- Added backup coverage and completed isolated restore validation.
+
+Future improvements:
+
+- Add a second protected root CA key copy.
+- Add actionable certificate alerts.
+- Introduce future segmentation and narrower firewall policy.
+- Evaluate per-service certificates and configuration automation when justified.
 
 ### 4. Infrastructure Milestone: New Virtualization Server
 
@@ -189,6 +225,7 @@ Required work:
 - Initial network documentation.
 - Virtualization host setup and documentation.
 - Project 001: Pi-hole DNS service on `dns01`.
-- Project 002 monitoring foundation: Prometheus, Grafana, Node Exporter, Blackbox Exporter, three-host metrics, recursive and local DNS probing, service-health visualization, and a custom infrastructure overview dashboard.
+- Project 002 monitoring foundation: Prometheus, Grafana, Node Exporter, Blackbox Exporter, four-host metrics, DNS and internal HTTPS probing, certificate metrics, service-health visualization, and a custom infrastructure overview dashboard.
 - Project 003: dedicated backup storage, automatic VM backups, tiered retention, and representative restore validation.
+- Project 004: reverse proxy, friendly internal DNS, private-CA HTTPS, monitoring, backup, and restore validation.
 - Proxmox administrative authentication hardening with named routine administration, TOTP, recovery keys, and break-glass access.
