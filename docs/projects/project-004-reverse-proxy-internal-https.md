@@ -4,283 +4,287 @@
 
 | Area | Details |
 | --- | --- |
-| Status | Planned — next focus |
-| Start date | Pending |
+| Status | Completed — operational baseline |
+| Completion date | 2026-07-14 |
 | Owner | Homelab administrator |
-| Dependencies | Stable DNS, monitoring, Proxmox backup and recovery |
-| Candidate technologies | NGINX Proxy Manager, NGINX, Caddy, or equivalent |
+| Dependencies | Pi-hole local DNS, `mon01` monitoring, Proxmox backup and recovery |
+| Platform | NGINX Proxy Manager on dedicated Debian VM |
+| Certificate model | Private root CA with wildcard internal service certificate |
 
-Project 004 begins only after Project 003 backup and recovery closeout. The required recovery foundation is now operational.
+Project 004 delivered internal reverse proxying, friendly service names, trusted HTTPS, certificate-lifecycle documentation, monitoring, backup coverage, and representative recovery validation.
+
+Follow-up hardening remains documented separately and does not invalidate the completed operational baseline.
 
 ## Purpose
 
-Provide friendly internal service names and trusted HTTPS for selected homelab web interfaces without exposing them publicly or turning the reverse proxy into an undocumented dependency.
+Provide memorable internal service names and trusted HTTPS for selected homelab web interfaces without exposing them publicly or making the proxy an undocumented single recovery dependency.
 
-The project should demonstrate:
+The project demonstrates:
 
 - Reverse-proxy architecture.
 - Internal DNS integration.
 - TLS and certificate lifecycle management.
-- Trust distribution.
+- Private trust distribution.
 - Service dependency analysis.
-- Monitoring and recovery design.
+- Host and service monitoring.
+- Backup and isolated restore testing.
 - Security-conscious public documentation.
 
-## Goals
-
-- Select a reverse-proxy platform based on documented requirements.
-- Deploy the proxy as a dedicated, monitored workload.
-- Define a safe internal naming pattern.
-- Provide HTTPS for selected internal services.
-- Select and document an internal certificate-authority model.
-- Define how trusted clients receive the CA certificate.
-- Document certificate issuance, renewal, revocation, backup, and recovery.
-- Monitor proxy availability and certificate expiration.
-- Preserve direct administrative access for services where the proxy should not become the only recovery path.
-- Keep exact internal names, addresses, private keys, and certificate secrets outside Git.
-
-## Non-Goals
-
-- Public internet exposure.
-- Publishing the household domain, SSID, or exact internal namespace.
-- Replacing service-native authentication.
-- Placing every management interface behind the proxy automatically.
-- Treating TLS as a substitute for network segmentation or access control.
-- Deploying centralized identity before the new server and UPS projects are complete.
-
-## Current Preconditions
-
-Completed foundations:
-
-- Pi-hole provides internal DNS and local records.
-- `mon01` provides Prometheus, Grafana, and Blackbox Exporter.
-- `pve01`, `dns01`, and `mon01` have Linux host monitoring.
-- Recursive and local DNS probes are active.
-- Daily VM backup coverage exists for stable infrastructure VMs.
-- A representative Proxmox whole-VM restore has been validated.
-- Proxmox management authentication has routine and break-glass recovery paths.
-
-## Open Decisions
-
-### Reverse-Proxy Platform
-
-Evaluate:
-
-- NGINX Proxy Manager.
-- Native NGINX.
-- Caddy.
-- Another platform only when it offers a clear operational advantage.
-
-Decision criteria:
-
-- Ease of configuration and recovery.
-- Internal certificate support.
-- Automation and configuration portability.
-- Security update process.
-- Monitoring options.
-- Resource requirements.
-- Portfolio value and learning depth.
-- Avoidance of unnecessary lock-in.
-
-### Deployment Model
-
-Choose between:
-
-- Dedicated VM.
-- Dedicated container.
-- Another isolated deployment only with documented rationale.
-
-The selected model must define:
-
-- Host and operating system.
-- Resource allocation.
-- Storage and backup coverage.
-- Network placement.
-- Administrative access.
-- Update and rollback procedure.
-
-### Internal Naming
-
-Define a sanitized public model such as:
-
-```text
-<SERVICE>.<PRIVATE_DNS>
-```
-
-Operational names must:
-
-- Resolve only where intended.
-- Avoid personal or location-based identifiers.
-- Be documented privately when exact values matter.
-- Avoid `.local` because of multicast DNS ambiguity.
-
-### Certificate Authority and Trust
-
-Evaluate:
-
-- A locally managed private CA.
-- A tool-integrated CA workflow.
-- A public-domain DNS challenge only if ownership, privacy, and operational complexity justify it.
-
-Document:
-
-- Root and intermediate CA roles if applicable.
-- Where private keys are stored.
-- How client trust is distributed and removed.
-- Certificate lifetime and renewal.
-- Revocation or replacement procedure.
-- Recovery after CA or proxy loss.
-- Which artifacts are backed up and which remain offline.
-
-## Candidate Initial Services
-
-Potential services for internal HTTPS:
-
-- Grafana.
-- Prometheus, if browser access through the proxy provides a documented benefit.
-- Pi-hole administration.
-- Future internal applications.
-
-Proxmox management requires separate risk review. It should not be placed behind the reverse proxy merely for consistency, and direct internal management access must remain available for recovery.
-
-## Proposed Architecture
+## Implemented Architecture
 
 ```text
 Trusted client
     |
-    | HTTPS to <SERVICE>.<PRIVATE_DNS>
+    | HTTPS to <SERVICE>.lab.home.arpa
     v
-Internal reverse proxy
+Pi-hole local DNS
     |
-    | HTTP or HTTPS on trusted internal network
+    | resolves service name to <PROXY01_IP>
     v
-Selected backend service
-
-Pi-hole
-    `-- resolves internal proxy names
+proxy01 / NGINX Proxy Manager
+    |
+    | internal HTTP to selected backend
+    v
+Backend service with native authentication
 
 mon01
-    `-- monitors proxy and certificate state
+    |-- scrapes proxy01 Node Exporter
+    `-- probes HTTPS availability and certificate expiration
+
+Proxmox
+    `-- protects proxy01 through daily VM backups
 ```
 
-The exact backend addresses, names, ports, and trust artifacts remain private.
+Exact addresses, VM IDs, credentials, private keys, backup filenames, and protected certificate artifacts remain outside Git.
 
-## Security Requirements
+## Design Decisions
 
-- Keep the proxy internal-only unless a separate future project explicitly changes that boundary.
-- Do not publish private keys, certificate requests containing identifying values, tokens, or exact private DNS names.
-- Preserve service authentication and authorization.
-- Use least privilege for proxy administration and automation.
-- Restrict backend access where practical so clients use intended paths without blocking emergency recovery.
-- Define update responsibility and vulnerability response.
-- Document header, protocol, and TLS settings that materially affect security.
-- Protect CA keys more strongly than ordinary service certificates.
-- Keep attacker-style workloads away from CA material and proxy administration.
+### Reverse-Proxy Platform
 
-## Backup and Recovery Requirements
+Selected NGINX Proxy Manager because it provides:
 
-Before the proxy becomes a dependency:
+- Straightforward Docker Compose deployment.
+- Understandable persistent state.
+- NGINX-based routing behavior.
+- Custom certificate support.
+- Practical administration for the current service count.
+- A manageable manual recovery path.
 
-- Add the proxy workload to Proxmox backup coverage.
-- Document proxy configuration locations and database state.
-- Protect CA material and certificate configuration appropriately.
-- Keep CA private keys outside the public repository.
-- Define a manual rebuild path.
-- Test restoration in an isolated environment.
-- Preserve direct access to critical backends during proxy failure.
-- Record certificate and trust recovery separately from VM recovery.
+Native NGINX and Caddy remain valid future alternatives if automation, scale, or configuration portability requirements change.
 
-## Monitoring Requirements
+### Deployment Model
 
-At minimum, monitor:
+`proxy01` is a dedicated Debian 13 VM with:
 
-- Proxy host availability.
-- HTTPS endpoint availability for selected services.
-- HTTP response status where meaningful.
-- Certificate expiration.
-- Certificate hostname validation.
-- Proxy service state.
-- Resource utilization.
+- 2 vCPU.
+- 2 GB RAM.
+- 20 GB virtual disk.
+- QEMU Guest Agent.
+- Node Exporter.
+- Docker Engine and Docker Compose.
+- NGINX Proxy Manager persistent state under `/opt/nginx-proxy-manager/`.
 
-Alerts should be added only when a response runbook and notification route exist.
+A dedicated VM keeps proxy failure, administration, backup, and monitoring separate from DNS and monitoring hosts.
 
-## Validation Plan
+### Internal Naming
+
+The implemented public documentation model uses:
+
+```text
+<SERVICE>.lab.home.arpa
+```
+
+Initial names:
+
+- `grafana.lab.home.arpa`
+- `pihole.lab.home.arpa`
+
+Pi-hole local records point these names to `proxy01`, not directly to backend systems.
+
+### Certificate Authority and Trust
+
+The implemented certificate model uses:
+
+- A private root CA generated on a trusted administrative workstation.
+- An encrypted root CA private key kept off `proxy01`.
+- A wildcard certificate covering `*.lab.home.arpa` and `lab.home.arpa`.
+- Only the wildcard service certificate and private key imported into NGINX Proxy Manager.
+- Public root CA certificate installation on trusted Windows and Debian clients.
+
+The initial CA has no online CRL or OCSP service. Compromise response therefore requires CA and certificate replacement plus trust-anchor removal.
+
+### Recovery Boundaries
+
+- Native backend authentication remains enabled.
+- Direct backend access remains available for emergency recovery.
+- Proxmox management is intentionally not proxied.
+- The proxy is internal-only and has no router port forwarding.
+
+See [ADR-0004](../decisions/ADR-0004-internal-reverse-proxy-and-private-ca.md).
+
+## Implemented Services
+
+### Grafana
+
+- Friendly name resolves to `proxy01`.
+- NGINX Proxy Manager forwards to Grafana on `mon01`.
+- WebSocket support is enabled.
+- HTTP redirects to HTTPS.
+- Grafana authentication remains active.
+
+### Pi-hole
+
+- Friendly name resolves to `proxy01`.
+- NGINX Proxy Manager forwards to Pi-hole on `dns01`.
+- HTTP redirects to HTTPS.
+- Pi-hole authentication remains active.
+- A narrow rewrite redirects only `/` to `/admin/`:
+
+```nginx
+rewrite ^/$ /admin/ permanent;
+```
+
+## Monitoring
+
+### Host Monitoring
+
+Prometheus scrapes Node Exporter on `proxy01` with:
+
+```text
+host="proxy01"
+role="reverse-proxy"
+```
+
+### HTTPS and Certificate Monitoring
+
+Blackbox Exporter uses the `https_internal` module through the `blackbox_https_internal` Prometheus job.
+
+Monitored signals include:
+
+- HTTPS probe success.
+- HTTP status code.
+- Earliest certificate expiration.
+
+Grafana includes:
+
+- Internal HTTPS service availability.
+- Certificate days remaining.
+
+Alerting remains disabled until notification routing and response runbooks exist.
+
+## Backup and Recovery
+
+`proxy01` is included in the existing daily Proxmox backup job using:
+
+- Snapshot mode.
+- Zstandard compression.
+- Retention of 7 daily, 4 weekly, and 3 monthly backups.
+- Dedicated external storage with mount-point enforcement.
+
+The backup protects:
+
+- Debian guest state.
+- Docker deployment.
+- Compose definition.
+- NGINX Proxy Manager database and proxy-host definitions.
+- Imported wildcard certificate and service private key.
+- Monitoring agent configuration.
+
+The root CA private key is intentionally outside the VM backup boundary.
+
+## Validation
 
 ### DNS
 
-- Internal names resolve to the intended proxy address.
-- Unintended networks do not receive private records where isolation is required.
+- Grafana and Pi-hole internal names resolve to `proxy01`.
 - Existing recursive and local DNS probes remain healthy.
-
-### HTTPS
-
-- Trusted clients validate the certificate chain without warnings.
-- Hostnames match certificate identities.
-- Expired, wrong-host, or untrusted certificates fail as expected.
-- HTTP behavior redirects or remains disabled according to the design.
 
 ### Proxy Routing
 
-- Each hostname routes only to its intended backend.
+- Grafana login loads through the friendly hostname.
+- Pi-hole administration loads through the friendly hostname.
+- Each hostname reaches only its intended backend.
 - Backend authentication remains functional.
-- WebSockets, redirects, and application-specific headers work where required.
-- Direct recovery access remains available according to the service design.
+- Direct backend access remains available.
+
+### HTTPS
+
+- HTTP redirects to HTTPS.
+- Trusted Windows and Debian clients validate the private CA chain.
+- Wildcard SAN values cover the selected names.
+- Both HTTPS endpoints load successfully.
+- Windows Schannel revocation-status limitations are documented without disabling certificate validation globally.
 
 ### Monitoring
 
-- Prometheus sees the proxy host or exporter target.
-- Blackbox probes validate selected HTTPS endpoints.
-- Certificate-expiration data is visible.
-- Grafana displays useful status without exposing private names publicly.
+- `proxy01` Node Exporter target returns `1` in Prometheus.
+- Both HTTPS Blackbox probes return success.
+- Certificate expiration is visible in Prometheus and Grafana.
+- Grafana availability and certificate-lifetime panels display separate service labels.
 
-### Recovery
+### Backup and Recovery
 
-- Proxy configuration can be restored or rebuilt.
-- A temporary restored proxy can be tested without conflicting with production.
-- Trust and certificate recovery procedures are understandable and complete.
-- Backend services remain administrable during proxy failure.
+- Initial `proxy01` backup completed successfully.
+- Backup was restored under a temporary VM ID.
+- Restored VM network adapter was removed before first boot.
+- Debian booted.
+- Docker, QEMU Guest Agent, and Node Exporter were active.
+- NGINX Proxy Manager container was running.
+- Expected ports were listening.
+- Persistent Compose, application-data, and certificate directories were present.
+- Local administration endpoint returned an HTTP response.
+- Temporary restore VM was removed after validation.
+- Production proxy routes remained healthy after cleanup.
 
-## Documentation Deliverables
+The restore proved local recovery of the proxy workload and imported service certificate state. It did not prove a live network cutover or restoration of the root CA signing key.
 
-Project completion should update:
+## Security Controls
 
-- Architecture overview.
-- Network architecture.
-- Security architecture.
-- Monitoring architecture.
-- VM inventory.
-- Storage and backup documentation.
-- Reverse-proxy service page.
-- Certificate or PKI service page if separate.
-- Backup and disaster-recovery runbooks.
-- New proxy and certificate troubleshooting runbooks.
-- ADR for platform and certificate-authority choices.
-- Project changelog and dated change record.
+- Proxy is internal-only.
+- No edge-router port forwarding is configured.
+- NGINX Proxy Manager administration remains on trusted internal access.
+- Backend authentication is preserved.
+- Proxmox management is not proxied.
+- Root CA private key is encrypted, off proxy, and outside Git.
+- VM backups are treated as sensitive because they contain the wildcard service private key and proxy database.
+- HSTS remains disabled until recovery and compatibility implications are intentionally reviewed.
+- Security-lab workloads must not access proxy administration or CA material.
 
-## Risks
+## Lessons Learned
 
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Proxy becomes a single point of failure | Multiple service UIs become unavailable | Preserve direct recovery paths, monitor the proxy, back it up, and test restoration |
-| CA private key is lost | New trusted certificates cannot be issued | Protect and back up CA material separately with documented recovery |
-| CA private key is exposed | Trust boundary is compromised | Restrict access, rotate or rebuild the CA, and document revocation and re-trust procedures |
-| Certificate renewal fails silently | Internal services show warnings or become inaccessible | Monitor expiration and document renewal ownership |
-| DNS and proxy records drift | Names resolve to incorrect backends | Maintain a clear source of truth and validate after changes |
-| Proxy hides backend problems | Users see proxy errors without root-cause clarity | Monitor proxy and backend layers separately |
-| Unnecessary management proxying increases risk | Recovery becomes harder | Review each service individually and retain direct access where appropriate |
+- Verify actual backend addresses before creating proxy routes; assumed addresses caused an avoidable failure.
+- A service can be active and listening while a proxy still fails because the wrong address or port is configured.
+- PowerShell aliases `curl` to `Invoke-WebRequest`; `curl.exe` avoids ambiguity.
+- Copying prompts or continuation markers between shells creates misleading command errors.
+- Prometheus configuration syntax validation must be paired with target discovery and PromQL validation.
+- Grafana query legends and panel Display name variables use different syntax.
+- Private CAs without CRL or OCSP endpoints can trigger Windows revocation-status errors even when chain and hostname validation succeed.
+- The proxy must remain a convenience and security layer rather than the only recovery path.
+- Isolated VM restoration is effective for testing duplicate infrastructure safely.
 
-## Milestones
+## Completion Checklist
 
-- [ ] Define requirements and select the reverse-proxy platform.
-- [ ] Select VM or container deployment model.
-- [ ] Define internal naming and DNS changes.
-- [ ] Select the certificate-authority and trust model.
-- [ ] Deploy and harden the proxy workload.
-- [ ] Integrate the first backend service.
-- [ ] Add HTTPS endpoint and certificate monitoring.
-- [ ] Add backup coverage and private recovery assets.
-- [ ] Complete isolated restore and certificate recovery testing.
-- [ ] Update architecture, service, runbook, ADR, and changelog documentation.
+- [x] Define requirements and select the reverse-proxy platform.
+- [x] Select VM deployment model.
+- [x] Define internal naming and DNS changes.
+- [x] Select the certificate-authority and trust model.
+- [x] Deploy and harden the proxy workload.
+- [x] Integrate Grafana and Pi-hole.
+- [x] Add host, HTTPS endpoint, and certificate monitoring.
+- [x] Add backup coverage.
+- [x] Complete isolated proxy restore testing.
+- [x] Document certificate issuance, renewal, replacement, and CA-loss procedures.
+- [x] Update architecture, service, runbook, ADR, change, roadmap, and changelog documentation.
+
+## Follow-Up Work
+
+- Create a second encrypted or offline root CA private-key copy in a separate failure domain.
+- Define a formal certificate-renewal calendar and ownership process.
+- Add actionable certificate-expiration alerts after notification routing exists.
+- Export and privately validate the updated infrastructure dashboard.
+- Restrict proxy administration and monitoring through future segmentation.
+- Reconsider wildcard versus per-service certificates as the service count grows.
+- Re-test recovery after major Docker, NGINX Proxy Manager, storage, or PKI changes.
 
 ## Related Documentation
 
@@ -288,14 +292,16 @@ Project completion should update:
 - [Architecture Overview](../architecture/overview.md)
 - [Network Architecture](../architecture/network.md)
 - [Virtualization Architecture](../architecture/virtualization.md)
+- [VM Inventory](../architecture/vm-inventory.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Security Architecture](../architecture/security.md)
 - [Storage Architecture](../architecture/storage.md)
-- [Pi-hole](../services/pihole.md)
+- [NGINX Proxy Manager](../services/nginx-proxy-manager.md)
 - [Prometheus](../services/prometheus.md)
 - [Grafana](../services/grafana.md)
 - [Blackbox Exporter](../services/blackbox-exporter.md)
-- [Project 003](project-003-backup-recovery.md)
-- [Backup Runbook](../runbooks/backup.md)
-- [Disaster Recovery](../runbooks/disaster-recovery.md)
+- [Internal Certificate Lifecycle](../runbooks/internal-certificate-lifecycle.md)
+- [Proxmox VM Restore](../runbooks/proxmox-vm-restore.md)
+- [ADR-0004](../decisions/ADR-0004-internal-reverse-proxy-and-private-ca.md)
+- [Completion Change Record](../changes/2026-07-14-project-004-reverse-proxy-internal-https-completion.md)
 - [Roadmap](../../ROADMAP.md)
