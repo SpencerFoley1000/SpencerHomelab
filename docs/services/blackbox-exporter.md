@@ -12,6 +12,9 @@ The deployed probes answer:
 
 - Can `dns01` resolve a public name through its upstream resolver?
 - Can `dns01` return the expected internal A record without upstream DNS or internet access?
+- Can `mon01` resolve and reach selected internal HTTPS services through `proxy01`?
+- Does the TLS certificate validate for the requested hostname?
+- When does the earliest served certificate expire?
 
 ## Technology Stack
 
@@ -33,8 +36,9 @@ The deployed probes answer:
 | --- | --- | --- | --- |
 | `dns_udp` | `blackbox_dns` | Public A-record query | `mon01` reaches `dns01`; Pi-hole recurses through the upstream resolver; the public query succeeds |
 | `dns_udp_local` | `blackbox_dns_local` | Internal A-record query | `mon01` reaches `dns01`; Pi-hole returns the expected local record independently of upstream recursion |
+| `https_internal` | `blackbox_https_internal` | Grafana and Pi-hole through `proxy01` | Internal DNS resolves; TLS and hostname validation succeed; NGINX Proxy Manager routes the request; the backend returns an HTTP response |
 
-Both jobs target `<DNS01_IP>:53` through `localhost:9115`. Exact addresses and private DNS values remain outside Git.
+Exact addresses and private DNS values remain outside Git.
 
 ## Sanitized Configuration
 
@@ -64,9 +68,19 @@ modules:
       validate_answer_rrs:
         fail_if_none_matches_regexp:
           - '^<ESCAPED_INTERNAL_RECORD>\..*[[:space:]]IN[[:space:]]+A[[:space:]]+.*$'
+
+  https_internal:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      fail_if_not_ssl: true
 ```
 
-The local probe validates the answer section instead of accepting any `NOERROR` response.
+The local DNS probe validates the answer section instead of accepting any `NOERROR` response.
+
+The HTTPS probe uses the `mon01` system trust store. The public root CA certificate is installed there; the root CA private key is not.
 
 ## Probe Paths
 
@@ -82,11 +96,20 @@ Local:
 Prometheus -> Blackbox Exporter -> dns01 / Pi-hole -> expected local answer
 ```
 
+Internal HTTPS:
+
+```text
+Prometheus -> Blackbox Exporter -> Pi-hole local DNS -> proxy01 -> selected backend
+```
+
 Interpretation:
 
 - Recursive down, local up: investigate upstream resolver or internet dependencies.
-- Both down: investigate `dns01`, Pi-hole, routing, firewall policy, or monitoring path.
+- Both DNS probes down: investigate `dns01`, Pi-hole, routing, firewall policy, or monitoring path.
 - Local down, recursive up: investigate local-record configuration or answer matching.
+- HTTPS down with `proxy01` host up: investigate DNS, trust store, certificate, NGINX Proxy Manager, route, or backend.
+- HTTPS down with `proxy01` host down: investigate `proxy01`, networking, or broader infrastructure.
+- HTTPS up with low certificate lifetime: renew the service certificate.
 
 ## Safe Configuration Procedure
 
@@ -134,11 +157,18 @@ curl -sG http://localhost:9115/probe \
 grep -E '^(probe_success|probe_dns_)'
 ```
 
-Expected local results include:
+Manual HTTPS probe:
+
+```bash
+curl -sG http://localhost:9115/probe \
+  --data-urlencode 'module=https_internal' \
+  --data-urlencode 'target=https://grafana.lab.home.arpa' |
+grep -E '^(probe_success|probe_http_status_code|probe_ssl_earliest_cert_expiry)'
+```
+
+Expected results include:
 
 ```text
-probe_dns_answer_rrs 1
-probe_dns_query_succeeded 1
 probe_success 1
 ```
 
@@ -152,25 +182,37 @@ probe_success{job="blackbox_dns"}
 probe_success{job="blackbox_dns_local", scope="local"}
 ```
 
-Both should return `1`.
+```promql
+probe_success{job="blackbox_https_internal"}
+```
+
+Certificate lifetime:
+
+```promql
+(probe_ssl_earliest_cert_expiry{job="blackbox_https_internal"} - time()) / 86400
+```
+
+Both DNS probes and both HTTPS service series should return success.
 
 ## Troubleshooting Lessons
 
 ### Module Indentation Failure
 
-The first local module was placed at the wrong YAML level, producing an application-schema error.
+A module placed at the wrong YAML level produces an application-schema error. Restore the known-good file, confirm service recovery, correct indentation, preflight on an alternate port, and restart production only after validation.
 
-Safe resolution:
-
-1. Restore the known-good file.
-2. Confirm the service is active.
-3. Add the module as a direct child of `modules:`.
-4. Preflight the complete file on an alternate port.
-5. Restart production only after validation.
-
-### Local-Only Endpoint
+### Local-Only Exporter Endpoint
 
 Prometheus and Blackbox Exporter share `mon01`, so `localhost:9115` avoids unnecessary LAN exposure.
+
+### Private CA Trust Failure
+
+If the HTTPS module fails certificate validation:
+
+1. Test the endpoint with `curl` from `mon01`.
+2. Confirm the public root CA certificate exists in the Debian trust store.
+3. Run `sudo update-ca-certificates` after intentional trust changes.
+4. Confirm the served certificate hostname and chain.
+5. Never copy the root CA private key to `mon01`.
 
 ### Layered Validation
 
@@ -188,26 +230,22 @@ Important state:
 
 - `/etc/prometheus/blackbox.yml`.
 - Blackbox jobs in `/etc/prometheus/prometheus.yml`.
+- Public root CA certificate in the `mon01` trust store.
 - Grafana panels using probe metrics.
 - Sanitized documentation.
 
-Project 003 provides:
-
-- Daily full-VM backup of `mon01`.
-- Snapshot mode with Zstandard compression.
-- Retention of 7 daily, 4 weekly, and 3 monthly backups.
-- Dedicated external storage with mount-point enforcement.
-- Configuration and dependency inventory.
+Project 003 provides daily full-VM backup of `mon01`, tiered retention, dedicated external storage, configuration inventory, and recovery runbooks.
 
 Recovery order:
 
 1. Restore the `mon01` VM backup or rebuild Debian.
 2. Restore or recreate `blackbox.yml`.
-3. Preflight on an alternate local port.
-4. Start and validate Blackbox Exporter.
-5. Restore or recreate both Prometheus jobs.
-6. Validate both `probe_success` series.
-7. Confirm Grafana displays recursive and local DNS state.
+3. Install the public root CA certificate in the system trust store.
+4. Preflight the complete configuration on an alternate local port.
+5. Start and validate Blackbox Exporter.
+6. Restore or recreate DNS and HTTPS Prometheus jobs.
+7. Validate all `probe_success` series and certificate lifetime.
+8. Confirm Grafana displays DNS, HTTPS, and certificate state.
 
 Current limitation: `mon01` has not been independently restored.
 
@@ -215,22 +253,22 @@ Current limitation: `mon01` has not been independently restored.
 
 - Keep Blackbox Exporter internal-only.
 - Do not expose TCP `9115` to untrusted networks.
-- Do not publish exact probe targets or internal record values.
+- Do not publish exact probe targets or private record values unnecessarily.
 - Treat probe configuration and output as topology-revealing.
+- Install only the public root CA certificate on `mon01`.
 - Keep security-lab probes isolated from trusted infrastructure.
 
 ## Maintenance Notes
 
-- Revalidate both probes after DNS, routing, firewall, upstream-resolver, or local-record changes.
+- Revalidate probes after DNS, routing, firewall, upstream-resolver, trust-store, certificate, or proxy changes.
 - Keep dashboard labels aligned with probe scope.
 - Confirm a recent successful `mon01` backup before major changes.
 - Remove temporary rollback files only after a protected known-good copy exists.
-- Add alerts only after response procedures are documented.
+- Add alerts only after response procedures and notification routing are documented.
 
 ## Future Improvements
 
-- Add HTTP probes for Project 004 services.
-- Add certificate-expiry checks through an appropriate monitoring design.
+- Add actionable internal HTTPS and certificate-expiration alerts.
 - Add narrowly scoped ICMP or TCP probes only for defined operational questions.
 - Add actionable DNS alerts with runbooks.
 - Perform an independent `mon01` restore test.
@@ -239,11 +277,14 @@ Current limitation: `mon01` has not been independently restored.
 
 - [Project 002](../projects/project-002-monitoring-observability.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
+- [Project 004](../projects/project-004-reverse-proxy-internal-https.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Prometheus](prometheus.md)
 - [Grafana](grafana.md)
 - [Node Exporter](node-exporter.md)
 - [Pi-hole](pihole.md)
+- [NGINX Proxy Manager](nginx-proxy-manager.md)
+- [Internal Certificate Lifecycle](../runbooks/internal-certificate-lifecycle.md)
 - [Backup Runbook](../runbooks/backup.md)
 - [Disaster Recovery](../runbooks/disaster-recovery.md)
 - [Prometheus Scrape Target Troubleshooting](../runbooks/prometheus-scrape-target-troubleshooting.md)
