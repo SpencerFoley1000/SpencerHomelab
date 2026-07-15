@@ -19,18 +19,22 @@ The homelab currently includes:
 - Proxmox management authentication using a named routine administrator and protected root break-glass identity, both with TOTP and independent recovery keys.
 - A dedicated DNS VM, `dns01`, running Pi-hole for internal DNS, local records, and DNS filtering.
 - A dedicated monitoring VM, `mon01`, running Prometheus, Grafana, Node Exporter, and Blackbox Exporter.
-- Node Exporter host metrics for `mon01`, `dns01`, and `pve01`.
+- A dedicated reverse-proxy VM, `proxy01`, running Docker and NGINX Proxy Manager.
+- Node Exporter host metrics for `mon01`, `dns01`, `proxy01`, and `pve01`.
 - Recursive DNS monitoring through Pi-hole and its configured upstream resolver.
 - Local-record DNS monitoring independent of upstream recursion.
-- Grafana dashboards for detailed host metrics, DNS service health, and an at-a-glance infrastructure overview.
+- Friendly `lab.home.arpa` service names and trusted internal HTTPS for Grafana and Pi-hole administration.
+- A private root CA kept off the proxy and a wildcard service certificate for internal service names.
+- Blackbox HTTPS and certificate-expiration monitoring through `proxy01`.
+- Grafana dashboards for detailed host metrics, DNS service health, internal HTTPS availability, certificate lifetime, and an at-a-glance infrastructure overview.
 - Operational troubleshooting documentation based on real configuration incidents.
 - A dedicated 5 TB external Proxmox backup target using ext4, persistent UUID mounting, backup-only content restriction, and mount-point enforcement.
-- Daily snapshot-mode, Zstandard-compressed backups for `dns01` and `mon01` with 7 daily, 4 weekly, and 3 monthly retention.
-- A validated isolated whole-VM restore for `dns01`, including Debian boot, filesystem, Pi-hole FTL, and Node Exporter checks.
-- Protected application-level recovery exports and sanitized rebuild documentation.
+- Daily snapshot-mode, Zstandard-compressed backups for `dns01`, `mon01`, and `proxy01` with 7 daily, 4 weekly, and 3 monthly retention.
+- Validated isolated whole-VM restores for `dns01` and `proxy01`.
+- Protected application-level recovery exports, private PKI assets, and sanitized rebuild documentation.
 - Hardware acquired for a future dedicated virtualization server, pending assembly and validation.
 
-Project 003 backup and recovery is complete. The next primary focus is Project 004 reverse proxy and internal HTTPS, followed by the new virtualization server build and Project 005 power-resilience work. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
+Projects 003 and 004 are complete operational baselines. The next primary focus is assembling and validating the X299 virtualization server, followed by Project 005 power resilience, UPS monitoring, and graceful shutdown. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
 
 ## Documentation Structure
 
@@ -48,6 +52,6 @@ Project 003 backup and recovery is complete. The next primary focus is Project 0
 
 ## Public Documentation Notice
 
-This repository is public by design. It avoids publishing secrets, personally identifying information, exact private network details, SSIDs, public IP addresses, serial numbers, drive UUIDs, backup filenames, recovery artifacts, and other sensitive operational data.
+This repository is public by design. It avoids publishing secrets, personally identifying information, exact private network details, SSIDs, public IP addresses, serial numbers, drive UUIDs, backup filenames, recovery artifacts, certificate private keys, and other sensitive operational data.
 
-Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<PROXMOX_ADMIN_ACCOUNT>`, `<BACKUP_MOUNT>`, `<BACKUP_TARGET>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
+Placeholders such as `<LAN_SUBNET>`, `<HOST_IP>`, `<MON01_IP>`, `<DNS01_IP>`, `<PVE01_IP>`, `<PROXY01_IP>`, `<PROXMOX_ADMIN_ACCOUNT>`, `<BACKUP_MOUNT>`, `<BACKUP_TARGET>`, `<PRIVATE_PKI_DIRECTORY>`, `<REDACTED_SSID>`, and `<SECRET_STORED_IN_PASSWORD_MANAGER>` are used where exact values are unnecessary or unsafe to publish.
