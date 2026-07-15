@@ -6,15 +6,14 @@ Describe the homelab virtualization design, Proxmox platform role, workload mode
 
 ## Current Status
 
-Proxmox VE is the active virtualization platform. Two stable infrastructure VMs run on `pve01`, and hardware has been acquired for a future dedicated server.
+Proxmox VE is the active virtualization platform. Three stable infrastructure VMs run on `pve01`, and hardware has been acquired for a future dedicated server.
 
 Current priorities:
 
 - Keep `pve01` reachable, secure, monitored, backed up, and documented.
 - Track every persistent VM in the [VM Inventory](vm-inventory.md).
-- Keep DNS and monitoring on separate guests.
+- Keep DNS, monitoring, and reverse proxy roles on separate guests.
 - Include stable VMs in backup and recovery planning before considering deployment complete.
-- Complete Project 004 reverse proxy and internal HTTPS.
 - Assemble and validate the future server before assigning it a production role.
 - Prevent experimental workloads from consuming resources required by core infrastructure.
 
@@ -31,9 +30,9 @@ Current priorities:
 | Local storage | 1 TB PCIe SSD |
 | Backup storage | Dedicated 5 TB external ext4 target |
 | Host monitoring | Node Exporter, Prometheus, and Grafana |
-| Backup status | Daily backups active for `dns01` and `mon01`; isolated `dns01` restore tested |
+| Backup status | Daily backups active for `dns01`, `mon01`, and `proxy01`; isolated `dns01` and `proxy01` restores tested |
 
-Exact bridges, addresses, VM IDs, storage identifiers, drive UUIDs, authentication material, and backup filenames remain private.
+Exact bridges, addresses, VM IDs, storage identifiers, drive UUIDs, authentication material, certificate keys, and backup filenames remain private.
 
 ## Current Workloads
 
@@ -41,6 +40,7 @@ Exact bridges, addresses, VM IDs, storage identifiers, drive UUIDs, authenticati
 | --- | --- | --- | --- |
 | `dns01` | Pi-hole DNS, local records, and Node Exporter | Active | Daily backup; isolated whole-VM restore tested 2026-07-14 |
 | `mon01` | Prometheus, Grafana, Node Exporter, and Blackbox Exporter | Active | Daily backup; independent restore not yet tested |
+| `proxy01` | NGINX Proxy Manager, Docker, internal TLS termination, and Node Exporter | Active | Daily backup; isolated whole-VM restore tested 2026-07-14 |
 
 See [VM Inventory](vm-inventory.md) for resources, monitoring coverage, and recovery priority.
 
@@ -92,6 +92,8 @@ A future ADR must decide whether it replaces the ThinkPad, supplements it, or ch
 | Security lab | Attacker systems, vulnerable VMs, detection projects | Isolated and clearly labeled |
 | Temporary experiments | Short-lived tests and proofs of concept | Disposable unless promoted through documentation and onboarding |
 
+`proxy01` is classified as a stable lab service. It is a dependency for friendly HTTPS access, but direct backend paths remain available during proxy failure.
+
 ## VM Onboarding Standard
 
 Before a persistent VM is considered complete:
@@ -105,6 +107,8 @@ Before a persistent VM is considered complete:
 - Add backup coverage.
 - Document validation and security considerations.
 - Update the VM inventory, project page, service page, roadmap, and changelog as applicable.
+
+Project 004 followed this standard for `proxy01` and added isolated restore testing before closeout.
 
 ## Naming Convention
 
@@ -125,6 +129,7 @@ Resource allocation starts conservatively and changes based on observed behavior
 Current lessons:
 
 - `mon01` increased from 2 GB to 3 GB RAM after Grafana showed limited headroom.
+- `proxy01` begins with 2 vCPU, 2 GB RAM, and a 20 GB disk.
 - The current host's 16 GB RAM is the main workload-growth constraint.
 - Core infrastructure receives priority over experiments.
 - Host capacity must remain available for Proxmox management and recovery.
@@ -134,18 +139,19 @@ Current lessons:
 ## Networking Model
 
 - Core infrastructure VMs connect to the homelab LAN.
-- Foundational services use static addressing.
+- Foundational services use stable addressing.
 - Internal DNS records are managed through Pi-hole.
+- `lab.home.arpa` service records point selected names to `proxy01`.
+- `proxy01` forwards trusted internal traffic to Grafana and Pi-hole backends.
+- Direct backend access remains available for recovery.
 - Public documentation sanitizes bridge names, addresses, VM IDs, and MAC addresses.
-- `mon01` scrapes Node Exporter on `dns01` and `pve01`.
-- `mon01` probes recursive and local DNS behavior on `dns01`.
+- `mon01` scrapes Node Exporter on `dns01`, `pve01`, and `proxy01`.
+- `mon01` probes recursive DNS, local DNS, internal HTTPS, and certificate expiration.
 - Security-lab networking remains a future isolation project.
-
-Project 004 will add a reverse proxy and internal HTTPS. Its network placement, DNS names, certificate trust, and service dependencies must be documented before it becomes foundational infrastructure.
 
 ## Guest Integration
 
-QEMU Guest Agent is installed on `dns01` and `mon01`.
+QEMU Guest Agent is installed on `dns01`, `mon01`, and `proxy01`.
 
 It depends on:
 
@@ -158,10 +164,11 @@ A full Proxmox stop/start may be required after enabling the virtual hardware. S
 
 Current monitoring:
 
-- Node Exporter on `pve01`, `dns01`, and `mon01`.
-- Prometheus target health for all three systems.
+- Node Exporter on `pve01`, `dns01`, `mon01`, and `proxy01`.
+- Prometheus target health for all four systems.
 - Grafana CPU, memory, filesystem, network, and uptime views.
 - Recursive and local DNS probes for `dns01`.
+- Internal HTTPS and certificate-expiration probes through `proxy01`.
 
 Node Exporter on `pve01` does not provide authoritative:
 
@@ -184,27 +191,30 @@ Project 003 implemented:
 - Mount-point enforcement.
 - Daily snapshot-mode backups with Zstandard compression.
 - Retention of 7 daily, 4 weekly, and 3 monthly backups.
-- Initial successful backups for `dns01` and `mon01`.
-- A successful isolated `dns01` whole-VM restore.
-- Tested backup and restore runbooks.
+- Recovery runbooks and a tested isolated restore workflow.
 
-Restore testing used a temporary VM ID and removed the virtual network adapter before boot. It proved VM reconstruction, Debian boot, filesystem availability, Pi-hole FTL startup, and Node Exporter startup. It did not prove network-facing DNS or monitoring behavior.
+Project 004 added `proxy01` to the backup job and validated an isolated whole-VM restore.
+
+Restore testing used temporary VM IDs and removed virtual network adapters before boot. The tests prove VM reconstruction and local service state; they do not prove live network cutover.
 
 Current recovery priority:
 
 1. Restore physical networking and Proxmox management access.
 2. Confirm local and backup storage.
 3. Restore `dns01` and validate public plus local DNS.
-4. Restore `mon01` and validate Prometheus, both Blackbox jobs, and Grafana.
-5. Confirm monitoring observes all restored systems.
-6. Restore lower-priority workloads.
+4. Restore `proxy01` if friendly HTTPS is required; retain direct backend access during outage.
+5. Restore `mon01` and validate Prometheus, Blackbox jobs, and Grafana.
+6. Confirm monitoring observes all restored systems and services.
+7. Restore lower-priority workloads.
+
+The root CA private key is intentionally outside the `proxy01` VM backup boundary and requires separate protected storage.
 
 ## Security Considerations
 
-- Do not expose Proxmox management publicly.
-- Use the named routine administrator and reserve root for break-glass work.
-- Store credentials, TOTP material, recovery keys, API credentials, and private keys outside Git.
-- Keep backup storage away from attacker-style workloads.
+- Do not expose Proxmox or NGINX Proxy Manager administration publicly.
+- Use the named routine Proxmox administrator and reserve root for break-glass work.
+- Store credentials, TOTP material, recovery keys, API credentials, and private certificate keys outside Git.
+- Keep backup storage and CA material away from attacker-style workloads.
 - Limit administrative access to trusted systems and future management networks.
 - Document privileged containers, passthrough, nesting, and unusual permissions.
 - Avoid publishing VM IDs, addresses, MAC addresses, storage identifiers, or raw configuration exports.
@@ -219,18 +229,19 @@ Before major hypervisor work:
 - Record VM shutdown and startup order.
 - Review available host resources.
 - Preserve management and physical-console access.
+- Preserve direct backend access if the proxy is being changed.
 
 After maintenance:
 
-- Validate `dns01`, `mon01`, and `pve01` monitoring.
+- Validate `dns01`, `mon01`, `proxy01`, and `pve01` monitoring.
 - Confirm system time and TOTP authentication.
 - Confirm backup storage remounts.
+- Confirm DNS, HTTPS, and certificate probes.
 - Review the next scheduled backup.
-- Re-test recovery after major storage, hypervisor, or migration changes.
+- Re-test recovery after major storage, hypervisor, migration, or proxy changes.
 
 ## Future Improvements
 
-- Complete Project 004 reverse proxy and internal HTTPS.
 - Document sanitized bridge and local-storage layouts.
 - Add Proxmox VM, storage, task, and backup metrics.
 - Add a tested Proxmox maintenance and management-access recovery runbook.
@@ -249,9 +260,12 @@ After maintenance:
 - [Monitoring Architecture](monitoring.md)
 - [Security Architecture](security.md)
 - [Proxmox Platform](../services/proxmox.md)
+- [NGINX Proxy Manager](../services/nginx-proxy-manager.md)
 - [Current Proxmox Host](../hardware/server.md)
 - [Future Virtualization Server](../hardware/server-build.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
+- [Project 004](../projects/project-004-reverse-proxy-internal-https.md)
 - [ADR-0003](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
+- [ADR-0004](../decisions/ADR-0004-internal-reverse-proxy-and-private-ca.md)
 - [Backup Runbook](../runbooks/backup.md)
 - [Proxmox VM Restore](../runbooks/proxmox-vm-restore.md)
