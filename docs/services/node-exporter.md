@@ -17,7 +17,7 @@ Node Exporter answers:
 - How much network and disk activity is occurring?
 - When was the host last booted?
 
-Node Exporter reports host state. It does not prove that an application, virtual machine, backup job, storage pool, or Proxmox management function is working correctly.
+Node Exporter reports host state. It does not prove that an application, proxy route, certificate, virtual machine, backup job, storage pool, or Proxmox management function is working correctly.
 
 ## Technology Stack
 
@@ -25,8 +25,8 @@ Node Exporter reports host state. It does not prove that an application, virtual
 | --- | --- |
 | Service | Node Exporter |
 | Package | `prometheus-node-exporter` |
-| Package version | `1.9.0-1+b4` |
-| Hosts | `mon01`, `dns01`, `pve01` |
+| Verified package version | `1.9.0-1+b4` on the established hosts |
+| Hosts | `mon01`, `dns01`, `pve01`, `proxy01` |
 | Deployment method | Debian package repository |
 | Default port | `9100/tcp` |
 | Metrics path | `/metrics` |
@@ -40,8 +40,9 @@ Node Exporter reports host state. It does not prove that an application, virtual
 | `mon01` | Monitoring VM | `localhost:9100` | `host="mon01"`, `role="monitoring"` | Active |
 | `dns01` | DNS VM | `<DNS01_IP>:9100` | `host="dns01"`, `role="dns"` | Active |
 | `pve01` | Proxmox hypervisor | `<PVE01_IP>:9100` | `host="pve01"`, `role="hypervisor"` | Active |
+| `proxy01` | Reverse-proxy VM | `<PROXY01_IP>:9100` | `host="proxy01"`, `role="reverse-proxy"` | Active |
 
-Static addresses are used for remote infrastructure targets so monitoring does not depend on DNS during an outage. Exact addresses are intentionally omitted.
+Stable addresses are used for remote infrastructure targets so monitoring does not depend on DNS during an outage. Exact addresses are intentionally omitted.
 
 ## Deployment
 
@@ -67,21 +68,6 @@ Expected results:
 - `/metrics` returns Prometheus-formatted output.
 - The process listens on TCP `9100`.
 
-## `pve01` Monitoring Baseline
-
-The Proxmox host monitoring baseline was completed on 2026-07-10:
-
-- Proxmox VE `9.2.2` and Debian 13 were verified.
-- Node Exporter `1.9.0-1+b4` was installed.
-- Local metrics were validated.
-- Remote reachability from `mon01` was tested before Prometheus changes.
-- The existing Proxmox firewall permitted the trusted monitoring path, so no broad rule was added.
-- Prometheus configuration passed `promtool` validation.
-- Target-specific PromQL returned `1`.
-- Grafana displayed CPU, memory, filesystem, network, and uptime data for `pve01`.
-
-This completed Linux host monitoring for the active Proxmox server. Proxmox platform-specific monitoring remains separate future work.
-
 ## Networking
 
 | Item | Value |
@@ -89,7 +75,7 @@ This completed Linux host monitoring for the active Proxmox server. Proxmox plat
 | Listen port | `9100/tcp` |
 | Access scope | Trusted internal homelab network |
 | Intended consumer | Prometheus on `mon01` |
-| Remote targets | `<DNS01_IP>:9100`, `<PVE01_IP>:9100` |
+| Remote targets | `<DNS01_IP>:9100`, `<PVE01_IP>:9100`, `<PROXY01_IP>:9100` |
 
 Node Exporter must not be exposed publicly. Metrics can reveal hostnames, kernel details, filesystem paths, network interfaces, device names, and usage patterns.
 
@@ -139,11 +125,12 @@ Expected hosts:
 - `mon01`
 - `dns01`
 - `pve01`
+- `proxy01`
 
 Target-specific validation:
 
 ```promql
-up{job="node_exporter", host="pve01", role="hypervisor"}
+up{job="node_exporter", host="proxy01", role="reverse-proxy"}
 ```
 
 Expected result: `1`.
@@ -152,7 +139,7 @@ Expected result: `1`.
 
 - Open the detailed Node Exporter dashboard for troubleshooting.
 - Open the Homelab Infrastructure Overview for at-a-glance comparison.
-- Confirm all three hosts display current CPU, memory, filesystem, and uptime data.
+- Confirm all four hosts display current CPU, memory, filesystem, and uptime data.
 
 ## Monitoring Boundaries
 
@@ -160,7 +147,12 @@ For `dns01`:
 
 - Node Exporter answers: **Is the Linux host running and reporting metrics?**
 - Blackbox Exporter answers: **Do recursive and local DNS checks succeed?**
-- Future Pi-hole metrics should answer: **How is the application behaving internally?**
+
+For `proxy01`:
+
+- Node Exporter answers: **Is the Linux host running and reporting metrics?**
+- Blackbox Exporter answers: **Do the HTTPS routes and certificates work from `mon01`?**
+- NGINX Proxy Manager and Docker state require service-level checks or local troubleshooting.
 
 For `pve01`:
 
@@ -175,7 +167,7 @@ For `pve01`:
 - Do not expose TCP `9100` to untrusted networks.
 - Restrict scrape access to trusted monitoring systems where practical.
 - Treat metrics as operationally sensitive.
-- Use placeholders such as `<DNS01_IP>` and `<PVE01_IP>` publicly.
+- Use placeholders such as `<DNS01_IP>`, `<PVE01_IP>`, and `<PROXY01_IP>` publicly.
 - Reassess access after segmentation or firewall changes.
 
 ## Backup Strategy
@@ -188,6 +180,7 @@ Important recovery state belongs to:
 - Host firewall or network policy.
 - Package and service-state documentation.
 - The repository.
+- Whole-VM backup for stable infrastructure guests.
 
 No dedicated Node Exporter data backup is required.
 
@@ -220,12 +213,11 @@ sudo apt install --reinstall prometheus-node-exporter
 - Review target health after every Prometheus configuration change.
 - Add new hosts with consistent `host` and `role` labels.
 - Keep host monitoring separate from service and application monitoring.
-- Revalidate `pve01` access after Proxmox firewall changes.
+- Revalidate access after firewall or segmentation changes.
 - Add the future X299 server only after local hardware validation and a documented role decision.
 
 ## Future Improvements
 
-- Extend the existing Homelab Infrastructure Overview with Proxmox platform and backup-health data when those sources exist.
 - Add Proxmox-specific VM, storage-pool, task, and backup metrics using least-privilege credentials.
 - Add actionable resource alerts only after thresholds and runbooks are defined.
 - Restrict scrape traffic further when management-network segmentation is implemented.
@@ -233,11 +225,13 @@ sudo apt install --reinstall prometheus-node-exporter
 
 ## Related Documentation
 
-- [Project 002: Monitoring and Observability Stack](../projects/project-002-monitoring-observability.md)
+- [Project 002](../projects/project-002-monitoring-observability.md)
+- [Project 004](../projects/project-004-reverse-proxy-internal-https.md)
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Prometheus Service](prometheus.md)
 - [Blackbox Exporter Service](blackbox-exporter.md)
 - [Grafana Service](grafana.md)
+- [NGINX Proxy Manager](nginx-proxy-manager.md)
 - [Proxmox VE Platform](proxmox.md)
 - [VM Inventory](../architecture/vm-inventory.md)
 - [Future Virtualization Server Build](../hardware/server-build.md)
