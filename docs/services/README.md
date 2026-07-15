@@ -56,16 +56,19 @@ Experimental services must be labeled clearly so temporary work is not mistaken 
 | --- | --- | --- | --- | --- |
 | Proxmox VE | Active | `pve01` | Virtualization platform for homelab workloads | [proxmox.md](proxmox.md) |
 | Pi-hole | Active | `dns01` | Internal DNS, local records, and DNS filtering | [pihole.md](pihole.md) |
-| Node Exporter | Active | `mon01`, `dns01`, `pve01` | Linux host and hypervisor-OS metrics | [node-exporter.md](node-exporter.md) |
+| Node Exporter | Active | `mon01`, `dns01`, `pve01`, `proxy01` | Linux host and hypervisor-OS metrics | [node-exporter.md](node-exporter.md) |
 | Prometheus | Active | `mon01` | Metrics scraping, storage, target health, and PromQL | [prometheus.md](prometheus.md) |
-| Grafana | Active | `mon01` | Detailed and summary dashboards for host and DNS metrics | [grafana.md](grafana.md) |
-| Blackbox Exporter | Active | `mon01` | Recursive and local DNS service probes | [blackbox-exporter.md](blackbox-exporter.md) |
+| Grafana | Active | `mon01` | Detailed and summary dashboards for host, DNS, HTTPS, and certificate metrics | [grafana.md](grafana.md) |
+| Blackbox Exporter | Active | `mon01` | Recursive DNS, local DNS, internal HTTPS, and certificate-expiration probes | [blackbox-exporter.md](blackbox-exporter.md) |
+| NGINX Proxy Manager | Active | `proxy01` | Internal reverse proxy and TLS termination for selected services | [nginx-proxy-manager.md](nginx-proxy-manager.md) |
 
 ## Current Monitoring Coverage
 
-- Host metrics for `mon01`, `dns01`, and `pve01`.
+- Host metrics for `mon01`, `dns01`, `pve01`, and `proxy01`.
 - Recursive public-name DNS probe through `dns01`.
 - Local-record DNS probe independent of upstream recursion.
+- Internal HTTPS probes for Grafana and Pi-hole.
+- Certificate-expiration metrics for proxied services.
 - Detailed imported Node Exporter dashboard.
 - Homelab Service Health dashboard.
 - Homelab Infrastructure Overview dashboard.
@@ -76,9 +79,8 @@ Experimental services must be labeled clearly so temporary work is not mistaken 
 - Proxmox platform-specific metrics.
 - Backup-health monitoring.
 - Alertmanager and notification routing.
-- Reverse proxy and internal TLS.
 - Identity services.
-- Container hosting.
+- Container hosting beyond the dedicated proxy workload.
 - Security monitoring and detection services.
 - Automation tooling.
 
