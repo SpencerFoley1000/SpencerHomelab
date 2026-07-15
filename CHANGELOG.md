@@ -2,6 +2,84 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-14 - Project 004 Reverse Proxy and Internal HTTPS Completion
+
+### Changed
+
+- Provisioned `proxy01` as a dedicated Debian 13 reverse-proxy VM.
+- Installed QEMU Guest Agent, Node Exporter, Docker Engine, and Docker Compose.
+- Deployed NGINX Proxy Manager with persistent application and certificate state under `/opt/nginx-proxy-manager/`.
+- Standardized friendly internal service naming on `lab.home.arpa`.
+- Added Pi-hole local records for Grafana and Pi-hole administration that resolve to `proxy01`.
+- Configured hostname-based proxy routes to Grafana on `mon01` and Pi-hole on `dns01` while preserving native backend authentication and direct recovery access.
+- Kept Proxmox management outside the reverse-proxy dependency.
+- Generated an encrypted private root CA key on a trusted administrative workstation and kept it off `proxy01`.
+- Issued and validated a wildcard certificate for `*.lab.home.arpa` and `lab.home.arpa`.
+- Installed the public root CA certificate on trusted Windows and Debian clients.
+- Enabled trusted internal HTTPS and HTTP-to-HTTPS redirects for Grafana and Pi-hole.
+- Added a narrow Pi-hole root-path rewrite to redirect `/` to `/admin/`.
+- Added `proxy01` to the shared Prometheus Node Exporter job with `host="proxy01"` and `role="reverse-proxy"` labels.
+- Added the `https_internal` Blackbox Exporter module and `blackbox_https_internal` Prometheus job.
+- Confirmed Grafana and Pi-hole HTTPS probes return success and expose certificate-expiration metrics.
+- Added Grafana panels for internal HTTPS service availability and certificate days remaining.
+- Added `proxy01` to the daily Proxmox backup job.
+- Completed a snapshot-mode, Zstandard-compressed backup and isolated whole-VM restore of `proxy01`.
+- Validated Debian boot, Docker, QEMU Guest Agent, Node Exporter, NGINX Proxy Manager, expected listeners, local administration response, and persistent proxy and certificate directories.
+- Removed the temporary restore VM and reconfirmed production proxy health.
+- Added NGINX Proxy Manager service documentation, an internal certificate lifecycle runbook, ADR-0004, and a dated Project 004 completion change record.
+- Synchronized repository entry points, architecture pages, VM inventory, monitoring, storage, security, backup, disaster-recovery, service indexes, runbook indexes, roadmap, and project status.
+
+### Why
+
+- Memorized addresses and ports become difficult to operate and explain as the service count grows.
+- Internal HTTPS protects administrative sessions and provides realistic certificate-lifecycle experience without public exposure.
+- Separating proxy, DNS, and monitoring roles preserves clearer failure domains.
+- Keeping the root CA key off the proxy limits the impact of a proxy compromise.
+- Host metrics alone do not prove that DNS, TLS, proxy routing, or backend responses are working.
+- Backup completion alone does not prove that NGINX Proxy Manager state and imported certificate material can be recovered.
+- Direct backend and Proxmox access must remain available when the proxy is unavailable.
+
+### Validation
+
+- `proxy01` hostname, networking, Debian installation, and guest integration validated.
+- Docker Engine, Compose, and NGINX Proxy Manager container validated.
+- Grafana and Pi-hole names resolve to the proxy through Pi-hole local DNS.
+- Grafana and Pi-hole routes return expected application responses.
+- Wildcard certificate chain, issuer, validity, and SAN values validated.
+- Trusted HTTPS validated from Windows and Debian clients.
+- HTTP-to-HTTPS and Pi-hole `/admin/` redirects validated.
+- `proxy01` Node Exporter target returns `1` in Prometheus.
+- Both internal HTTPS probe series return `probe_success 1`.
+- Certificate days remaining is visible in Prometheus and Grafana.
+- `proxy01` backup artifact completed successfully.
+- Isolated restore reconstructed the VM and locally recovered the proxy workload and service-certificate state.
+- The restored VM remained network-isolated and was deleted after testing.
+
+### Lessons Learned
+
+- Verify actual backend addresses before building proxy routes; an assumed address caused an avoidable troubleshooting detour.
+- A service can be active and listening while a proxy still fails because the wrong address or port is configured.
+- PowerShell aliases `curl` to `Invoke-WebRequest`; `curl.exe` avoids ambiguity during Windows validation.
+- Copying prompts and continuation markers between shells creates misleading command-not-found errors.
+- Prometheus syntax validation must be paired with target discovery and direct PromQL checks.
+- An empty Prometheus result differs from a target returning `0`.
+- Grafana query legend syntax and panel Display name syntax are different; `${__field.labels.service}` is appropriate in the panel field.
+- Private CAs without CRL or OCSP endpoints can trigger Windows Schannel revocation-status errors even when chain and hostname validation succeed.
+- `--ssl-revoke-best-effort` is narrower than disabling certificate validation, while `--insecure` is not an acceptable acceptance test.
+- A reverse proxy should remain a convenience and security layer rather than the only recovery path.
+- Removing a restored VM's network adapter provides a repeatable way to validate duplicate infrastructure safely.
+
+### Remaining Work
+
+- Create a second encrypted or offline root CA private-key copy in a separate failure domain.
+- Define a formal certificate-renewal calendar and ownership process.
+- Add actionable certificate-expiration and HTTPS alerts after notification routing and response runbooks exist.
+- Export and privately validate the updated Homelab Infrastructure Overview dashboard.
+- Restrict proxy administration and monitoring through future segmentation.
+- Re-evaluate wildcard certificates if service count or isolation requirements grow.
+- Re-test recovery after major Docker, NGINX Proxy Manager, storage, or PKI changes.
+- Assemble and validate the acquired X299 virtualization server.
+
 ## 2026-07-14 - Project 003 Backup and Recovery Completion
 
 ### Changed
