@@ -2,12 +2,13 @@
 
 ## Purpose
 
-Describe the deployed monitoring architecture, what each layer proves, and the remaining boundaries for application, platform, alerting, and recovery work.
+Describe the deployed monitoring architecture, what each layer proves, and the remaining boundaries for application, platform, alerting, certificate, and recovery work.
 
 The design separates:
 
 - Host metrics: Linux availability and resource pressure.
 - Service probes: behavior from another system's perspective.
+- Certificate metrics: TLS presence and remaining lifetime.
 - Application metrics: service-specific internal behavior.
 - Platform metrics: authoritative Proxmox state.
 - Dashboards: visualization, not a substitute for source-level validation.
@@ -17,10 +18,10 @@ The design separates:
 | Component | Host or scope | Status | Purpose |
 | --- | --- | --- | --- |
 | `mon01` | Proxmox VM | Active and backed up | Dedicated monitoring system |
-| Node Exporter | `mon01`, `dns01`, `pve01` | Active | Linux host and hypervisor-OS metrics |
+| Node Exporter | `mon01`, `dns01`, `pve01`, `proxy01` | Active | Linux host and hypervisor-OS metrics |
 | Prometheus | `mon01` | Active | Scraping, storage, and PromQL |
 | Grafana | `mon01` | Active | Summary and detailed dashboards |
-| Blackbox Exporter | `mon01` | Active | Recursive and local DNS probes |
+| Blackbox Exporter | `mon01` | Active | Recursive DNS, local DNS, internal HTTPS, and certificate probes |
 
 `mon01` receives daily Project 003 VM backups. Its backup has not yet been independently restored.
 
@@ -32,8 +33,10 @@ The design separates:
 | `node_exporter` | `mon01` | Up | Monitoring-host metrics |
 | `node_exporter` | `dns01` | Up | DNS-host metrics |
 | `node_exporter` | `pve01` | Up | Proxmox Linux metrics |
+| `node_exporter` | `proxy01` | Up | Reverse-proxy host metrics |
 | `blackbox_dns` | `dns01` recursive path | Up | Public-name DNS validation |
 | `blackbox_dns_local` | `dns01` local record | Up | Expected internal answer validation |
+| `blackbox_https_internal` | Grafana and Pi-hole through `proxy01` | Up | Internal HTTPS, hostname, trust, and certificate-expiration validation |
 
 Exact addresses and private record values remain outside Git.
 
@@ -43,59 +46,70 @@ Exact addresses and private record values remain outside Git.
 | --- | --- | --- |
 | Imported Node Exporter dashboard | Active | Detailed Linux host troubleshooting |
 | Homelab Service Health | Active | DNS availability, duration, and state history |
-| Homelab Infrastructure Overview | Active | At-a-glance host health, capacity, uptime, and DNS status |
+| Homelab Infrastructure Overview | Active | At-a-glance host health, capacity, uptime, DNS, internal HTTPS, and certificate lifetime |
 
-The Infrastructure Overview is operational but still requires a protected Classic JSON export.
+Current Project 004 panels include:
+
+- Internal HTTPS Services.
+- Internal Certificate Days Remaining.
+
+The Infrastructure Overview requires a refreshed protected Classic JSON export after the Project 004 panel additions.
 
 ## Architecture
 
 ### Host Metrics
 
 ```text
-mon01, dns01, pve01
-        |
-        | TCP 9100
-        v
-   Node Exporter
-        |
-        v
-Prometheus on mon01
-        |
-        v
- Grafana on mon01
+mon01, dns01, pve01, proxy01
+              |
+              | TCP 9100
+              v
+         Node Exporter
+              |
+              v
+      Prometheus on mon01
+              |
+              v
+       Grafana on mon01
 ```
 
-### Recursive DNS Probe
+### DNS Probes
 
 ```text
 Prometheus
     |
     v
-Blackbox Exporter: dns_udp
-    |
-    v
-dns01 / Pi-hole
-    |
-    v
-Upstream resolver and public DNS
+Blackbox Exporter
+    |-- dns_udp ------> dns01 -> upstream resolver -> public answer
+    `-- dns_udp_local -> dns01 -> expected internal answer
 ```
 
-### Local DNS Probe
+### Internal HTTPS Probe
 
 ```text
 Prometheus
     |
     v
-Blackbox Exporter: dns_udp_local
+Blackbox Exporter: https_internal
+    |
+    | HTTPS using mon01 trust store
+    v
+proxy01 / NGINX Proxy Manager
     |
     v
-dns01 / Pi-hole local record
-    |
-    v
-Expected internal answer
+Selected backend service
 ```
 
-The DNS probes share an endpoint but test different failure domains.
+This probe path exercises:
+
+- DNS resolution from `mon01`.
+- Network reachability to `proxy01`.
+- TLS negotiation.
+- Certificate chain and hostname validation.
+- NGINX Proxy Manager routing.
+- Backend HTTP response.
+
+It does not prove interactive login or every application feature.
 
 ## Monitoring Layers
 
@@ -110,9 +124,9 @@ Node Exporter reports:
 - Boot time and uptime.
 - Exporter reachability.
 
-A healthy Node Exporter target does not prove hosted applications or Proxmox guests are functioning.
+A healthy Node Exporter target does not prove hosted applications, proxy routes, certificates, or Proxmox guests are functioning.
 
-### Service Monitoring
+### DNS Service Monitoring
 
 | Recursive | Local | Likely investigation area |
 | --- | --- | --- |
@@ -121,9 +135,34 @@ A healthy Node Exporter target does not prove hosted applications or Proxmox gue
 | Up | Down | Pi-hole local-record configuration or answer validation |
 | Down | Down | `dns01`, Pi-hole, network, firewall, or monitoring path |
 
+### HTTPS and Certificate Monitoring
+
+Important metrics:
+
+```promql
+probe_success{job="blackbox_https_internal"}
+```
+
+```promql
+probe_http_status_code{job="blackbox_https_internal"}
+```
+
+```promql
+(probe_ssl_earliest_cert_expiry{job="blackbox_https_internal"} - time()) / 86400
+```
+
+Interpretation:
+
+| Host target | HTTPS probe | Likely investigation area |
+| --- | --- | --- |
+| Up | Up | Proxy host and selected service route healthy |
+| Up | Down | NGINX Proxy Manager, TLS, DNS, trust, route, or backend issue |
+| Down | Down | `proxy01`, networking, firewall, or broader infrastructure issue |
+| Up | Up but days remaining low | Certificate renewal required |
+
 ### Application Monitoring
 
-Pi-hole-specific metrics are not yet collected. Future visibility may include query volume, blocking rate, cache behavior, upstream performance, and process health.
+Pi-hole- and NGINX Proxy Manager-specific application metrics are not collected. Current service probes intentionally validate user-facing behavior rather than internal application counters.
 
 ### Proxmox Platform Monitoring
 
@@ -148,23 +187,24 @@ All Linux systems use one job with host and role labels:
 host="mon01", role="monitoring"
 host="dns01", role="dns"
 host="pve01", role="hypervisor"
+host="proxy01", role="reverse-proxy"
 ```
 
 ### Static Remote Targets
 
-Infrastructure targets use static addresses so monitoring does not depend on the DNS service being monitored. Public documentation uses placeholders.
+Infrastructure host targets use static addresses or stable assignments so host monitoring does not depend on the DNS service being monitored. Public documentation uses placeholders.
 
-### Linux Baseline Before API Credentials
+### Service Names for HTTPS Probes
 
-Node Exporter delivered useful host visibility without introducing privileged Proxmox credentials. Platform monitoring remains a separate security-reviewed phase.
+HTTPS probes intentionally use internal DNS names because certificate hostname validation is part of the question being tested. `mon01` trusts the public root CA certificate but does not contain the root CA private key.
 
-### Separate DNS Jobs
+### Separate Probe Jobs
 
-Different Prometheus jobs make recursive and local behavior explicit in PromQL, Grafana, troubleshooting, and future alerts.
+Separate Prometheus jobs make recursive DNS, local DNS, and internal HTTPS behavior explicit in PromQL, Grafana, troubleshooting, and future alerts.
 
 ### Summary and Detail Dashboards
 
-- Infrastructure Overview: rapid status and capacity review.
+- Infrastructure Overview: rapid status, capacity, HTTPS, and certificate review.
 - Imported Node Exporter dashboard: detailed host troubleshooting.
 - Service Health: DNS behavior over time.
 
@@ -182,10 +222,10 @@ All Linux hosts:
 up{job="node_exporter"}
 ```
 
-Proxmox host:
+Reverse proxy host:
 
 ```promql
-up{job="node_exporter", host="pve01", role="hypervisor"}
+up{job="node_exporter", host="proxy01", role="reverse-proxy"}
 ```
 
 Recursive DNS:
@@ -200,7 +240,13 @@ Local DNS:
 probe_success{job="blackbox_dns_local", host="dns01", scope="local"}
 ```
 
-Both DNS probes should return `1`.
+Internal HTTPS:
+
+```promql
+probe_success{job="blackbox_https_internal"}
+```
+
+Both DNS probes and both HTTPS probes should return `1`.
 
 Prometheus configuration validation and PromQL inventory validation are both required. Valid syntax does not prove every intended job remains present.
 
@@ -210,55 +256,53 @@ Important monitoring state:
 
 - `/etc/prometheus/prometheus.yml`.
 - `/etc/prometheus/blackbox.yml`.
+- Debian trust-store copy of the public root CA certificate.
 - Grafana configuration and SQLite database.
 - Prometheus data-source mapping.
 - Dashboard JSON exports.
 - Future alerting and recording rules.
 - Historical metrics when retention becomes operationally important.
 
-Project 003 completed:
+Project 003 provides daily `mon01` VM backup coverage, configuration inventory, protected dashboard exports, and recovery runbooks.
 
-- Daily VM backup coverage for `mon01`.
-- Snapshot mode with Zstandard compression.
-- Retention of 7 daily, 4 weekly, and 3 monthly backups.
-- Dedicated external storage with mount-point enforcement.
-- Configuration and state inventory.
-- Protected existing dashboard exports.
-- Recovery runbooks based on the tested Proxmox restore workflow.
+Project 004 added:
+
+- `proxy01` host target.
+- `https_internal` Blackbox module.
+- `blackbox_https_internal` job.
+- Grafana HTTPS availability and certificate lifetime panels.
 
 Current limitations:
 
 - `mon01` has not been independently restored.
-- The Infrastructure Overview export is still pending.
-- The `dns01` restore test proved the Proxmox VM workflow, not Grafana and Prometheus application recovery.
+- The Infrastructure Overview export must be refreshed after Project 004.
+- The `proxy01` restore proved the proxy workload, not restoration of `mon01` monitoring state.
 
 ## Troubleshooting Lessons
 
-### Blackbox YAML Nesting
+### YAML Placement and Target Discovery
 
-The initial local-DNS module was nested incorrectly. The safe pattern was:
-
-1. Restore the known-good file.
-2. Confirm live service recovery.
-3. Correct indentation.
-4. Preflight on an alternate local port.
-5. Restart production only after validation.
+A configuration can pass syntax validation while an intended target remains absent or incorrectly nested. Pair `promtool` with target inventory and direct PromQL queries.
 
 ### New Target Delay
 
 A new job may return an empty vector until its first scrape completes.
 
-### Grafana Query IDs
+### Trust Store Dependency
 
-Distinct query reference IDs are required when a panel contains multiple queries. Friendly names belong in legends.
+HTTPS probing with a private CA requires the public root certificate in the `mon01` system trust store. The root CA private key is not required and must not be copied to `mon01`.
 
-### Dashboard Threshold Types
+### Grafana Display Names
 
-Grafana dashboard threshold values must be JSON numbers, not quoted strings.
+Prometheus query legends can use `{{service}}`, while Grafana panel Display name fields use field variables such as:
 
-### Firewall Validation
+```text
+${__field.labels.service}
+```
 
-An active firewall does not prove a path is blocked. Testing from `mon01` showed no broad `pve01` rule was required.
+### Revocation Availability
+
+The current private CA has no CRL or OCSP endpoint. Browser and tool behavior should distinguish unavailable revocation information from failed certificate chain or hostname validation.
 
 ## Alerting Philosophy
 
@@ -270,26 +314,32 @@ Alerting is not yet enabled. Every alert must have:
 - A runbook.
 - A notification route.
 
+Potential future alerts include:
+
+- Internal HTTPS probe failure.
+- Certificate lifetime below the documented warning threshold.
+- `proxy01` host target failure.
+
 A small useful rule set is preferable to noise.
 
 ## Security Considerations
 
 - Keep monitoring services internal-only.
 - Do not expose TCP `3000`, `9090`, `9100`, or `9115` publicly.
-- Treat metrics, labels, JSON, and screenshots as operationally sensitive.
-- Do not publish exact targets, private record values, credentials, or tokens.
+- Treat metrics, labels, JSON, screenshots, probe targets, and certificate metadata as operationally sensitive.
+- Do not publish exact targets, private record values, credentials, keys, or tokens.
+- Install only the public root CA certificate on `mon01`.
 - Introduce Proxmox credentials only through least privilege.
-- Keep attacker and vulnerable workloads isolated from monitoring and backup systems.
+- Keep attacker and vulnerable workloads isolated from monitoring, proxy, PKI, and backup systems.
 
 ## Next Improvements
 
-- Export and privately validate the Infrastructure Overview.
+- Refresh and privately validate the Infrastructure Overview export.
 - Add Proxmox VM, storage, task, and backup metrics.
 - Add backup-age, capacity, and failure monitoring.
 - Add Pi-hole-specific application metrics.
 - Perform an independent `mon01` restore test.
-- Add actionable alerts only after runbooks and routing exist.
-- Add reverse-proxy and certificate monitoring during Project 004.
+- Add actionable HTTPS and certificate alerts only after runbooks and routing exist.
 
 ## Related Documentation
 
@@ -301,8 +351,11 @@ A small useful rule set is preferable to noise.
 - [Security Architecture](security.md)
 - [Project 002](../projects/project-002-monitoring-observability.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
+- [Project 004](../projects/project-004-reverse-proxy-internal-https.md)
 - [Prometheus](../services/prometheus.md)
 - [Grafana](../services/grafana.md)
 - [Blackbox Exporter](../services/blackbox-exporter.md)
+- [NGINX Proxy Manager](../services/nginx-proxy-manager.md)
+- [Internal Certificate Lifecycle](../runbooks/internal-certificate-lifecycle.md)
 - [Backup Runbook](../runbooks/backup.md)
 - [Disaster Recovery](../runbooks/disaster-recovery.md)
