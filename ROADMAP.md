@@ -9,7 +9,8 @@ This roadmap tracks planned homelab work at a high level. Detailed implementatio
 - Export and privately validate the updated Homelab Infrastructure Overview dashboard.
 - Create a second encrypted or offline root CA private-key copy in a separate failure domain.
 - Add alerting only after each condition has a clear response and supporting runbook.
-- Begin Project 007 Active Directory only after power-protection controls are operational.
+- Begin Project 007 secure remote access with Tailscale only after power-protection controls are operational.
+- Begin Project 008 Active Directory only after remote administration and power-protection controls are documented and tested.
 - Continue maintaining public, sanitized, portfolio-quality documentation after meaningful changes.
 
 ## Recently Completed Work
@@ -211,7 +212,17 @@ Completed work:
 - Document power-loss, shutdown, recovery, and battery-maintenance procedures.
 - Test and document a controlled utility-power failure and recovery scenario.
 
-### Project 007: Active Directory and Centralized Identity
+### Project 007: Tailscale Secure Remote Access
+
+- Deploy Tailscale for authenticated remote access to approved homelab management services.
+- Define which endpoints, administrators, and services may join the tailnet.
+- Apply least-privilege access controls rather than exposing the entire lab network by default.
+- Provide secure remote access to Grafana and selected administrative interfaces without public port forwarding.
+- Document device enrollment, key expiration, access revocation, updates, and recovery access.
+- Validate access from an external network and confirm that unauthorized paths remain unavailable.
+- Preserve local management paths so Tailscale is not a single point of failure.
+
+### Project 008: Active Directory and Centralized Identity
 
 - Deploy Active Directory Domain Services.
 - Centralize identity and authentication.
@@ -219,7 +230,7 @@ Completed work:
 - Document dependencies, recovery requirements, security decisions, and maintenance procedures.
 - Protect identity services with tested backup and UPS-backed shutdown first.
 
-### Project 008+: Security Engineering Projects
+### Project 009+: Security Engineering Projects
 
 - Wazuh.
 - Suricata.

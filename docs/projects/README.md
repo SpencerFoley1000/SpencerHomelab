@@ -31,7 +31,8 @@ Use the [Project Template](TEMPLATE.md) when starting a new project.
 | [Project 004: Reverse Proxy and Internal HTTPS](project-004-reverse-proxy-internal-https.md) | Completed | Deployed `proxy01`, friendly internal names, private-CA HTTPS, endpoint and certificate monitoring, backup coverage, and isolated restore validation. |
 | [Project 005: X299 Virtualization Server](project-005-x299-virtualization-server.md) | Completed | Built the dedicated server, transferred the existing Proxmox installation, restored production services, and added host thermal monitoring. |
 | Project 006: Power Resilience and Graceful Shutdown | Planned | Install the UPS, monitor it, and implement orderly shutdown before centralized identity services. |
-| Project 007: Active Directory and Centralized Identity | Planned | Deploy identity services only after power-protection controls are operational. |
+| [Project 007: Tailscale Secure Remote Access](project-007-tailscale-secure-remote-access.md) | Planned | Add authenticated, least-privilege remote administration without public port forwarding. |
+| Project 008: Active Directory and Centralized Identity | Planned | Deploy identity services after power-protection and remote-administration controls are operational. |
 
 ## Project Status Values
 

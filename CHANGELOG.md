@@ -2,6 +2,22 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-21 - Roadmap Updated for Secure Remote Access
+
+### Changed
+
+- Defined Tailscale secure remote access as Project 007.
+- Renumbered Active Directory and centralized identity as Project 008.
+- Moved later security-engineering work to Project 009 and beyond.
+- Added a planned Project 007 page covering least-privilege access, external-network validation, lifecycle management, and local recovery paths.
+- Synchronized the repository README, roadmap, project index, and architecture index.
+
+### Why
+
+- Secure remote access provides immediate operational value for off-site monitoring and administration.
+- Tailscale can provide authenticated access without publicly forwarding management ports.
+- Implementing and documenting the remote-management boundary before centralized identity keeps each project independently testable and recoverable.
+
 ## 2026-07-21 - Project 005 X299 Virtualization Server Completion
 
 ### Changed
@@ -16,7 +32,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Retired the ThinkPad from the production hypervisor role and returned it to endpoint use.
 - Documented the accepted nonfunctional DIMM slot as a capacity constraint.
 - Added the Project 005 page, ADR-0005, and a dated completion record.
-- Renumbered power resilience as Project 006 and Active Directory as Project 007.
+- Renumbered power resilience as Project 006 and, at that time, Active Directory as Project 007.
 - Synchronized repository entry points, roadmap, architecture, hardware, Proxmox, monitoring, project index, and decision index documentation.
 
 ### Why

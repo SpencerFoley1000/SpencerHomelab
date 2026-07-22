@@ -35,7 +35,7 @@ The homelab currently includes:
 - A dedicated X299 virtualization server now operating as `pve01`, with the original Proxmox system disk and workloads migrated intact from the initial ThinkPad host.
 - Hardware temperature telemetry from the X299 host exposed through Node Exporter and validated in Prometheus.
 
-Projects 001 through 005 are complete operational baselines. Project 005 replaced the temporary ThinkPad hypervisor with the dedicated X299 server while preserving the existing `pve01` platform identity and workloads. The next primary focus is Project 006 power resilience, UPS monitoring, and graceful shutdown, followed by Project 007 Active Directory. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
+Projects 001 through 005 are complete operational baselines. Project 005 replaced the temporary ThinkPad hypervisor with the dedicated X299 server while preserving the existing `pve01` platform identity and workloads. The next primary focus is Project 006 power resilience, UPS monitoring, and graceful shutdown, followed by Project 007 Tailscale secure remote access and Project 008 Active Directory. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
 
 ## Documentation Structure
 

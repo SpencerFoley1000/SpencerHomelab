@@ -45,7 +45,7 @@ The homelab currently includes:
 - Protected application-level recovery exports, private PKI material, and sanitized rebuild documentation.
 - Dedicated X299 virtualization server operating as `pve01` after a completed hardware migration.
 
-The next primary architecture focus is Project 006 UPS monitoring and graceful shutdown. Future priorities include Active Directory, Proxmox platform and backup monitoring, second-copy backup and root-CA protection, and network segmentation.
+The next primary architecture focus is Project 006 UPS monitoring and graceful shutdown. Project 007 will add controlled Tailscale remote access before Project 008 introduces Active Directory. Other priorities include Proxmox platform and backup monitoring, second-copy backup and root-CA protection, and network segmentation.
 
 ## Related Documentation
 
