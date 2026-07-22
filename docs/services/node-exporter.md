@@ -214,14 +214,14 @@ sudo apt install --reinstall prometheus-node-exporter
 - Add new hosts with consistent `host` and `role` labels.
 - Keep host monitoring separate from service and application monitoring.
 - Revalidate access after firewall or segmentation changes.
-- Add the future X299 server only after local hardware validation and a documented role decision.
+- Maintain X299 hardware-sensor visibility and validate temperature metrics after cooler or airflow changes.
 
 ## Future Improvements
 
 - Add Proxmox-specific VM, storage-pool, task, and backup metrics using least-privilege credentials.
 - Add actionable resource alerts only after thresholds and runbooks are defined.
 - Restrict scrape traffic further when management-network segmentation is implemented.
-- Add the future server to Prometheus and Grafana after it passes deployment gates.
+- Add temperature alerting only after thresholds, notification routing, and a response runbook are defined.
 
 ## Related Documentation
 
@@ -234,5 +234,5 @@ sudo apt install --reinstall prometheus-node-exporter
 - [NGINX Proxy Manager](nginx-proxy-manager.md)
 - [Proxmox VE Platform](proxmox.md)
 - [VM Inventory](../architecture/vm-inventory.md)
-- [Future Virtualization Server Build](../hardware/server-build.md)
+- [X299 Virtualization Server](../hardware/server-build.md)
 - [Prometheus Scrape Target Troubleshooting](../runbooks/prometheus-scrape-target-troubleshooting.md)

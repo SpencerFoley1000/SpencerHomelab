@@ -13,7 +13,7 @@ Hardware-specific details are documented separately. Architecture decisions and 
 | Lifecycle state | Active |
 | Platform role | Primary hypervisor and VM management platform |
 | Hostname | `pve01` |
-| Hardware | Lenovo ThinkPad E16 Gen 1 |
+| Hardware | Dedicated X299 server |
 | Proxmox VE version | `9.2.2` |
 | Debian base | Debian 13 Trixie |
 | Running kernel | `7.0.2-6-pve` |
@@ -22,7 +22,7 @@ Hardware-specific details are documented separately. Architecture decisions and 
 | Administrative authentication | Named routine administrator and protected root break-glass identity; TOTP and independent recovery keys enabled |
 | Host monitoring | Active through Node Exporter, Prometheus, and Grafana |
 | Backup maturity | Daily backups active for `dns01` and `mon01`; isolated `dns01` restore validated 2026-07-14 |
-| Future platform | X299 server hardware acquired; assembly and validation pending |
+| Host transition | Existing installation migrated from the ThinkPad to X299 on 2026-07-21 |
 
 Exact management endpoints, internal addresses, routine administrator names, VM IDs, MAC addresses, drive UUIDs, storage identifiers, authentication seeds, recovery keys, and backup filenames are intentionally omitted.
 
@@ -53,7 +53,7 @@ Proxmox currently provides:
 
 Proxmox operations depend on:
 
-- The Lenovo ThinkPad E16 Gen 1 active host.
+- The active X299 server.
 - The TP-Link managed switch for wired connectivity.
 - The GL.iNet Opal routing boundary.
 - Existing upstream household connectivity for package updates and public DNS.
@@ -81,7 +81,7 @@ Future networking documentation must record:
 - Management-network placement.
 - Allowed workload networks.
 - Security-lab isolation boundaries.
-- The network relationship between the ThinkPad and future server.
+- Network placement for any future secondary host.
 
 ## Firewall
 
@@ -131,7 +131,7 @@ The routine Proxmox identity is application-level. It does not create a Debian u
 
 ### Active Local Storage
 
-The active platform uses the ThinkPad's local 1 TB PCIe SSD for:
+The active platform uses the transferred 1 TB SATA SSD for:
 
 - Proxmox system storage.
 - VM disks.
@@ -157,7 +157,7 @@ Implemented controls:
 
 Public documentation uses `<BACKUP_MOUNT>` and `<BACKUP_TARGET>` rather than exact local identifiers.
 
-The future X299 server has two existing 1 TB NVMe devices, but its final storage layout is not yet approved.
+Two 1 TB NVMe devices remain available, but no production role or storage layout is approved for them.
 
 ## Backup and Recovery
 
@@ -232,6 +232,7 @@ Validated state:
 - Prometheus scrapes it under the shared `node_exporter` job.
 - Labels are `host="pve01"` and `role="hypervisor"`.
 - Grafana displays CPU, memory, filesystem, network, and uptime metrics.
+- The hardware-monitoring collector exposes `coretemp` CPU temperature metrics from the X299 platform.
 
 ```promql
 up{job="node_exporter", host="pve01", role="hypervisor"}
@@ -318,9 +319,8 @@ After Proxmox upgrades:
 - Create a tested Proxmox maintenance and management-access recovery runbook.
 - Review SSH authentication and root-login policy after console recovery is documented.
 - Restrict management through a dedicated management network when segmentation is implemented.
-- Assemble and validate the future X299 server.
-- Create an ADR defining whether the new server replaces or supplements `pve01`.
-- Integrate UPS monitoring and graceful shutdown under Project 005.
+- Continue monitoring X299 temperatures and stability under production workloads.
+- Integrate UPS monitoring and graceful shutdown under Project 006.
 
 ## Related Documentation
 
@@ -333,11 +333,13 @@ After Proxmox upgrades:
 - [Proxmox VM Restore](../runbooks/proxmox-vm-restore.md)
 - [Disaster Recovery](../runbooks/disaster-recovery.md)
 - [Node Exporter](node-exporter.md)
-- [Current Proxmox Host Hardware](../hardware/server.md)
-- [Future Virtualization Server Build](../hardware/server-build.md)
+- [Initial Proxmox Host Hardware](../hardware/server.md)
+- [X299 Virtualization Server](../hardware/server-build.md)
 - [Project 003: Backup and Recovery](../projects/project-003-backup-recovery.md)
 - [ADR-0001: Initial Proxmox Host](../decisions/ADR-0001-proxmox-on-thinkpad-e16.md)
 - [ADR-0003: Direct-Attached Proxmox Backup Storage](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
+- [ADR-0005: Migrate pve01 to the X299 Server](../decisions/ADR-0005-migrate-pve01-to-x299-server.md)
+- [Project 005: X299 Virtualization Server](../projects/project-005-x299-virtualization-server.md)
 - [Authentication Hardening Change Record](../changes/2026-07-12-proxmox-administrative-authentication-hardening.md)
 - [Project 003 Completion Change Record](../changes/2026-07-14-project-003-backup-recovery-completion.md)
 - [QEMU Guest Agent Troubleshooting](../runbooks/qemu-guest-agent-troubleshooting.md)

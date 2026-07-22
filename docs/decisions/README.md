@@ -59,6 +59,7 @@ Keep filenames lowercase after the ADR number and use hyphens between words.
 | ADR | Status | Topic |
 | --- | --- | --- |
 | [ADR-0001](ADR-0001-proxmox-on-thinkpad-e16.md) | Accepted | Use Lenovo ThinkPad E16 Gen 1 as the initial Proxmox host |
+| [ADR-0005](ADR-0005-migrate-pve01-to-x299-server.md) | Accepted | Migrate `pve01` from the ThinkPad to the dedicated X299 server |
 | [ADR-0002](ADR-0002-prometheus-grafana-monitoring-stack.md) | Accepted | Use Prometheus, Grafana, Node Exporter, and Blackbox Exporter for monitoring |
 | [ADR-0003](ADR-0003-direct-attached-proxmox-backup-storage.md) | Accepted | Use direct-attached ext4 Proxmox backup storage with layered recovery assets |
 | [ADR-0004](ADR-0004-internal-reverse-proxy-and-private-ca.md) | Accepted | Use NGINX Proxy Manager with a private internal certificate authority |

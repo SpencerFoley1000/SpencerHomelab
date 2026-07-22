@@ -32,9 +32,10 @@ The homelab currently includes:
 - Daily snapshot-mode, Zstandard-compressed backups for `dns01`, `mon01`, and `proxy01` with 7 daily, 4 weekly, and 3 monthly retention.
 - Validated isolated whole-VM restores for `dns01` and `proxy01`.
 - Protected application-level recovery exports, private PKI assets, and sanitized rebuild documentation.
-- Hardware acquired for a future dedicated virtualization server, pending assembly and validation.
+- A dedicated X299 virtualization server now operating as `pve01`, with the original Proxmox system disk and workloads migrated intact from the initial ThinkPad host.
+- Hardware temperature telemetry from the X299 host exposed through Node Exporter and validated in Prometheus.
 
-Projects 003 and 004 are complete operational baselines. The next primary focus is assembling and validating the X299 virtualization server, followed by Project 005 power resilience, UPS monitoring, and graceful shutdown. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
+Projects 001 through 005 are complete operational baselines. Project 005 replaced the temporary ThinkPad hypervisor with the dedicated X299 server while preserving the existing `pve01` platform identity and workloads. The next primary focus is Project 006 power resilience, UPS monitoring, and graceful shutdown, followed by Project 007 Active Directory. Monitoring improvements remain planned for Pi-hole application metrics, Proxmox platform and backup metrics, backup-health monitoring, and actionable alerting.
 
 ## Documentation Structure
 

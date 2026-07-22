@@ -42,7 +42,7 @@ Current state:
 | 5 TB external HDD | Dedicated Proxmox backup destination for core VMs | Active and restore-tested through `dns01` and `proxy01` | Model, serial, UUID, exact backup names, and private identifiers omitted |
 | Private administrative-workstation storage | Protected location for application exports, certificate material, and hashes | Active supporting recovery layer | Exact paths, usernames, hashes, passphrases, and keys omitted |
 | GitHub repository | Sanitized architecture, service, project, runbook, ADR, and change documentation | Active | No raw secrets, private exports, keys, or backup artifacts |
-| Two 1 TB NVMe devices | Planned local storage for the future dedicated server | Acquired; role and layout pending validation | Exact serial numbers and final pool names omitted |
+| Two 1 TB NVMe devices | Available expansion storage for the X299 server | Available; production role pending | Exact serial numbers and final pool names omitted |
 
 ## Logical Storage Layout
 

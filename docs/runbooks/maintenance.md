@@ -200,7 +200,7 @@ For meaningful maintenance:
 - Add package-specific rollback procedures where supported.
 - Add a dedicated Proxmox management-access recovery runbook.
 - Add automated backup-age and task-result checks.
-- Add UPS state checks after Project 005.
+- Add UPS state checks after Project 006.
 
 ## Related Documentation
 

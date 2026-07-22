@@ -43,9 +43,9 @@ The homelab currently includes:
 - Daily snapshot-mode backups for `dns01`, `mon01`, and `proxy01` with tiered retention.
 - Validated isolated `dns01` and `proxy01` whole-VM restore paths.
 - Protected application-level recovery exports, private PKI material, and sanitized rebuild documentation.
-- Acquired hardware for a future dedicated virtualization server, pending assembly and validation.
+- Dedicated X299 virtualization server operating as `pve01` after a completed hardware migration.
 
-The next primary architecture focus is X299 server assembly and validation. Future priorities include the host-role migration ADR, power resilience, Proxmox platform and backup monitoring, second-copy backup and root-CA protection, and network segmentation.
+The next primary architecture focus is Project 006 UPS monitoring and graceful shutdown. Future priorities include Active Directory, Proxmox platform and backup monitoring, second-copy backup and root-CA protection, and network segmentation.
 
 ## Related Documentation
 

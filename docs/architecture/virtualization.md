@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Describe the homelab virtualization design, Proxmox platform role, workload model, security controls, monitoring boundaries, backup architecture, and future host transition.
+Describe the homelab virtualization design, Proxmox platform role, workload model, security controls, monitoring boundaries, backup architecture, and completed host transition.
 
 ## Current Status
 
-Proxmox VE is the active virtualization platform. Three stable infrastructure VMs run on `pve01`, and hardware has been acquired for a future dedicated server.
+Proxmox VE is the active virtualization platform. Three stable infrastructure VMs run on the dedicated X299 host `pve01`.
 
 Current priorities:
 
@@ -14,7 +14,7 @@ Current priorities:
 - Track every persistent VM in the [VM Inventory](vm-inventory.md).
 - Keep DNS, monitoring, and reverse proxy roles on separate guests.
 - Include stable VMs in backup and recovery planning before considering deployment complete.
-- Assemble and validate the future server before assigning it a production role.
+- Continue validating X299 thermals and stability through production monitoring.
 - Prevent experimental workloads from consuming resources required by core infrastructure.
 
 ## Active Platform
@@ -24,7 +24,7 @@ Current priorities:
 | Hypervisor | Proxmox VE `9.2.2` |
 | Debian base | Debian 13 Trixie |
 | Running kernel | `7.0.2-6-pve` |
-| Active host | Lenovo ThinkPad E16 Gen 1, `pve01` |
+| Active host | Dedicated X299 server, `pve01` |
 | Management access | Internal-only |
 | Administrative model | Named routine administrator plus root break-glass identity, both protected by TOTP and independent recovery keys |
 | Local storage | 1 TB PCIe SSD |
@@ -44,7 +44,7 @@ Exact bridges, addresses, VM IDs, storage identifiers, drive UUIDs, authenticati
 
 See [VM Inventory](vm-inventory.md) for resources, monitoring coverage, and recovery priority.
 
-## Planned Dedicated Server
+## Dedicated X299 Server
 
 Acquired baseline:
 
@@ -56,22 +56,21 @@ Acquired baseline:
 | Cooling | Noctua NH-U12S |
 | Power supply | Existing 500 W unit |
 | Chassis | Existing NZXT H510 |
-| Planned local storage | Two existing 1 TB NVMe devices |
-| Known limitation | One inner DIMM slot reported nonfunctional |
-| Status | Acquired; assembly and local validation pending |
+| System storage | Transferred 1 TB SATA Proxmox system disk |
+| Available expansion | Two 1 TB NVMe devices with no assigned production role |
+| Known limitation | One inner DIMM slot is nonfunctional |
+| Status | Active production host; monitored and backed up at the VM layer |
 
-The future server is not production infrastructure until it passes:
+Project 005 completed:
 
-- Visual inspection and assembly validation.
-- CPU and memory detection checks.
-- Memory stability and thermal testing.
-- Storage-health validation and layout selection.
-- Network validation.
-- Hypervisor installation and security baseline.
-- Monitoring and backup integration.
-- Power measurement and operational review.
+- Physical assembly, POST, CPU, and 32 GB memory detection.
+- Migration of the existing Proxmox SATA system disk.
+- Network and internal management validation.
+- Startup validation for `dns01`, `mon01`, and `proxy01`.
+- Backup-target access validation.
+- Node Exporter and X299 CPU temperature telemetry validation.
 
-A future ADR must decide whether it replaces the ThinkPad, supplements it, or changes the ThinkPad to a secondary role.
+ADR-0005 records the X299 server as the sole production host and retires the ThinkPad from the hypervisor role.
 
 ## Design Goals
 
@@ -130,10 +129,10 @@ Current lessons:
 
 - `mon01` increased from 2 GB to 3 GB RAM after Grafana showed limited headroom.
 - `proxy01` begins with 2 vCPU, 2 GB RAM, and a 20 GB disk.
-- The current host's 16 GB RAM is the main workload-growth constraint.
+- The former ThinkPad host's 16 GB RAM was the main workload-growth constraint.
 - Core infrastructure receives priority over experiments.
 - Host capacity must remain available for Proxmox management and recovery.
-- The future server's 32 GB baseline improves capacity but does not eliminate planning.
+- The X299 server's 32 GB baseline improves capacity but does not eliminate planning.
 - The failed DIMM slot must be validated before memory expansion decisions.
 
 ## Networking Model
@@ -169,6 +168,7 @@ Current monitoring:
 - Grafana CPU, memory, filesystem, network, and uptime views.
 - Recursive and local DNS probes for `dns01`.
 - Internal HTTPS and certificate-expiration probes through `proxy01`.
+- X299 CPU temperature metrics through Node Exporter's hardware-monitoring collector.
 
 Node Exporter on `pve01` does not provide authoritative:
 
@@ -247,8 +247,6 @@ After maintenance:
 - Add a tested Proxmox maintenance and management-access recovery runbook.
 - Perform an independent `mon01` restore test.
 - Add a second backup copy in a separate failure domain.
-- Assemble and validate the future server.
-- Create the future host-role and migration ADR.
 - Integrate power measurement, UPS monitoring, and graceful shutdown.
 
 ## Related Documentation
@@ -261,11 +259,13 @@ After maintenance:
 - [Security Architecture](security.md)
 - [Proxmox Platform](../services/proxmox.md)
 - [NGINX Proxy Manager](../services/nginx-proxy-manager.md)
-- [Current Proxmox Host](../hardware/server.md)
-- [Future Virtualization Server](../hardware/server-build.md)
+- [Initial Proxmox Host](../hardware/server.md)
+- [X299 Virtualization Server](../hardware/server-build.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
 - [Project 004](../projects/project-004-reverse-proxy-internal-https.md)
 - [ADR-0003](../decisions/ADR-0003-direct-attached-proxmox-backup-storage.md)
 - [ADR-0004](../decisions/ADR-0004-internal-reverse-proxy-and-private-ca.md)
+- [ADR-0005](../decisions/ADR-0005-migrate-pve01-to-x299-server.md)
+- [Project 005](../projects/project-005-x299-virtualization-server.md)
 - [Backup Runbook](../runbooks/backup.md)
 - [Proxmox VM Restore](../runbooks/proxmox-vm-restore.md)

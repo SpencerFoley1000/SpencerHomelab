@@ -29,9 +29,9 @@ Use the [Project Template](TEMPLATE.md) when starting a new project.
 | [Project 002: Monitoring and Observability Stack](project-002-monitoring-observability.md) | Active — foundation complete | Four-host metrics, DNS and internal HTTPS probes, and operational dashboards are active; application/platform metrics and alerting remain follow-up work. |
 | [Project 003: Backup and Recovery](project-003-backup-recovery.md) | Completed | Added dedicated backup storage, daily VM backups, tiered retention, and validated isolated restore paths. |
 | [Project 004: Reverse Proxy and Internal HTTPS](project-004-reverse-proxy-internal-https.md) | Completed | Deployed `proxy01`, friendly internal names, private-CA HTTPS, endpoint and certificate monitoring, backup coverage, and isolated restore validation. |
-| Infrastructure Milestone: Future Virtualization Server | Acquired / pre-deployment | Assemble and validate the X299 server before deciding its production role. |
-| Project 005: Power Resilience and Graceful Shutdown | Planned | Measure power, select a UPS, monitor it, and implement orderly shutdown before centralized identity services. |
-| Project 006: Active Directory and Centralized Identity | Planned | Deploy identity services only after the new server and power-protection controls are operational. |
+| [Project 005: X299 Virtualization Server](project-005-x299-virtualization-server.md) | Completed | Built the dedicated server, transferred the existing Proxmox installation, restored production services, and added host thermal monitoring. |
+| Project 006: Power Resilience and Graceful Shutdown | Planned | Install the UPS, monitor it, and implement orderly shutdown before centralized identity services. |
+| Project 007: Active Directory and Centralized Identity | Planned | Deploy identity services only after power-protection controls are operational. |
 
 ## Project Status Values
 

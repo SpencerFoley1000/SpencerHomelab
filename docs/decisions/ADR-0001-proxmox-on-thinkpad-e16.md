@@ -28,7 +28,7 @@ Available hardware was a Lenovo ThinkPad E16 Gen 1 with an Intel Core i5-1335U, 
 
 Use the Lenovo ThinkPad E16 Gen 1 as the initial Proxmox VE host.
 
-It remains the active host during the first phase of the lab. A future ADR will determine its long-term role after the X299 server is assembled and validated.
+It remained the active host during the first phase of the lab. ADR-0005 later retired it from the hypervisor role after the X299 migration.
 
 ## Rationale
 
@@ -79,7 +79,7 @@ Reasons:
 - [ ] Add Proxmox platform-specific VM, storage, task, and backup metrics.
 - [x] Complete protected VM backup and representative restore validation.
 - [x] Reassess host capacity after core services were deployed.
-- [ ] Create an ADR defining the ThinkPad and X299 server relationship.
+- [x] Create an ADR defining the ThinkPad and X299 server relationship. See ADR-0005.
 - [ ] Integrate the host into UPS monitoring and graceful-shutdown design.
 
 The first capacity review increased `mon01` from 2 GB to 3 GB RAM after monitoring showed limited headroom. The host remains suitable for the current DNS and monitoring workloads, but memory and local storage remain the main growth constraints.
@@ -104,7 +104,7 @@ Remaining validation gaps:
 - The host's role after future-server validation is undecided.
 - Coordinated UPS-backed shutdown is not implemented.
 
-A future ADR must document whether to retain the ThinkPad as primary, add another node, migrate stable workloads, or repurpose it.
+ADR-0005 selected migration of the existing `pve01` installation to the X299 server and returned the ThinkPad to endpoint use.
 
 ## Related Documentation
 
@@ -115,7 +115,7 @@ A future ADR must document whether to retain the ThinkPad as primary, add anothe
 - [Monitoring Architecture](../architecture/monitoring.md)
 - [Security Architecture](../architecture/security.md)
 - [Current Proxmox Host](../hardware/server.md)
-- [Future Virtualization Server Build](../hardware/server-build.md)
+- [X299 Virtualization Server](../hardware/server-build.md)
 - [Proxmox VE Platform](../services/proxmox.md)
 - [Project 003](../projects/project-003-backup-recovery.md)
 - [ADR-0003](ADR-0003-direct-attached-proxmox-backup-storage.md)

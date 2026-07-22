@@ -2,6 +2,53 @@
 
 This changelog records meaningful infrastructure, documentation, and process changes in reverse chronological order.
 
+## 2026-07-21 - Project 005 X299 Virtualization Server Completion
+
+### Changed
+
+- Assembled and placed the dedicated X299 server into production as `pve01`.
+- Installed the Intel Core i7-7800X, 32 GB DDR4, Noctua cooling, and a Radeon R7 350 for physical-console access.
+- Migrated the existing Proxmox installation by transferring its 1 TB SATA system SSD from the ThinkPad.
+- Preserved the `pve01` identity, VM configuration, backup configuration, administrative authentication, and monitoring labels.
+- Returned `dns01`, `mon01`, and `proxy01` to service on the new hardware.
+- Confirmed continued access to the dedicated external backup target.
+- Validated Node Exporter hardware-monitoring output and `coretemp` CPU temperature metrics.
+- Retired the ThinkPad from the production hypervisor role and returned it to endpoint use.
+- Documented the accepted nonfunctional DIMM slot as a capacity constraint.
+- Added the Project 005 page, ADR-0005, and a dated completion record.
+- Renumbered power resilience as Project 006 and Active Directory as Project 007.
+- Synchronized repository entry points, roadmap, architecture, hardware, Proxmox, monitoring, project index, and decision index documentation.
+
+### Why
+
+- The initial ThinkPad host had reached practical memory and expansion limits.
+- Reusing the validated Proxmox system disk reduced migration risk and avoided an unnecessary rebuild.
+- Dedicated console graphics preserve physical recovery access on a CPU without integrated graphics.
+- Newly assembled server hardware requires temperature visibility before unattended long-term operation.
+
+### Validation
+
+- Successful POST, console output, CPU detection, and 32 GB memory detection.
+- Successful Proxmox boot from the transferred SATA SSD.
+- Internal management access and logical `pve01` identity preserved.
+- Core VMs and infrastructure services operational.
+- Backup target accessible.
+- Node Exporter scrape healthy and X299 CPU temperature sensors visible.
+
+### Lessons Learned
+
+- Integrated graphics capability must be checked during server planning rather than assumed.
+- Physical host replacement does not require changing a stable logical host identity.
+- Boot success is only the first migration gate; services, backups, monitoring, authentication, and thermals also require validation.
+- Known hardware faults can be accepted when their impact and operating constraints are explicit.
+
+### Remaining Work
+
+- Complete Project 006 UPS monitoring and graceful shutdown.
+- Record server and required network-device power measurements.
+- Continue temperature and stability observation under production workloads.
+- Assign the available NVMe devices a production role only when justified by a documented storage requirement.
+
 ## 2026-07-14 - Project 004 Reverse Proxy and Internal HTTPS Completion
 
 ### Changed
@@ -159,7 +206,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Ordered a 5 TB external hard drive as the first dedicated Project 003 Proxmox backup target.
 - Added the future server, backup drive, and planned UPS to the sanitized hardware inventory.
 - Added a dedicated future-server build page and required a future ADR before assigning it a production role.
-- Updated the roadmap to sequence Project 003 backup implementation, Project 004 reverse proxy and internal HTTPS, new-server validation, Project 005 UPS and graceful shutdown, and Project 006 Active Directory.
+- Updated the roadmap to sequence Project 003 backup implementation, Project 004 reverse proxy and internal HTTPS, new-server validation, the then-numbered Project 005 UPS work, and the then-numbered Project 006 Active Directory work.
 - Synchronized repository entry points, architecture pages, virtualization, storage, hardware, VM inventory, Project 003, ADR-0001, service pages, and runbooks with the deployed monitoring and recovery state.
 - Updated Project 003 recovery requirements to include `blackbox_dns_local` and `dns_udp_local` so local-record monitoring cannot be silently omitted during rebuild.
 - Expanded backup, disaster-recovery, maintenance, and VM-provisioning runbooks while preserving honest planned or unvalidated maturity labels.
@@ -194,7 +241,7 @@ This changelog records meaningful infrastructure, documentation, and process cha
 - Export and privately validate the Homelab Infrastructure Overview.
 - Assemble and validate the X299 server.
 - Create an ADR defining the future relationship between the ThinkPad and X299 server.
-- Measure power consumption and implement Project 005 UPS monitoring and graceful shutdown.
+- Measure power consumption and implement UPS monitoring and graceful shutdown, now tracked as Project 006.
 - Add Proxmox platform metrics and actionable alerts only after least-privilege and response designs exist.
 
 ## 2026-07-11 - Infrastructure Overview and Local DNS Monitoring

@@ -4,19 +4,36 @@ This roadmap tracks planned homelab work at a high level. Detailed implementatio
 
 ## Current Focus
 
-- Assemble and validate the acquired X299 virtualization server.
-- Verify CPU, memory, thermals, storage, network connectivity, and the reported failed DIMM slot.
-- Decide the long-term relationship between the ThinkPad host and new server through an ADR.
-- Integrate the future server with monitoring and backup only after local validation passes.
-- Complete Project 005 power resilience, UPS monitoring, and graceful shutdown automation before centralized identity services.
-- Measure combined power consumption before final UPS sizing.
+- Complete Project 006 power resilience, UPS monitoring, and graceful shutdown automation before centralized identity services.
+- Measure and record X299 server and required network-device power consumption.
 - Export and privately validate the updated Homelab Infrastructure Overview dashboard.
 - Create a second encrypted or offline root CA private-key copy in a separate failure domain.
 - Add alerting only after each condition has a clear response and supporting runbook.
-- Begin Project 006 Active Directory only after the new server and power-protection controls are operational.
+- Begin Project 007 Active Directory only after power-protection controls are operational.
 - Continue maintaining public, sanitized, portfolio-quality documentation after meaningful changes.
 
 ## Recently Completed Work
+
+### Project 005: X299 Virtualization Server
+
+Project 005 delivered:
+
+- A dedicated X299 server operating as the production Proxmox host `pve01`.
+- Intel Core i7-7800X, 32 GB DDR4, Noctua cooling, and a dedicated Radeon R7 350 console adapter.
+- Migration of the existing Proxmox SATA system disk rather than an unnecessary rebuild.
+- Preservation of VM state, backup configuration, administrative authentication, and monitoring identity.
+- Successful return to service for `dns01`, `mon01`, and `proxy01`.
+- Continued access to the dedicated backup target.
+- CPU temperature telemetry through Node Exporter's hardware-monitoring collector.
+- Retirement of the ThinkPad from the hypervisor role and return to endpoint use.
+- ADR-0005, a project page, and a dated completion record.
+
+Remaining improvements are operational follow-up rather than Project 005 blockers:
+
+- Complete UPS monitoring and graceful shutdown under Project 006.
+- Record power measurements.
+- Continue temperature and stability observation.
+- Assign the available NVMe devices a role only when requirements justify it.
 
 ### Project 004: Reverse Proxy and Internal HTTPS
 
@@ -100,7 +117,7 @@ Remaining monitoring work should improve operational coverage and recovery value
 
 ## Planned Projects and Milestones
 
-### 1. Project 002: Monitoring and Observability Stack
+### Project 002: Monitoring and Observability Stack
 
 Operational foundation:
 
@@ -122,7 +139,7 @@ Remaining improvements:
 - Add backup-age and backup-failure monitoring.
 - Add alerting after runbooks and notification routing exist.
 
-### 2. Project 003: Backup and Recovery — Completed
+### Project 003: Backup and Recovery — Completed
 
 Completed scope:
 
@@ -139,7 +156,7 @@ Future improvements:
 - Independently restore-test `mon01`.
 - Evaluate an offline, rotated, off-site, NAS, or Proxmox Backup Server copy.
 
-### 3. Project 004: Reverse Proxy and Internal HTTPS — Completed
+### Project 004: Reverse Proxy and Internal HTTPS — Completed
 
 Completed scope:
 
@@ -159,30 +176,31 @@ Future improvements:
 - Introduce future segmentation and narrower firewall policy.
 - Evaluate per-service certificates and configuration automation when justified.
 
-### 4. Infrastructure Milestone: New Virtualization Server
+### Project 005: X299 Virtualization Server — Completed
 
-Acquired baseline:
+Completed baseline:
 
 - ASRock X299M Extreme4.
 - Intel Core i7-7800X.
 - 32 GB Crucial DDR4-2133.
 - Noctua NH-U12S.
 - Existing 500 W power supply and NZXT H510 chassis.
-- Two existing 1 TB NVMe devices.
-- One reported nonfunctional inner DIMM slot.
+- Radeon R7 350 console adapter.
+- Existing 1 TB SATA Proxmox system disk.
+- Two available 1 TB NVMe devices with no production role assigned.
+- One confirmed nonfunctional inner DIMM slot.
 
-Required work:
+Completed work:
 
-- Assemble and inspect the hardware.
-- Verify CPU and memory detection.
-- Confirm the failed DIMM-slot behavior.
-- Test memory stability and temperatures.
-- Validate storage health and select a storage layout.
-- Install and secure the virtualization platform.
-- Integrate monitoring and backup.
-- Create an ADR for the production role and migration plan.
+- Assembled and booted the hardware.
+- Verified CPU and 32 GB memory detection.
+- Migrated the existing `pve01` installation by transferring its SATA SSD.
+- Restored core VMs and service availability.
+- Preserved backup access and monitoring.
+- Added X299 CPU temperature telemetry.
+- Recorded the production role and ThinkPad retirement in ADR-0005.
 
-### 5. Project 005: Power Resilience and Graceful Shutdown
+### Project 006: Power Resilience and Graceful Shutdown
 
 - Measure idle, normal, startup, and higher-load power consumption.
 - Include both virtualization hosts if both remain active.
@@ -193,7 +211,7 @@ Required work:
 - Document power-loss, shutdown, recovery, and battery-maintenance procedures.
 - Test and document a controlled utility-power failure and recovery scenario.
 
-### 6. Project 006: Active Directory and Centralized Identity
+### Project 007: Active Directory and Centralized Identity
 
 - Deploy Active Directory Domain Services.
 - Centralize identity and authentication.
@@ -201,7 +219,7 @@ Required work:
 - Document dependencies, recovery requirements, security decisions, and maintenance procedures.
 - Protect identity services with tested backup and UPS-backed shutdown first.
 
-### 7. Project 007+: Security Engineering Projects
+### Project 008+: Security Engineering Projects
 
 - Wazuh.
 - Suricata.
@@ -228,4 +246,5 @@ Required work:
 - Project 002 monitoring foundation: Prometheus, Grafana, Node Exporter, Blackbox Exporter, four-host metrics, DNS and internal HTTPS probing, certificate metrics, service-health visualization, and a custom infrastructure overview dashboard.
 - Project 003: dedicated backup storage, automatic VM backups, tiered retention, and representative restore validation.
 - Project 004: reverse proxy, friendly internal DNS, private-CA HTTPS, monitoring, backup, and restore validation.
+- Project 005: dedicated X299 virtualization server, in-place Proxmox migration, service validation, and hardware temperature monitoring.
 - Proxmox administrative authentication hardening with named routine administration, TOTP, recovery keys, and break-glass access.

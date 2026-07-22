@@ -9,10 +9,10 @@ Hardware documentation is sanitized for a public repository. It should explain t
 - [Inventory](inventory.md) - Sanitized inventory of active, acquired, and planned physical devices.
 - [Switch](switch.md) - Managed switch role, management access, and future VLAN usage.
 - [Router](router.md) - Routing/firewall role and current upstream dependency.
-- [Current Proxmox Host](server.md) - Lenovo ThinkPad E16 Gen 1 and active `pve01` role.
-- [Future Virtualization Server Build](server-build.md) - Acquired X299 platform, known limitation, validation plan, and intended role.
+- [Initial Proxmox Host](server.md) - Lenovo ThinkPad E16 Gen 1 and its retired hypervisor role.
+- [X299 Virtualization Server](server-build.md) - Current `pve01` hardware, migration, known limitation, and validation results.
 
-The 5 TB external backup drive and future UPS are tracked in the inventory because their current architecture role does not yet justify separate device pages.
+The 5 TB external backup drive and UPS are tracked in the inventory because their architecture roles do not yet justify separate device pages.
 
 The personal administrative workstation is intentionally referenced only by role because it is not core homelab infrastructure and detailed hardware specifications are not required to explain the architecture.
 

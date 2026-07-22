@@ -55,7 +55,7 @@ A tested procedure should state exactly what the test proved. Network-isolated r
 - Backup-job failure notification and response after automated monitoring exists.
 - DNS failure response and future alert handling.
 - Certificate-expiration response after notification routing exists.
-- UPS power-loss, graceful-shutdown, and recovery procedure after Project 005.
+- UPS power-loss, graceful-shutdown, and recovery procedure after Project 006.
 - VM decommissioning.
 - Independent `mon01` restore validation.
 
